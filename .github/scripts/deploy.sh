@@ -27,7 +27,10 @@ fi
 if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
 	mkdir -p ../deploy-backups
 	PATCH="../deploy-backups/server-edits-$(date +%Y%m%d-%H%M%S).patch"
-	git diff > "$PATCH"
+	# `git diff HEAD`, not plain `git diff`: the check above also matches staged
+	# changes, and plain `git diff` omits those - which would write an empty
+	# patch and let the reset destroy them anyway.
+	git diff HEAD > "$PATCH"
 	echo "WARNING: server had uncommitted edits to tracked files."
 	echo "         Saved to $(cd .. && pwd)/deploy-backups/$(basename "$PATCH")"
 	echo "         Apply with: git apply <patch>"
