@@ -5636,7 +5636,14 @@ if($billGeneratedMonths==4){
 
             #check if this data can be prefetched
             if (!empty($billDueDate) && !empty($billGeneratedDate)) {
-                $paymentCondition = array('MemberPayment.member_id' => $memberId,'MemberPayment.payment_date < ' => $billGeneratedDate,'MemberPayment.payment_date >= ' => $lastBillGeneratedDate, 'MemberPayment.society_id' => $societyId,'MemberPayment.bill_type' => $billType,'MemberPayment.member_transfer' => $latestTransferNo,'MemberPayment.member_transfer' => $this->financialYearId,'NOT' => array('MemberPayment.id' => $chqRetPayId));
+                $paymentCondition = array('MemberPayment.member_id' => $memberId,'MemberPayment.payment_date < ' => $billGeneratedDate,'MemberPayment.payment_date >= ' => $lastBillGeneratedDate, 'MemberPayment.society_id' => $societyId,'MemberPayment.bill_type' => $billType,'MemberPayment.member_transfer' => $latestTransferNo,'NOT' => array('MemberPayment.id' => $chqRetPayId));
+                    // The array above used to repeat 'MemberPayment.member_transfer', the
+                    // second one assigning a financial year id. PHP keeps only the last
+                    // value for a duplicate key, so the transfer filter was silently
+                    // replaced by a year id, matched almost nothing, and interest was
+                    // charged on a principal that payments had never been deducted from.
+                    // The payment window is already bounded by the two payment_date
+                    // conditions, so no year filter is needed here.
                 
                 $memberPaymentData = $this->MemberPayment->find('all', array('conditions' => $paymentCondition,'order'=>array('MemberPayment.payment_date'=>'asc')));            
 
@@ -8237,7 +8244,13 @@ if($billGeneratedMonths==4){
                                 
                                 $memberBillSummaryDetails[$billSummaryCounter]['MemberBillSummary']['monthly_principal_amount'] = $memberBillSummaryDetails[$billSummaryCounter]['MemberBillSummary']['monthly_amount'] - $memberBillSummaryDetails[$billSummaryCounter]['MemberBillSummary']['discount'];
                                 $memberBillSummaryDetails[$billSummaryCounter]['MemberBillSummary']['monthly_bill_amount'] = $memberBillSummaryDetails[$billSummaryCounter]['MemberBillSummary']['monthly_principal_amount'] + $memberBillSummaryDetails[$billSummaryCounter]['MemberBillSummary']['interest_on_due_amount'] + $memberBillSummaryDetails[$billSummaryCounter]['MemberBillSummary']['tax_total'];
-                                $amountPayable = $memberBillSummaryDetails[$billSummaryCounter]['MemberBillSummary']['op_due_amount'] + $memberBillSummaryDetails[$billSummaryCounter]['MemberBillSummary']['monthly_bill_amount']+$jvAdjustment;
+                                // Was $jvAdjustment, which is only ever assigned inside
+          // calculateMembersRegularBillByTariff() - never in this function. On PHP 5/7
+          // that read as null and the sum happened to work; on PHP 8 it warns and
+          // amount_payable degrades, which is why bill edit "worked before, not now".
+          // $jvDebitedAmt is the variable this function actually maintains (see the
+          // jv_adjustment and principal_balance assignments above and below).
+          $amountPayable = $memberBillSummaryDetails[$billSummaryCounter]['MemberBillSummary']['op_due_amount'] + $memberBillSummaryDetails[$billSummaryCounter]['MemberBillSummary']['monthly_bill_amount']+$jvDebitedAmt;
                                 $memberBillSummaryDetails[$billSummaryCounter]['MemberBillSummary']['amount_payable'] = $amountPayable;
                                 
                                 if(!empty($latestTransferNo)){
@@ -10178,19 +10191,32 @@ if($billGeneratedMonths==4){
  
         $from_date = isset($postData['MemberBillSummary']['from_date']) ?$postData['MemberBillSummary']['from_date'] : '';
         $to_date = isset($postData['MemberBillSummary']['to_date']) ? $postData['MemberBillSummary']['to_date'] : '';
-        $from_date =  $this->Session->read('date.from_date');
-        $to_date =  $this->Session->read('date.to_date');
-        if(isset($from_date) && isset($to_date)){
 
-            //$query = "call delete_generated_bills($financialYearId,$societyLoginId,'$from_date','$to_date')";
-            //$this->SocietyBill->callProcedures($query);
-    	   $this->deleteSocietyMemberIdentifications($societyLoginId);
-           $this->deleteSocietyMemberBillGenerateData($from_date,$to_date,$societyLoginId);
-           $this->deleteSocietyMemberBillSummaryData($from_date,$to_date,$societyLoginId);
-           $this->deleteSocietyMemberPaymentData($from_date,$to_date,$societyLoginId);
-           $this->deleteSocietyMemberJournalData($from_date,$to_date,$societyLoginId);
+        // Only fall back to the range last listed on screen when the form did not
+        // carry one. This used to overwrite the posted dates unconditionally, so
+        // the period the user picked was discarded and the last listed range was
+        // always what got deleted.
+        if ($from_date === '') { $from_date = (string)$this->Session->read('date.from_date'); }
+        if ($to_date === '')   { $to_date   = (string)$this->Session->read('date.to_date'); }
 
+        // isset() cannot guard this - both variables always exist by now. An empty
+        // string would leave every `date >= ''` comparison matching, wiping the
+        // entire financial year, so require a real range instead.
+        if ($from_date === '' || $to_date === '') {
+            $this->Session->setFlash(__('Select a From and To date before deleting bills.'), 'error');
+            $this->redirect(array('action' => 'society_generated_bills'));
+            return;
         }
+
+        // NOTE: deleteSocietyMemberIdentifications() takes no date range - it clears
+        // every member identification for the society for the whole financial year,
+        // regardless of the period selected above. Left as-is because narrowing it
+        // changes what a transfer record means; raise before relying on this action.
+        $this->deleteSocietyMemberIdentifications($societyLoginId);
+        $this->deleteSocietyMemberBillGenerateData($from_date,$to_date,$societyLoginId);
+        $this->deleteSocietyMemberBillSummaryData($from_date,$to_date,$societyLoginId);
+        $this->deleteSocietyMemberPaymentData($from_date,$to_date,$societyLoginId);
+        $this->deleteSocietyMemberJournalData($from_date,$to_date,$societyLoginId);
 
         $this->layout = false;
         $this->redirect(array('action' => 'society_generated_bills'));
