@@ -1,0 +1,18 @@
+<IfModule mod_rewrite.c>
+    RewriteEngine on
+
+    # Redirect base path to webroot
+    RewriteRule ^$ webroot/ [L]
+
+    # Redirect all other requests to webroot
+    RewriteRule (.*) webroot/$1 [L]
+</IfModule>
+
+# Increase PHP memory limit to avoid "Allowed memory size exhausted" errors
+<IfModule mod_php7.c>
+    php_value memory_limit 256M
+</IfModule>
+
+<IfModule mod_php8.c>
+    php_value memory_limit 256M
+</IfModule>

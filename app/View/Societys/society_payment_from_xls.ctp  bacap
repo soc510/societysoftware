@@ -1,0 +1,168 @@
+<?php
+// echo "<pre>";
+// print_r($this->request->data);exit;
+?>
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-sm-12">
+            <div class="panel panel-default card-view">
+            	<?php echo $this->Session->flash(); ?>
+                <div class="panel-heading">
+                    <div class="pull-left">
+                        <h6 class="panel-title txt-dark">Import Society Payments</h6>
+                    </div>
+                    <div class="clearfix"></div>
+                </div>
+                <div class="panel-wrapper collapse in">
+                    <div class="panel-body">
+                        <div class="form-wrap">
+                            <div id="show_notify_error"></div>
+                            <form  method="post" id="societyPaymentsForm" name="Import societyPaymentsForm" autocomplete="off" enctype="multipart/form-data">
+                                <div class="row">
+                                    <div class="col-md-3 padding-1">
+                                        <div class="form-group">
+                                            <label for="ledger_head_id" class="control-label">Debit to</label>
+                                            <select class="form-control" id="ledger_head_id" name="data[SocietyPayment][ledger_head_id]" onchange="setSocietyPaymentParticularText(this.value);" required  >
+                                                <option value="">Select to Debit</option>
+                                                  <?php
+                                                        if (isset($societyExpenseLedgerHeadsLists) && count($societyExpenseLedgerHeadsLists) > 0) :
+                                                        $s = 1;
+                                                        foreach ($societyExpenseLedgerHeadsLists as $societyLedgerHeadsId => $societyLedgerHeadsTitle) {
+                                                            if (isset($this->request->data['SocietyPayment']['ledger_head_id']) && $this->request->data['SocietyPayment']['ledger_head_id'] == $societyLedgerHeadsId) {
+                                                                ?>
+                                                            <option value="<?php echo $societyLedgerHeadsId; ?>" selected=""><?php echo $societyLedgerHeadsTitle; ?></option>
+                                                                <?php } else { ?>
+                                                            <option value="<?php echo $societyLedgerHeadsId; ?>"><?php echo $societyLedgerHeadsTitle; ?></option>
+                                                                <?php
+                                                             $s++;
+                                                            }
+                                                        } endif;
+                                                    ?>  
+                                            </select> 
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3 padding-1">
+                                        <div class="form-group">
+                                            <label for="entry_date" class="control-label">Payment Date<span class="required">*</span></label>
+                                            <input type="date" class="form-control" id="entry_date" name="data[SocietyPayment][payment_date]" min="<?= $financialYearStartDate; ?>" max="<?= $financialYearEndDate; ?>" value="<?php echo isset($this->request->data['SocietyPayment']['payment_date']) ? $this->request->data['SocietyPayment']['payment_date'] :$financialStartEndDate['firstDate']; ?>" required="">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3 padding-0">
+                                        <div class="form-group">
+                                            <label for="payment_type" class="control-label">Payment Type<span class="required">*</span></label>
+                                            <select name="data[SocietyPayment][payment_type]" id="payment_type" class="form-control input-group-lg" onchange="hideSocietyPaymentChequeInputFields(this.value);" required>
+                                                <option value="">Select payment mode</option>    
+                                                <option value="Bank" <?php if(isset($this->request->data['SocietyPayment']['payment_type']) && $this->request->data['SocietyPayment']['payment_type'] == 'Bank') { echo 'selected';}?>>Bank</option>   
+                                                <option value="Cash" <?php if(isset($this->request->data['SocietyPayment']['payment_type']) && $this->request->data['SocietyPayment']['payment_type'] == 'Cash') { echo 'selected';}?>>Cash</option>   
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3 padding-1">
+                                        <div class="form-group">
+                                           <label for="" class="control-label">By<span class="required">*</span></label>
+                                           <select name="data[SocietyPayment][payment_by_ledger_id]" id="bank_payment_by_ledger_id" class="form-control input-group-lg"> 
+                                              <?php
+                                                    if (isset($this->request->data['SocietyPayment']['payment_type']) && $this->request->data['SocietyPayment']['payment_type'] == "Cash") {
+                                                        if (isset($societyCashBalanceHeadsLists) && count($societyCashBalanceHeadsLists) > 0):
+                                                            $s = 1;
+                                                            foreach ($societyCashBalanceHeadsLists as $societyBankId => $societyBankName) {
+                                                                if (isset($this->request->data['SocietyPayment']['payment_by_ledger_id']) && $this->request->data['SocietyPayment']['payment_by_ledger_id'] == $societyBankId) {
+                                                                    ?>
+                                                                    <option value="<?php echo $societyBankId; ?>" selected=""><?php echo $societyBankName; ?></option>
+                                                                <?php } else { ?>
+                                                                    <option value="<?php echo $societyBankId; ?>"><?php echo $societyBankName; ?></option>
+                                                                    <?php
+                                                                    $s++;
+                                                                }
+                                                            }
+                                                        endif;
+                                                    }
+                                                    ?>
+                                                    <?php
+                                                    if (isset($this->request->data['SocietyPayment']['payment_type']) && $this->request->data['SocietyPayment']['payment_type'] == "Bank") {
+                                                        if (isset($societyBankBalanceHeadsLists) && count($societyBankBalanceHeadsLists) > 0):
+                                                            $s = 1;
+                                                            foreach ($societyBankBalanceHeadsLists as $societyBankId => $societyBankName) {
+                                                                if (isset($this->request->data['SocietyPayment']['payment_by_ledger_id']) && $this->request->data['SocietyPayment']['payment_by_ledger_id'] == $societyBankId) {
+                                                                    ?>
+                                                                    <option value="<?php echo $societyBankId; ?>" selected=""><?php echo $societyBankName; ?></option>
+                                                                <?php } else { ?>
+                                                                    <option value="<?php echo $societyBankId; ?>"><?php echo $societyBankName; ?></option>
+                                                                    <?php
+                                                                    $s++;
+                                                                }
+                                                            }
+                                                        endif;
+                                                    }
+                                                    ?>
+                                           </select>
+                                         </div>
+                                    </div>
+                                </div> 
+                                <div class="clearfix"></div>
+                                <div class="row">
+                                    <div class="col-md-3 padding-1">
+                                        <div class="form-group">
+                                            <label for="" class="control-label">Particulars<span class="required">*</span></label>
+                                            <select class="form-control" id="particular-select" name="data[SocietyPayment][particulars-select]" onchange="setToAddNewParticulars(this.value);">
+                                            </select>
+                                            <input type="text" class="form-control" id="particular-text" name="data[SocietyPayment][particulars-text]" onkeyup="enableParicularSelect()" value="<?php echo isset($this->request->data['SocietyPayment']['particulars']) ? $this->request->data['SocietyPayment']['particulars'] :''; ?>" placeholder="Enter particulars" required="">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3 padding-1">
+                                        <div class="form-group">
+                                            <label for="" class="control-label">Amount<span class="required">*</span></label>
+                                            <input type="text" class="form-control" id="" name="data[SocietyPayment][amount]" value="<?php echo isset($this->request->data['SocietyPayment']['amount']) ? $this->request->data['SocietyPayment']['amount'] :''; ?>" placeholder="Enter Amount">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3 padding-1">
+                                        <div class="form-group">
+                                            <label for="" class="control-label">Tax Amount<span class="required">*</span></label>
+                                            <input type="text" class="form-control" id="" name="data[SocietyPayment][tax_amount]" value="<?php echo isset($this->request->data['SocietyPayment']['tax_amount']) ? $this->request->data['SocietyPayment']['tax_amount'] :''; ?>" placeholder="Enter Tax Amount">
+                                        </div>
+                                    </div>
+                                    <div class="so-check col-md-3 padding-1">
+                                        <div class="form-group">
+                                            <label for="cheque_reference_number" class="control-label">Cheque No </label>
+                                            <input type="text" class="form-control" id="cheque_reference_number" name="data[SocietyPayment][cheque_reference_number]" value="<?php echo isset($this->request->data['SocietyPayment']['cheque_reference_number']) ? $this->request->data['SocietyPayment']['cheque_reference_number'] :''; ?>" placeholder="Enter Cheque No.">
+                                        </div>
+                                    </div>
+                                    <div class="so-check col-md-3 padding-1">
+                                        <div class="form-group">
+                                            <label for="entry_date" class="control-label">Cheque date<span class="required">*</span></label>
+                                            <input type="date" class="form-control" id="so_cheque_date" name="data[SocietyPayment][cheque_date]" min="<?= $financialYearStartDate; ?>" max="<?= $financialYearEndDate; ?>" value="<?php echo isset($this->request->data['SocietyPayment']['cheque_date']) ? $this->request->data['SocietyPayment']['cheque_date'] :$financialStartEndDate['firstDate']; ?>" placeholder="">
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="clearfix"></div>
+                                <div class="row">
+                                    <div class="col-md-3 padding-0">
+                                        <div class="form-group">
+                                            <label for="bill_voucher_number" class="control-label">Voucher No.</label>
+                                            <input type="text" class="form-control" id="bill_voucher_number" name="data[SocietyPayment][bill_voucher_number]" value="<?php echo isset($this->request->data['SocietyPayment']['bill_voucher_number']) ? $this->request->data['SocietyPayment']['bill_voucher_number'] :''; ?>" placeholder="Enter Voucher No." >
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6 padding-1">
+                                        <div class="form-group">
+                                            <label for="remark" class="control-label">Note<span class="required">*</span></label>
+                                            <select class="form-control" id="notes-select" name="data[SocietyPayment][notes-select]" onchange="setToAddNotes(this.value);">
+                                            </select>
+                                            <textarea class="form-control" id="notes-text" onkeyup="enableTextSelect()" name="data[SocietyPayment][notes-text]"><?php echo isset($this->request->data['SocietyPayment']['notes']) ? $this->request->data['SocietyPayment']['notes'] :''; ?></textarea>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="form-group mb-0 padding-0">
+                                     <div class="col-sm-offset-2 col-sm-10"> 
+                                        <button type="submit" data-toggle="tooltip" data-original-title="Make Payment" class="btn btn-success btn-anim" onclick=""><i class="icon-rocket"></i><span class="btn-text">Make Payment</span></button>                                        
+                                        <a type="button" data-toggle="tooltip" data-original-title="Go to member list" class="btn btn-success btn-anim" href="<?php echo Router::url(array('controller' =>'societys','action' =>'society_payments')); ?>"><i class="icon-rocket"></i><span class="btn-text">Cancel</span></a>                                                                            
+                                     </div>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+

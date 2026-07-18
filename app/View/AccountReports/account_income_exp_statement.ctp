@@ -1,0 +1,229 @@
+<?php error_reporting(0) ?>
+
+<html>
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-sm-12">
+            <div class="panel panel-default card-view">
+                <?php echo $this->Session->flash(); ?>
+                <div class="panel-heading">
+                    <div class="pull-left">
+                        <h6 class="panel-title txt-dark">Income Expenditure Statement</h6>
+                    </div>
+                    <div class="clearfix"></div>
+                </div>
+                <div class="panel-wrapper collapse in">
+                    <div class="panel-body">
+                        <div class="form-wrap">
+                            <div id="show_notify_error"></div>
+                            <form class="" method="post" id="memberMonthlyControFrm" name="memberMonthlyControFrm" data-parsley-trigger="blur" class="form_parsley" data-validate="parsley" autocomplete="off"> 
+                                <div class="col-md-12 member-tariff-left-box"> 
+                                    <div class="row">                                                       
+                                        <div class="col-md-2 nopadding">  
+                                            <div class="account-report-form-field-box">     
+                                                <div class="account-report-form-field-box">   
+                                                    <div class="account-report-form-box-label">From &nbsp;</div>  
+                                                    <input type="date" name='from_date' class="account-report-form-box-field-date-75"  value="<?php echo isset($postData['from_date']) ? $postData['from_date'] :'' ; ?>">
+                                                </div> 
+                                            </div>
+                                        </div>                                           
+                                        <div class="col-md-2 nopadding">  
+                                            <div class="account-report-form-field-box">     
+                                                <div class="account-report-form-field-box">   
+                                                    <div class="account-report-form-box-label">To &nbsp;</div>  
+                                                    <input type="date" name='to_date'  class="account-report-form-box-field-date-75" id=""  value="<?php echo isset($postData['to_date']) ? $postData['to_date'] :'' ; ?>">
+                                                </div> 
+                                            </div>
+                                        </div>   
+                                        <div class="col-md-8">                                
+                                            <div class="account-report-form-field-box">
+                                                <button type="submit" data-toggle="tooltip" data-original-title="" class="btn btn-success btn-sm btn-anim btn-sm"><i class="icon-rocket"></i><span class="btn-text">Show</span></button>  
+                                            <a type="button" data-toggle="tooltip" data-original-title="Print Friendly" class="btn btn-success btn-anim btn-sm" href="javascript:void(0);" onclick="printAllReports('print_income_exp_statement');"><i class="fa fa-print"></i><span class="btn-text">Print Friendly</span></a>                                                                            
+                                            <!--    <a data-toggle="tooltip" data-original-title="Export to PDF" class="btn btn-success btn-anim btn-sm" href="javascript:void(0);" onclick=""><i class="fa fa-file-excel-o"></i><span class="btn-text">Export to PDF</span></a>                                        -->
+                                                <a type="button" data-toggle="tooltip" data-original-title="Go to member payment list" class="btn btn-success btn-sm btn-anim btn-sm" href=""><i class="icon-rocket"></i><span class="btn-text">Cancel</span></a>                                                                            
+                                            </div>
+                                        </div>                                                         
+                                    </div>  
+                                </div> 
+                            </form> 
+                            <div class="clearfix"></div>
+                            <br><br><br>
+                            <div id="print_income_exp_statement">
+                            <div class="print-income-exp-statement">
+                                <div class="row">
+                                    <h5 class="text-center"><?php echo isset($societyDetails['Society']['society_name']) ? $societyDetails['Society']['society_name'] : ''; ?></h5>
+                                    <div class="report-address-heading"><?php echo isset($societyDetails['Society']['registration_no']) ? $societyDetails['Society']['registration_no'] : ''; ?></div>
+                                    <div class="report-address-heading"><?php echo isset($societyDetails['Society']['address']) ? $societyDetails['Society']['address'] : ''; ?></div>
+                                </div>
+                                <br>
+                                <div class="row1">
+                                    <div class="report-bill">Income & Expenditure Statement</div>
+                                    <?php if ($postData['TrialBalance']['from_date'] != '' && $postData['TrialBalance']['to_date'] != ''){?>
+                                <div class="report-bill">For the period <?php echo isset($postData['TrialBalance']['from_date']) ? $utilObj->getFormatDate($postData['TrialBalance']['from_date'],'d/m/Y') : '';  ?> to <?php echo isset($postData['TrialBalance']['to_date']) ? $utilObj->getFormatDate($postData['TrialBalance']['to_date'],'d/m/Y') : '';  ?></div>
+                                <?php } elseif ($postData['TrialBalance']['from_date'] != ''){?>
+                                <div class="report-bill">For Date <?php echo isset($postData['TrialBalance']['from_date']) ? $utilObj->getFormatDate($postData['TrialBalance']['from_date'],'d/m/Y') : '';  ?></div>
+                                <?php } elseif ($postData['TrialBalance']['payment_date_to'] != ''){?>
+                                <div class="report-bill">For Date <?php echo isset($postData['TrialBalance']['to_date']) ? $utilObj->getFormatDate($postData['TrialBalance']['to_date'],'d/m/Y') : '';  ?></div>
+                                <?php } else { ?>
+                                <div class="report-bill">As on Date <?php echo date('d/m/Y');?></div>  
+                                <?php
+                                $db = $this->Session->read('Auth.dbConfig');
+                                if ($db == 'default'){
+                                    $currentyear = '2021-2022';
+                                } else {
+                                    $currentyear = '2021-2022';
+                                }
+                                ?>
+                                <div class="report-bill">Financial Year <?php echo $currentyear;?></div> 
+                                <?php } ?>
+                                    <div class="text-center"></div>
+                                    <div class="report-bill-outer-section">
+                                        <div class="table-wrap1">
+                                            <table id="" class="table table-bordered padding-td-none padding-th-none" >
+                                                <tr>
+                                                    <td width="50%" valign="top">
+                                                        <table id="" class="table table-bordered padding-td-none padding-th-none" >
+                                                            <thead>
+                                                                    <tr>
+                                                                        <th>Previous Yr.(Rs.)</th>
+                                                                        <th>Expenditure</th>
+                                                                        <th>Current Yr.(Rs.1)</th>
+                                                                    </tr>
+                                                                </thead>
+                                                            <?php 
+                                                            $overIncome = 0;
+                                                            $overExpense = 0;
+                                                            $diffExpense = 0;
+                                                            $diffIncome = 0;
+                                                        
+
+                                                            $countExpenses = count($expenseHeads);
+                                                            $countIncome = count($incomeHeads);
+
+                                                            if($countIncome > $countExpenses) {
+                                                                $diffExpense = $countIncome-$countExpenses;
+                                                            } else if($countIncome < $countExpenses) {
+                                                                $diffIncome = $countExpenses-$countIncome;
+                                                            }
+                                                            $totalAmountExpenditure=0;
+                                                            foreach($expenseHeads as $headId => $headData) {
+
+                                                                $totalAmountExpenditure = $totalAmountExpenditure+$headData['txnAmount'];
+                                                                /*if(empty($headData['title'])) {
+                                                                    echo "<tr><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr>";
+                                                                    continue;
+                                                                }
+                                                                if(!empty($incomeHeads[$headId]['txnAmount'])) {
+                                                                    $headData['txnAmount'] = $incomeHeads[$headId]['txnAmount']-$headData['txnAmount'];
+                                                                }*/
+                                                                ?>
+                                                                <tr id="">
+                                                                        <td><?php echo $headData['openingAmount']; ?></td>
+                                                                        <td><?php echo $headData['title']; ?></td>
+                                                                        <td id="12"><?php echo $headData['txnAmount']; ?></td>
+                                                                </tr>
+                                                            <?php } 
+                                                            for($i=0;$i<$diffExpense;$i++) {
+                                                                echo "<tr><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr>";
+                                                            }
+                                                            ?>
+                                                            <tr id="">
+                                                                        <td>&nbsp;</td>
+                                                                        <td>&nbsp;</td>
+                                                                        <td>&nbsp;</td>
+                                                            </tr>   
+                                                            <tr id="">
+                                                                        <td>&nbsp;</td>
+                                                                        <td>&nbsp;</td>
+                                                                        <td id="totalamountexpenditure"><?php echo number_format(abs($totalAmountExpenditure),2);?>
+                                                                        </td>
+                                                            </tr>   
+                                                            <tr id="">
+                                                                        <td><?php echo $totalOpeningExpenses;?></td>
+                                                                        <td><b>Excess of Income Over Expenditure</b></td>
+                                                                        <td id="over_expenditure"></td>
+                                                            </tr>
+                                                            <tr id="">
+                                                                        <td></td>
+                                                                        <td><b>Total</b></td>
+                                                                        <td id="subtotal"><?php echo number_format(($totalExpenses),2);//echo number_format(($totalExpenses+$overIncome),2); ?></td>
+                                                            </tr>
+                                                        </table>
+                                                    </td>
+                                                    <td width="50%" valign="top">
+                                                        <table id="" class="table table-bordered padding-td-none padding-th-none" >
+                                                            <thead>
+                                                                    <tr>
+                                                                        <th>Previous Yr.(Rs.)</th>
+                                                                        <th>Income</th>
+                                                                        <th>Current Yr.(Rs.)</th>
+                                                                    </tr>
+                                                                </thead>
+                                                            <?php 
+                                                            $totalAmountIncome=0;
+                                                            foreach($incomeHeads as $headId => $headData) { 
+                                                   $totalAmountIncome = $totalAmountIncome + $headData['txnAmount'];
+                                                                ?>
+                                                                <tr id="">
+                                                                        <td><?php echo $headData['openingAmount']; ?></td>
+                                                                        <td><?php echo $headData['title']; ?></td>
+                                                                        <td id="4545"><?php echo $headData['txnAmount']; ?></td>
+                                                                </tr>
+                                                            <?php } 
+
+                                                            for($i=0;$i<$diffIncome;$i++) {
+                                                                echo "<tr><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr>";
+                                                            }
+                                                            ?>
+                                                            <tr id="">
+                                                                        <td>&nbsp;</td>
+                                                                        <td>&nbsp;</td>
+                                                                        <td>&nbsp;</td>
+                                                            </tr>    
+                                                            <tr id="">
+                                                                        <td><?php echo $totalOpeningIncome;?></td>
+                                                                        <td><b>Excess of Expenditure Over Income</b></td>
+                                                                        <td><b><?php if (($totalExpenses-$totalIncome) > 0) { $overExpense = abs($totalExpenses-$totalIncome); echo number_format(abs($totalExpenses-$totalIncome),2); } else { echo "0.00"; } ?></b></td>
+                                                            </tr>
+                                                            <tr id="">
+                                                                        <td></td>
+                                                                        <td><b>Total</b></td>
+                                                                        <td id="totalamountincome"><?php echo number_format(($totalAmountIncome),2); //echo number_format(($totalIncome+$overExpense),2); ?></td>
+                                                            </tr>
+                                                        </table>
+                                                    </td>
+                                                </tr>
+                                            </table>    
+                                           
+                                        </div>
+                                    </div>                                
+                                </div> <br>
+                                <div class="row">
+                                    <div class="col-md-6 col-xs-6 text-center"></div>
+                                    <div class="col-md-6 col-xs-3 text-center"><?php echo isset($societyDetails['Society']['society_name']) ? $societyDetails['Society']['society_name'] : ''; ?></div>
+                                    <div class="clearfix"></div><br><br>
+                                    <div class="col-md-6 col-xs-3 text-center"></div>
+                                    <div class="col-md-2 col-xs-3 text-center">Chairman</div>
+                                    <div class="col-md-2 col-xs-3 text-center">Secretary</div>
+                                    <div class="col-md-2 col-xs-3 text-center">Treasurer</div>
+                                </div>
+                            </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+</html>
+<script>
+var totalamountincome =  $('#totalamountincome').text();    
+$('#subtotal').text(totalamountincome);
+var subtotalval = $('#subtotal').text().split(",").join("");
+var totalamountexpenditure  = $('#totalamountexpenditure').text().split(",").join("");
+var total_val = Number(subtotalval)-Number(totalamountexpenditure);
+total_val = total_val.toLocaleString();
+
+$('#over_expenditure').text(total_val+".00");
+</script>

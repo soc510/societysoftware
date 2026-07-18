@@ -1,0 +1,1 @@
+<?phpApp::uses('AppModel', 'Model');/** * Role Model * * @property User $User */class BanksLedgerOpeningClosingModel extends AppModel {    public $useTable = 'society_bank_head_opening_year_wise';}

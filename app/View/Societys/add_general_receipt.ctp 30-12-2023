@@ -1,0 +1,159 @@
+<?php ?>
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-sm-12">
+            <div class="panel panel-default card-view">
+            	<?php echo $this->Session->flash(); ?>
+                <div class="panel-heading">
+                    <div class="pull-left">
+                        <h6 class="panel-title txt-dark">General Receipt (Non-Member Bank / Cash Receipt)</h6>
+                    </div>
+                    <div class="clearfix"></div>
+                </div>
+                <div class="panel-wrapper collapse in">
+                    <div class="panel-body">
+                        <div class="form-wrap">
+                            <div id="show_notify_error"></div>  
+                            <form class="society_payments_entry" method="post" id="society_general_receipt" name="society_general_receipt" data-parsley-trigger="blur" class="form_parsley" data-validate="parsley" autocomplete="off">
+                                <div class="modal-society-payment-form-box">
+                                    <div class="row1">  
+                                        <div class="field-box-2">
+                                            <div class="modal-form-pay-entry-box-label">Type<span class="required">*</span>&nbsp;</div> 
+                                            <select name="data[SocietyOtherIncomeHeader][payment_mode]" id="payment_type" class="modal-society-payment-field-dropdown-60" onchange="hideChequeDetailsFields(this.value);" required>
+                                                <option value="">Select payment mode</option>    
+                                                <option value="Bank" <?php if(isset($this->request->data['SocietyOtherIncome']['payment_mode']) && $this->request->data['SocietyOtherIncome']['payment_mode'] == 'Bank') { echo 'selected';}?>>Bank</option>   
+                                                <option value="Cash" <?php if(isset($this->request->data['SocietyOtherIncome']['payment_mode']) && $this->request->data['SocietyOtherIncome']['payment_mode'] == 'Cash') { echo 'selected';}?>>Cash</option>   
+                                            </select>
+                                        </div>
+                                        <div class="field-box-2">
+                                            <div class="modal-form-pay-entry-box-label">By<span class="required">*</span>&nbsp;</div> 
+                                            <select class="modal-society-payment-field-dropdown-70" id="society_payment_by_ledger" name="data[SocietyOtherIncomeHeader][society_bank_id]" required>
+                                                <option value="">Select Vendor</option>
+                                      <?php
+                                            if (isset($societyBankBalanceHeadsLists) && count($societyBankBalanceHeadsLists) > 0) :
+                                            $s = 1;
+                                            foreach ($societyBankBalanceHeadsLists as $societyLedgerHeadsId => $societyLedgerHeadsTitle) {
+                                         if (isset($otherIncomePostData[0]['SocietyOtherIncome']['society_bank_id']) && $otherIncomePostData[0]['SocietyOtherIncome']['society_bank_id'] == $societyLedgerHeadsId) {
+                                                    ?>
+                                                <option value="<?php echo $societyLedgerHeadsId; ?>" selected=""><?php echo $societyLedgerHeadsTitle; ?></option>
+                                            <?php } else { ?>
+                                                <option value="<?php echo $societyLedgerHeadsId; ?>"><?php echo $societyLedgerHeadsTitle; ?></option>
+                                            <?php
+                                            $s++;
+                                                }
+                                            } endif;
+                                      ?>  
+                                            </select>
+                                        </div>
+
+                                        <br><br>                     
+                                        <div class="col-md-8 nopadding">
+                                            <label class="checkbox-inline">
+                                                <input type="checkbox" name="generate_one_voucher" value="Y">Below Payment(s) To Be Created A Single Voucher
+                                            </label>
+                                        </div>
+                                        <div class="col-md-4 nopadding modal-society-payment-form-btn">
+                                            <button type="button" onclick="saveSocietyGeneralReciepts();" class="btn btn-default btn-icon left-icon btn-sm"><i class="fa fa-save"></i> Save General Receipt</button>
+                                            <button type="button" class="btn btn-warning btn-icon left-icon btn-sm"><a href="<?php echo Router::url(array('controller' =>'societys','action' =>'general_receipt')); ?>"><i class="fa fa-times"></i> Cancel</a></button>
+                                        </div>
+                                    </div>
+                                    <div class="clearfix"></div>
+                                    <div class="row">
+                                        <div style="padding: 8px;">
+                                            <div class="table-wrap">
+                                                <div class="table-responsive">
+                                                    <table id="datable_1" class="table table-hover table-bordered padding-th-none padding-td-none" >
+                                                        <thead>
+                                                            <tr>
+                                                                <th>Sr.</th>
+                                                                <th>Paid&nbsp;to</th>
+                                                                <th>Payment&nbsp;Date</th>
+                                                                <th>Amount</th>
+                                                                <th class="hide_content">Chq.&nbsp;Date</th>
+                                                                <th class="hide_content">Chq.&nbsp;No</th>
+                                                                <th class="hide_content">Bank&nbsp;Name</th>
+                                                                <th>Particulars</th>
+                                                                <th>Remark</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody> 
+                                                            <?php 
+                                                            //echo "<pre>";print_r($otherIncomePostData); die;
+                                                            if(isset($otherIncomePostData) && !empty($otherIncomePostData)){
+                                                                $tableData = "";
+                                                                $counter = 1;
+                                                                $tableData .= "<tr id='$counter'>";
+                                                                foreach($otherIncomePostData as $PostData){
+                                                                    $tableData .= "<td>$counter</td>";
+                                                                    $tableData .= "<td>
+                                                                                    <input type='hidden' class='td-editable form-control'  name='data[SocietyOtherIncome][$counter][id]' value='".$PostData['SocietyOtherIncome']['id']."'>
+                                                                                    <select id='society_bank_id form-control' name='data[SocietyOtherIncome][$counter][ledger_head_id]'>";
+                                                                                        if (isset($societyOtherIncomeHeadsLists) && count($societyOtherIncomeHeadsLists) > 0) : 
+                                                                                            foreach ($societyOtherIncomeHeadsLists as $societyLedgerHeadsId => $societyLedgerHeadsTitle) {
+                                                                                            if (isset($PostData['SocietyOtherIncome']['ledger_head_id']) && $PostData['SocietyOtherIncome']['ledger_head_id'] == $societyLedgerHeadsId) {
+                                                                                                $tableData .= "<option value='$societyLedgerHeadsId' selected=''>$societyLedgerHeadsTitle</option>";
+                                                                                            }else{
+                                                                                                $tableData .= "<option value='$societyLedgerHeadsId'>$societyLedgerHeadsTitle</option>";
+                                                                                            }
+                                                                                          }
+                                                                                     endif;
+                                                                    $tableData .=  "</select></td>";
+                                                                    $tableData .= "<td><input type='date' class='td-editable form-control' id='payment_date' name='data[SocietyOtherIncome][$counter][payment_date]' value='".$PostData['SocietyOtherIncome']['payment_date']."'></td>";
+                                                                    $tableData .= "<td><input type='text' class='numeric td-editable  numeric-field' id='amount_paid' name='data[SocietyOtherIncome][$counter][amount_paid]' value='".$PostData['SocietyOtherIncome']['amount_paid']."'></td>";
+                                                                    $tableData .= "<td class='hide_content'><input type='date' class='td-editable form-control' id='cheque_date' name='data[SocietyOtherIncome][$counter][cheque_date]' value='".$PostData['SocietyOtherIncome']['cheque_date']."'></td>";
+                                                                    $tableData .= "<td  class='hide_content'><input type='text' class='td-editable form-control' id='cheque_no' name='data[SocietyOtherIncome][$counter][cheque_no]' value='".$PostData['SocietyOtherIncome']['cheque_no']."'></td>";
+                                                                    $tableData .= "<td><input type='text' class='td-editable form-control' id='title' name='data[SocietyOtherIncome][$counter][title]' value='".$PostData['SocietyOtherIncome']['title']."'></td>";
+                                                                    $tableData .= "<td><input type='text' class='td-editable form-control' id='description' name='data[SocietyOtherIncome][$counter][description]' value='".$PostData['SocietyOtherIncome']['description']."'></td>";
+                                                                                                                  
+                                                                    //print_r($PostData);
+                                                                }
+                                                                $tableData .= "</tr>";
+                                                                echo $tableData;
+                                                                
+                                                            }else{
+                                                            for($i=1;$i<10;$i++){?>
+                                                            <tr id="<?php echo $i;?>">
+                                                                <td><?php echo $i;?></td>
+                                                                <td style="width: 20%;">
+                                                                    <select id="society_bank_id form-control" name="data[SocietyOtherIncome][<?php echo $i; ?>][ledger_head_id]" style='width:100%;'>
+                                                                        <option value="">Select Ledger</option>
+                                                                            <?php
+                                                                                if (isset($societyOtherIncomeHeadsLists) && count($societyOtherIncomeHeadsLists) > 0) :
+                                                                                $s = 1;
+                                                                                foreach ($societyOtherIncomeHeadsLists as $societyLedgerHeadsId => $societyLedgerHeadsTitle) {
+                                                                                        if (isset($this->request->data['SocietyOtherIncome']['ledger_head_id']) && $this->request->data['SocietyOtherIncome']['ledger_head_id'] == $societyLedgerHeadsId) {
+                                                                                                ?>
+                                                                                        <option value="<?php echo $societyLedgerHeadsId; ?>" selected=""><?php echo $societyLedgerHeadsTitle; ?></option>
+                                                                                            <?php } else { ?>
+                                                                                        <option value="<?php echo $societyLedgerHeadsId; ?>"><?php echo $societyLedgerHeadsTitle; ?></option>
+                                                                                                <?php
+                                                                                         $s++;
+                                                                                        }
+                                                                                } endif;
+                                                                            ?> 
+                                                                    </select>
+                                                                </td>
+                                                                <td><input type="date" class="td-editable form-control" id="payment_date" min="<?= $financialYearStartDate; ?>" max="<?= $financialYearEndDate; ?>" name="data[SocietyOtherIncome][<?php echo $i; ?>][payment_date]" ></td>
+                                                                <td><input type="text" class="numeric td-editable  numeric-field" id="amount_paid" name="data[SocietyOtherIncome][<?php echo $i; ?>][amount_paid]" data-parsley-type="positive_decimal"></td>
+                                                                <td class="hide_content"><input type="date" class="td-editable form-control" id="cheque_date" name="data[SocietyOtherIncome][<?php echo $i; ?>][cheque_date]" min="<?= $financialYearStartDate; ?>" max="<?= $financialYearEndDate; ?>"></td>
+                                                                <td class="hide_content"><input type="text" class="td-editable form-control" id="cheque_no  cheque_reference_number" name="data[SocietyOtherIncome][<?php echo $i; ?>][cheque_no]"></td>
+                                                                 <td class="hide_content"><input class="td-editable form-control" id="general_bank_name" name="data[SocietyOtherIncome][<?php echo $i; ?>][general_bank_name]"></td>
+                                                                <td><input type="text" class="td-editable form-control" id="title" name="data[SocietyOtherIncome][<?php echo $i; ?>][title]"></td>
+                                                                <td><textarea  class="td-editable form-control" id="description" name="data[SocietyOtherIncome][<?php echo $i; ?>][description]"></textarea></td>
+                                                            </tr>
+                                                            <?php }} ?>
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>	
+                                </div>
+                            </form> 
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

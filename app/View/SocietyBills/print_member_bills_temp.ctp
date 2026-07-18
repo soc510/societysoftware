@@ -1,0 +1,546 @@
+<?php
+$paymentModeArray = array(1=>'Cash',3=>'Cheque',2=>'NEFT',4=>'Other');
+$societyLedgerHeadIds = array_keys($societyLedgerHeadTitleList);
+$monthArray = array(1=>'January',2=>'February',3=>'March',4=>'April',5=>'May',6=>'June',7=>'July',8=>'August',9=>'September',10=>'October',11=>'November',12=>'December',);
+$showBillsInReceipt = 0;
+if(isset($societyParameters['SocietyParameter']['show_bills_in_receipt']) && $societyParameters['SocietyParameter']['show_bills_in_receipt'] == 1){
+	$showBillsInReceipt = 1;
+}
+
+
+?>
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-sm-12">
+            <div class="panel panel-default card-view">
+            <?php echo $this->Session->flash(); ?>
+                <div class="panel-heading">
+                    <div class="pull-left">
+                        <button type="button" class="btn btn-success btn-icon left-icon" onclick="printAllReports('society_print_bill');"><i class="fa fa-print"></i><span> Print</span></button>
+                    </div>
+                    <div class="clearfix"></div>
+                </div>
+                <div class="panel-wrapper collapse in">
+                    <div class="panel-body">
+                        <div class="form-wrap">
+                            <div id="show_notify_error">
+                            </div>
+                            <div id="society_print_bill">
+                                <div id="page-break1">
+
+                                    <?php foreach($printBillDetails as $memberId=>$printBill) {
+                                        $societyDetails = $printBill['memberDetails']['Society'];
+                                        $memberDetails = $printBill['memberDetails']['Member'];
+                                        $buildingDetails = $printBill['memberDetails']['Building'];
+                                        $wingDetails = $printBill['memberDetails']['Wing'];
+                                        $billSummary = $printBill['MemberBillSummary'];
+                                        $tariff = $printBill['tariff'];
+                                        $memberReceipts = $printBill['receipts'];
+                                        $printHeader = ($billSummary['bill_type'] == "reg") ? "Maintenance":"Supplementary";
+                                    ?>
+                                    <div class="society-print-bill">                                        
+                                        <div class="bill-outer-border">
+                                            <div class="row">
+                                                <h5 class="text-center"><?php echo $societyDetails['society_name'];?></h5>
+                                                <div class="address-heading">Registration Number. <?php echo $societyDetails['registration_no'];?> Dated: 
+<?php 
+if($societyDetails['registration_date']=='31/12/1969'){
+    echo date('d/m/Y',strtotime($societyDetails['registration_date']));
+} else {
+    echo "00/00/0000";
+}
+
+?></div>
+                                                <div class="address-heading"><?php echo $societyDetails['address'];?></div>
+                                            </div>
+                                        <div class="bill"><?php echo $printHeader; ?> Bill</div>
+                                            <div class="simple-border"></div>
+                                            <div class="col-md-9 col-xs-9">
+                                                <div class="row">
+                                                    <div class="col-md-3 col-sm-3 col-xs-3">
+<?php
+if($_GET['unit_type']=='Unit No'){
+$_GET['unit_type']='Unit Number';
+}
+?>
+                                                        <div class=""><?php echo ($_GET['unit_type'] == 'Flat-Shop') ? (($memberDetails['commercial'] != '0' && $memberDetails['commercial'] != '') ? 'Shop Number' : 'Flat Number') : $_GET['unit_type']; ?> : <strong><?php echo $memberDetails['flat_no'];?></strong> </div>
+                                                    </div>
+                                                    <div class="col-md-4 col-sm-4 col-xs-4">
+                                                        <div class="">Unit Area : <?php echo $memberDetails['area'];?> SqFt</div>
+                                                    </div>
+                                                    <div class="col-md-5 col-sm-5 col-xs-5">
+                                                        <div class="">Unit type : <?php if($memberDetails['unit_type'] == 'C') { echo 'Commercial';} else if($memberDetails['unit_type'] == 'R') { echo 'Residential';} else if($memberDetails['unit_type'] == 'B') { echo 'Both';} else { echo $memberDetails['unit_type']; }?></div>
+                                                    </div>
+                                                </div>                                                    
+                                                <div class="row">
+                                                    <div class="col-md-12 col-xs-12">
+                                                        <div class="">Name &nbsp;&nbsp; : &nbsp;<?php echo $memberDetails['member_prefix'].' '.$memberDetails['member_name'];?></div>
+                                                    </div>
+                                                    <div class="col-md-12 col-xs-12">
+                                                        <div class="">Bill For Feb- March 2021 &nbsp; : &nbsp;</div>
+                                                    
+                                                                                                
+                                                <div class="row">
+                                                    <div class="col-md-4 col-sm-4 col-xs-4">
+                                                        <div class="">Wing &nbsp;&nbsp;&nbsp;&nbsp; : &nbsp;<?php echo $wingDetails['wing_name'];?></div>
+                                                    </div>
+                                                    <div class="col-md-4 col-sm-4 col-xs-4">
+                                                        <div class="">Floor Number : <?php echo $memberDetails['floor_no'];?></div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-3 col-xs-3">
+                                                <div class="row">
+                                                    <div class="col-md-12 col-xs-12">
+                                                        <div class=""><strong>Bill Number &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;: &nbsp;&nbsp;<?php echo $billSummary['bill_no'];?></strong></div>
+                                                    </div>
+                                                    <div class="col-md-12 col-xs-12">
+                                                        <div class=""><strong>Bill Date &nbsp;&nbsp;&nbsp;: &nbsp;&nbsp;<?php echo date('d/m/Y',strtotime($billSummary['bill_generated_date']));?></strong></div>
+                                                    </div>
+                                                    <div class="col-md-12 col-xs-12">
+                                                        <div class=""><strong>Due Date &nbsp;&nbsp;: &nbsp;&nbsp;<?php echo date('d/m/Y',strtotime($billSummary['bill_due_date']));?></strong></div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="row1">
+                                                <div style="padding: 0px;">
+                                                    <div class="table-wrap">
+                                                        <div class="">
+                                                            <table class="table table-print-all-bill padding-th-none-zero padding-td-none-zero table-bordered print-custom-table-border">
+                                                                <thead>
+                                                                    <tr>
+                                                                        <th class="text-center" style="width: 5% !important;" >Sr.</th>
+                                                                        <th colspan="3" class="text-center">Particular of Charges</th>
+                                                                        <th class="text-center">Amount</th>
+                                                                    </tr>
+                                                                </thead>
+                                                                <?php
+                                                                    $tariffSr = 1;
+                                                                    $memberBillTariff = array();
+                                                                    foreach($tariff as $key=>$indTariff) {
+                                                                    if($indTariff['MemberBillGenerate']['amount'] > 0) {
+                                                                            $memberBillTariff[] = $indTariff['MemberBillGenerate']['ledger_head_id'];
+                                                                            $ledgerHead = $ledgerHeadDetails[$indTariff['MemberBillGenerate']['ledger_head_id']];
+                                                                            $ledgerAmount = $indTariff['MemberBillGenerate']['amount'];
+                                                                            echo "<tr>
+                                                                                    <td style='text-align:center;'>$tariffSr</td>
+                                                                                    <td  colspan=\"3\" >&nbsp; $ledgerHead</td>
+                                                                                    <td style='width:10%;' class='text-right'>";
+                                                                            echo number_format($ledgerAmount,2);
+                                                                            echo "</td>
+                                                                                    </tr>";
+                                                                            $tariffSr++;
+                                                                    }
+                                                                } 
+                                                                if(isset($societyParameters['SocietyParameter']['show_all_tariff_name']) && $societyParameters['SocietyParameter']['show_all_tariff_name'] == 1){                                                                            
+                                                                        if(!empty($societyLedgerHeadIds)) {
+                                                                            $tariffsNotInBill = array_diff($societyLedgerHeadIds,$memberBillTariff);
+                                                                            if(!empty($tariffsNotInBill)) {
+                                                                                foreach($tariffsNotInBill as $headId) {                                                                        
+                                                                                        $ledgerHead = $societyLedgerHeadTitleList[$headId];
+                                                                                        $ledgerAmount = '0.00';
+                                                                                        echo "<tr>
+                                                                                                <td style='text-align:center;width: 5% !important;'>$tariffSr</td>
+                                                                                               <td  colspan=\"3\" >&nbsp; $ledgerHead</td>
+                                                                                                <td style='width:14%;' class='text-right'>$ledgerAmount</td>
+                                                                                                </tr>";
+                                                                                        $tariffSr++;
+                                                                                 }
+                                                                            }
+                                                                        }
+                                                                    }
+                                                                ?>
+
+                                                                <tr>
+                                    <td colspan="2" rowspan="5" style="width:50% !important;"><?php if(trim($billSummary['remarks']) != ''){ ?>&nbsp;&nbsp;<?php echo $billSummary['remarks'];?><?php } ?></td>
+                                                                    <td colspan="2" >&nbsp; Total</td>
+                                                                    <td class="text-right" style="font-weight:bold;"><b>
+                                                                        <?php 
+                                                                            $totalTariffAmount =  $billSummary['monthly_amount'] - $billSummary['tax_total'];
+                                                                            echo number_format($totalTariffAmount,2);
+                                                                        ?>
+                                                                        </b></td>
+                                                                </tr>
+                                                                <tr>
+                                                                    <td colspan="2" >&nbsp; Interest</td>
+                                                                    <td class="text-right"><?php echo number_format($billSummary['interest_on_due_amount'],2); ?></td>
+                                                                </tr>
+                                                                <tr>
+                                                                    <td colspan="2" >&nbsp; Less: Adjustment</td>
+                                                                    <td class="text-right"><?php echo number_format($billSummary['principal_adjusted']+$billSummary['interest_adjusted']+$billSummary['discount'],2);?></td>
+                                                                </tr>
+                                                                <tr>
+                                                                    <td >&nbsp; Principal Arrears</td>                                                                    
+                                                                    <td class="text-right" >
+                                                                        <?php
+                                                                        $totalArrears = $billSummary['op_principal_arrears'];
+                                                                        if($totalArrears < 0) { $posNeg = '<span class="notranslate">Cr</span>'; }
+                                                                        else { $posNeg = '<span class="notranslate">Dr</span>'; }
+                                                                        $totalArrears = abs($totalArrears);
+                                                                        echo number_format($totalArrears,2).' '.$posNeg;
+                                                                        ?>                                                                      
+                                                                    </td>  
+                                                                    <td class="text-right" rowspan="2">
+                                                                        <?php if($billSummary['op_due_amount'] < 0) { $posNeg = '<span class="notranslate">Cr</span>'; }
+                                                                        else { $posNeg = '<span class="notranslate">Dr</span>'; }
+                                                                        $billSummary['op_due_amount'] = abs($billSummary['op_due_amount']);
+                                                                        echo number_format($billSummary['op_due_amount'],2).' '.$posNeg;
+                                                                        ?>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr>
+                                                                    <td>&nbsp; Interest Arrears</td>
+                                                                    <td class="text-right"><?php echo $utilObj->CreditDebitAmountCheck($billSummary['op_interest_arrears']) ;?></td>
+                                                                </tr>
+                                                                <tr>
+                                                                    <td colspan="2" >&nbsp; <span class='font-weight-bold'>Rupees <?php echo ucwords($wordsFunction($billSummary['amount_payable']));?> Only</span></td>
+                                                                    <td colspan="2" >
+                                                                    <?php  if($billSummary['amount_payable'] < 0) { echo "<span class='font-weight-bold'>&nbsp; Excess Amount Received</span>";  } else { echo "<span class='font-weight-bold'>&nbsp; Total Due Amount & Payable</span>"; } ?>
+                                                                    </td>
+                                                                    <td class="text-right">
+                                                                    <?php  if($billSummary['amount_payable'] < 0) { $posNeg = '<span class="notranslate">Cr</span>'; }
+                                                                    else { $posNeg = '<span class="notranslate">Dr</span>'; }
+                                                                    $billSummary['amount_payable'] = abs($billSummary['amount_payable']);
+
+                                                                    echo "<span class='font-weight-bold'>".number_format($billSummary['amount_payable'],2).' '.$posNeg.'</span>';
+                                                                    ?>
+                                                                    </td>
+                                                                </tr>
+
+                                                            </table>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div class="col-md-12 col-xs-12">
+                                                <strong>Notes: </strong>
+                                                <div><?php echo $societyParameters['SocietyParameter']['bill_note']; ?> </div> 
+                                            </div>
+                                            <div class="clearfix"></div>
+
+<?php
+$check_div = empty($memberReceipts)? 'none':'block';
+?>
+
+
+
+                                            <div class="col-md-12 col-xs-12">
+                                                <p class="pull-right">for <?php echo $societyDetails['society_name'];?>&nbsp;&nbsp; </p>
+                                                <br> <br>
+                                                <p class="pull-right"><?php echo isset($societyDetails['authorised_person']) ? $societyDetails['authorised_person'] : 'Authorised Signature'; ?>&nbsp;&nbsp;</p>
+                                            </div>
+                                            <div class="clearfix"></div>
+                                            <div class="col-md-12 col-xs-12 special-field-text" style="display:<?php echo  $check_div; ?>"><?php echo $societyParameters['SocietyParameter']['special_field']; ?></div>
+                                            <br>
+                                            <div class="row simple-border-dotted" style="padding:0px;"></div>
+
+                                            <div class="row bill-padding-5" style="display:<?php echo  $check_div; ?>">
+                                                <div class="receipt-title">RECEIPT</div>
+                                                <div class="col-md-8 col-xs-8">Received with thanks from <strong><?php echo $memberDetails['member_prefix'].' '.$memberDetails['member_name'];?></strong></div>
+                                                <div class="col-md-4 col-xs-4 text-right"><?php echo ($_GET['unit_type'] == 'Flat-Shop') ? (($memberDetails['commercial'] != '0' && $memberDetails['commercial'] != '') ? 'Shop Number' : 'Flat Number') : $_GET['unit_type']; ?> :<strong> <?php echo $memberDetails['flat_no'];?></strong></div>
+                                                <div class="clearfix"></div>
+                                                <?php if(isset($receiptPeriod['From']) && !empty($receiptPeriod['From']) && isset($receiptPeriod['To']) && !empty($receiptPeriod['To'])) { ?>
+                                                <div class="col-md-12">Details of payments received are as under : <strong>Period : <?php echo date('d/m/Y',strtotime($receiptPeriod['From']));?> To <?php echo date('d/m/Y',strtotime($receiptPeriod['To']));?></strong></div>
+                                                <?php } else { ?>
+                                                <div class="col-md-12">Details of payments received are as under : <strong>Period : 01/04/2018 To Till date</strong></div>
+                                                <?php } ?>
+                                            </div>
+                                            <div class="row1" style="display:<?php echo  $check_div; ?>">
+                                                <div style="padding: 0px;">
+                                                    <div class="table-wrap">
+                                                        <div class="table-responsive">
+                                                            <table  class="table padding-th-none-zero padding-td-none-zero table-bordered print-custom-table-border">
+                                                                <thead>
+                                                                    <tr>
+                                                                        <th style="width:6%;" class="text-center">Receipt</th>
+                                                                        <th style="width:10%;" class="text-center">Date</th>
+                                                                        <th style="width:8%;" class="text-center">Chq Number.</th>
+                                                                        <th style="width:10%;" class="text-center">Chq Date</th>
+                                                                        <th class="text-center">Bank & Branch</th>
+                                                                        <?php if($showBillsInReceipt == 1) {?><th style="width:18%;" class="text-center">Towards bill Number.</th><?php } ?>
+                                                                        <th style="width:8%;" class="text-center">Amount</th>
+                                                                    </tr>
+                                                                </thead>
+                                                                <tbody>
+                                                                <?php
+                                                                $receiptSr = 1;
+                                                                $memberTotalPaid = 0;
+
+                                                                foreach($memberReceipts as $key=>$receipt) {
+//if ($receiptSr > 1) 
+//break;                                                                    
+$receiptDetails = $receipt['MemberPayment'];
+                                                                    $paymentDate = date('d/m/Y',strtotime($receiptDetails['payment_date']));
+                                                                    $entryDate = date('d/m/Y',strtotime($receiptDetails['entry_date']));
+                                                                    $chequeDate = (!is_null($receiptDetails['entry_date']) && !empty($receiptDetails['entry_date'])) ? date('d/m/Y',strtotime($receiptDetails['entry_date'])) : '';
+                                                                    if (!is_null($receiptDetails['entry_date']) && !empty($receiptDetails['entry_date'])){
+                                                                        
+                                                                        if ($chequeDate > $paymentDate) {
+                                                                          $chequeDate = $paymentDate;
+                                                                        }
+                                                                    }
+                                                                    $billFor = $societyObj->monthWordFormatByBillingFrequency($billSummary['month']);	// for $billFor removed from the bill generated id
+								    if (!empty($receiptDetails['cheque_reference_number']) && !empty($receiptDetails['credited_date']))
+									//$paymentDate = date('d/m/Y',strtotime($receiptDetails['credited_date']));
+								    $paymentMode = $paymentModeArray[$receiptDetails['payment_mode']];
+									$rcpt = '';
+									if($showBillsInReceipt == 1) { 
+										$rcpt = "<td class=\"text-center\">".$receiptDetails[bill_generated_id]."</td>"; 
+									} 
+                                                                    echo "<tr id=\"\">
+                                                                            <td class=\"text-center\">$receiptDetails[receipt_id]</td>
+                                                                            <td class=\"text-center\">$paymentDate</td>
+                                                                            <td class=\"text-center\">$receiptDetails[cheque_reference_number]</td>
+                                                                            <td class=\"text-center\">$chequeDate</td>
+                                                                            <td>".$banks[$receiptDetails['member_bank_id']].", $receiptDetails[member_bank_branch]</td>
+                                                                            ".$rcpt."
+                                                                            <td class=\"text-right\">".number_format($receiptDetails[amount_paid])."</td>
+                                                                           </tr>";
+
+                                                                    $memberTotalPaid += $receiptDetails['amount_paid'];
+                                                                    $receiptSr++;
+                                                                } ?>
+                                                                    <tr id="">
+
+                                                                        <td colspan="4" >&nbsp; Rupees <?php echo ucwords($wordsFunction($memberTotalPaid));?> only</td>
+                                                                        <td class="font-weight-600">Total</td>
+                                                                        <td class="text-right"><?php echo number_format($memberTotalPaid); ?></td>
+                                                                </tbody>
+                                                            </table>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="row" style="display:<?php echo  $check_div; ?>">
+                                                <div class="col-md-5">
+                                                    <div class="bill-padding-10">(Subject to Realisation of Cheque)</div>
+                                                </div>
+                                                <div class="col-md-7">
+                                                    <p class="pull-right">for <?php echo $societyDetails['society_name'];?>&nbsp;&nbsp; </p>
+                                                    <br> <br> <br>
+                                                    <p class="pull-right"><?php echo isset($societyDetails['authorised_person']) ? $societyDetails['authorised_person'] : 'Authorised Signature'; ?>&nbsp;&nbsp;</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                <?php } ?>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<?php
+function numberTowordsEnglish($num)
+{
+        $num = str_replace('-','',$num);
+
+        error_reporting(0);
+        $ones = array(
+        1 => "one",
+        2 => "two",
+        3 => "three",
+        4 => "four",
+        5 => "five",
+        6 => "six",
+        7 => "seven",
+        8 => "eight",
+        9 => "nine",
+        10 => "ten",
+        11 => "eleven",
+        12 => "twelve",
+        13 => "thirteen",
+        14 => "fourteen",
+        15 => "fifteen",
+        16 => "sixteen",
+        17 => "seventeen",
+        18 => "eighteen",
+        19 => "nineteen"
+        );
+        $tens = array(
+        1 => "ten",
+        2 => "twenty",
+        3 => "thirty",
+        4 => "forty",
+        5 => "fifty",
+        6 => "sixty",
+        7 => "seventy",
+        8 => "eighty",
+        9 => "ninety"
+        );
+        $hundreds = array(
+        "hundred",
+        "thousand",
+        "million",
+        "billion",
+        "trillion",
+        "quadrillion"
+        ); //limit t quadrillion
+        $num = number_format($num,2,".",",");
+        $num_arr = explode(".",$num);
+        $wholenum = $num_arr[0];
+        $decnum = $num_arr[1];
+        $whole_arr = array_reverse(explode(",",$wholenum));
+        krsort($whole_arr);
+        $rettxt = "";
+        foreach($whole_arr as $key => $i){
+        if($i < 20){
+        $rettxt .= $ones[$i];
+        }elseif($i < 100){
+        $rettxt .= $tens[substr($i,0,1)];
+        $rettxt .= " ".$ones[substr($i,1,1)];
+        }else{
+        $rettxt .= $ones[substr($i,0,1)]." ".$hundreds[0];
+        $rettxt .= " ".$tens[substr($i,1,1)];
+        $rettxt .= " ".$ones[substr($i,2,1)];
+        }
+        if($key > 0){
+        $rettxt .= " ".$hundreds[$key]." ";
+        }
+        }
+        if($decnum > 0){
+        $rettxt .= " and ";
+        if($decnum < 20){
+        $rettxt .= $ones[$decnum];
+        }elseif($decnum < 100){
+        $rettxt .= $tens[substr($decnum,0,1)];
+        $rettxt .= " ".$ones[substr($decnum,1,1)];
+        }
+        }
+        return $rettxt;
+}
+// function numberTowordsEnglish($number = false)
+// {
+//     //A function to convert numbers into Indian readable words with Cores, Lakhs and Thousands.
+//         $words = array(
+//         '0'=> '' ,'1'=> 'one' ,'2'=> 'two' ,'3' => 'three','4' => 'four','5' => 'five',
+//         '6' => 'six','7' => 'seven','8' => 'eight','9' => 'nine','10' => 'ten',
+//         '11' => 'eleven','12' => 'twelve','13' => 'thirteen','14' => 'fouteen','15' => 'fifteen',
+//         '16' => 'sixteen','17' => 'seventeen','18' => 'eighteen','19' => 'nineteen','20' => 'twenty',
+//         '30' => 'thirty','40' => 'fourty','50' => 'fifty','60' => 'sixty','70' => 'seventy',
+//         '80' => 'eighty','90' => 'ninty');
+       
+//         //First find the length of the number
+//         $number_length = strlen($number);
+//         //Initialize an empty array
+//         $number_array = array(0,0,0,0,0,0,0,0,0);       
+//         $received_number_array = array();
+       
+//         //Store all received numbers into an array
+//         for($i=0;$i<$number_length;$i++){   $received_number_array[$i] = substr($number,$i,1);    }
+
+//         //Populate the empty array with the numbers received - most critical operation
+//         for($i=9-$number_length,$j=0;$i<9;$i++,$j++){ $number_array[$i] = $received_number_array[$j]; }
+//         $number_to_words_string = "";       
+//         //Finding out whether it is teen ? and then multiplying by 10, example 17 is seventeen, so if 1 is preceeded with 7 multiply 1 by 10 and add 7 to it.
+//         for($i=0,$j=1;$i<9;$i++,$j++){
+//             if($i==0 || $i==2 || $i==4 || $i==7){
+//                 if($number_array[$i]=="1"){
+//                     $number_array[$j] = 10+$number_array[$j];
+//                     $number_array[$i] = 0;
+//                 }       
+//             }
+//         }
+       
+//         $value = "";
+//         for($i=0;$i<9;$i++){
+//             if($i==0 || $i==2 || $i==4 || $i==7){   $value = $number_array[$i]*10; }
+//             else{ $value = $number_array[$i];    }           
+//             if($value!=0){ $number_to_words_string.= $words["$value"]." "; }
+//             if($i==1 && $value!=0){    $number_to_words_string.= "crores "; }
+//             if($i==3 && $value!=0){    $number_to_words_string.= "lakhs ";    }
+//             if($i==5 && $value!=0){    $number_to_words_string.= "thousand "; }
+//             if($i==6 && $value!=0){    $number_to_words_string.= "hundred "; }
+//         }
+//         if($number_length>9){ $number_to_words_string = "Sorry This does not support more than 99 Crores"; }
+//         $number_to_words_string = explode(" ", $number_to_words_string);
+//         $firstCharacterCapital = ucwords($number_to_words_string[0]);
+//         unset($number_to_words_string[0]);
+//         $number_to_words_string = implode(" ", $number_to_words_string);
+//         return $number_to_words_string = $firstCharacterCapital." ".strtolower($number_to_words_string);
+// }
+
+function numberTowordsMarathi($num)
+{
+        $num = str_replace('-','',$num);
+
+        error_reporting(0);
+        $ones = array(
+        1 => " एक ",
+        2 => " दोन ",
+        3 => " तीन ",
+        4 => " चार ",
+        5 => " पाच ",
+        6 => " सहा ",
+        7 => " सात ",
+        8 => " आठ ",
+        9 => " नऊ ",
+        10=> " दहा ",
+        11=> " अकरा ",
+        12=> " बारा ",
+        13=> " तेरा ",
+        14=> " चौदा ",
+        15 => " पंधरा ",
+        16 => " सोळा ",
+        17 => " सतरा ",
+        18 => " अठरा ",
+        19 => " एकोणीस ",
+        );
+        $tens = array(
+        1 => " दहा ",
+        2 => " वीस ",
+        3 => " तीस ",
+        4 => " चाळीस ",
+        5 => " पन्नास ",
+        6 => " साठ ",
+        7 => " सत्तर ",
+        8 => " ऐंशी ",
+        9 => " नव्वद ",
+        );
+        $hundreds = array(
+        " शंभर ",
+        " हजार ",
+        " दक्षलक्ष ",
+        " अब्ज ",
+        " अमेरिकेत ",
+        " चतुर्भुज ",चतुर्भुज
+        ); //limit t quadrillion
+        $num = number_format($num,2,".",",");
+        $num_arr = explode(".",$num);
+        $wholenum = $num_arr[0];
+        $decnum = $num_arr[1];
+        $whole_arr = array_reverse(explode(",",$wholenum));
+        krsort($whole_arr);
+        $rettxt = "";
+        foreach($whole_arr as $key => $i){
+        if($i < 20){
+        $rettxt .= $ones[$i];
+        }elseif($i < 100){
+        $rettxt .= $tens[substr($i,0,1)];
+        $rettxt .= " ".$ones[substr($i,1,1)];
+        }else{
+        $rettxt .= $ones[substr($i,0,1)]." ".$hundreds[0];
+        $rettxt .= " ".$tens[substr($i,1,1)];
+        $rettxt .= " ".$ones[substr($i,2,1)];
+        }
+        if($key > 0){
+        $rettxt .= " ".$hundreds[$key]." ";
+        }
+        }
+        if($decnum > 0){
+        $rettxt .= " and ";
+        if($decnum < 20){
+        $rettxt .= $ones[$decnum];
+        }elseif($decnum < 100){
+        $rettxt .= $tens[substr($decnum,0,1)];
+        $rettxt .= " ".$ones[substr($decnum,1,1)];
+        }
+        }
+        return $rettxt;
+}
+?>

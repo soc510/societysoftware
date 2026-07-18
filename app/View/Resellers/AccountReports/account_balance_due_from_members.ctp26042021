@@ -1,0 +1,59 @@
+<?php ?>
+<div class="container-fluid">
+<table cellborder='1'>
+<tbody>
+<tr>
+	<th>Sr. no</th>
+	<th>Flat No</th>
+	<th>Member Name</th>
+	<th>Current Year</th>
+	<th>Previous Year</th>
+</tr>
+                   <?php //TODO
+                                                if(isset($accountDuesMemberSummary) && count($accountDuesMemberSummary) > 0){
+                                                $idCount = 1;
+                                                $duesTotalAmount = 0;
+						$duesPrevAmount = 0;
+                                                foreach($accountDuesMemberSummary as $accountDuesMemberInfo){
+                                                   $duesTotalAmount += isset($accountDuesMemberInfo['total_dues_amount']) && !empty($accountDuesMemberInfo['total_dues_amount']) ? $accountDuesMemberInfo['total_dues_amount'] * 1 : 0.00;
+						   $duesPrevAmount+=isset($accountDuesMemberInfo['opening_balance']) && !empty($accountDuesMemberInfo['opening_balance']) ? $accountDuesMemberInfo['opening_balance'] * 1 : 0.00;
+                                                 ?>
+                                                    <tr id="<?php echo $idCount;  ?>">
+                                                        <td><?php echo $idCount;  ?></td>
+                                                        <td><?php echo isset($accountDuesMemberInfo['flat_no']) ? $accountDuesMemberInfo['flat_no'] : '';  ?></td>
+                                                        <td><?php echo isset($accountDuesMemberInfo['member_prefix']) ? $accountDuesMemberInfo['member_prefix'].$accountDuesMemberInfo['member_name'] : '';  ?> <?php echo isset($accountDuesMemberInfo['Member']['member_name']) ? $accountDuesMemberInfo['Member']['member_name'] : '';  ?></td>                                                    
+                                                        <td class="text-right"><?php echo isset($accountDuesMemberInfo['total_dues_amount']) ? $accountDuesMemberInfo['total_dues_amount'] : '';  ?></td>
+							<td class="text-right"><?php echo isset($accountDuesMemberInfo['opening_balance']) ? $accountDuesMemberInfo['opening_balance'] : '';  ?></td>
+                                                    </tr>      
+                                                <?php $idCount++; }?> 
+                                                    <tr id="">
+                                                        <td class="text-right" colspan="3" class="border-none">Total</td>
+                                                        <td class="text-right"><?php echo number_format($duesTotalAmount,2,'.',',');  ?></td>
+<td class="text-right"><?php echo number_format($duesPrevAmount,2,'.',',');  ?></td>
+                                                    </tr>                                                        
+                                                    <tr id="">
+                                                        <td class="text-right" colspan="3"><?php echo isset($societyDetails['Society']['society_name']) ? $societyDetails['Society']['society_name'] : ''; ?> Total</td>
+                                                        <td class="text-right"><?php echo number_format($duesTotalAmount,2,'.',','); ?></td>
+<td class="text-right"><?php echo number_format($duesPrevAmount,2,'.',',');  ?></td>
+                                                    </tr>                                                        
+                                                    <tr id="">
+                                                        <td class="text-right" colspan="3">Grand Total</td>
+                                                        <td class="text-right"><?php echo number_format($duesTotalAmount,2,'.',','); ?></td>
+<td class="text-right"><?php echo number_format($duesPrevAmount,2,'.',',');  ?></td>
+                                                    </tr> 
+                                                 <?php }else{?>
+                                                    <tr><td colspan="11"><center>Record not found.</center></td></tr>
+                                                <?php }?>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>  
+                                </div>  
+                            </div>  
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,2 @@
+1704909049
+a:4:{s:2:"id";a:6:{s:4:"type";s:7:"integer";s:4:"null";b:0;s:7:"default";N;s:6:"length";i:7;s:8:"unsigned";b:0;s:3:"key";s:7:"primary";}s:10:"society_id";a:5:{s:4:"type";s:7:"integer";s:4:"null";b:0;s:7:"default";N;s:6:"length";i:4;s:8:"unsigned";b:0;}s:14:"ledger_head_id";a:6:{s:4:"type";s:7:"integer";s:4:"null";b:0;s:7:"default";N;s:6:"length";i:4;s:8:"unsigned";b:0;s:7:"comment";s:25:"society ledger head type ";}s:13:"tariff_serial";a:5:{s:4:"type";s:7:"integer";s:4:"null";b:0;s:7:"default";N;s:6:"length";i:2;s:8:"unsigned";b:0;}}

@@ -1,0 +1,265 @@
+<div class="container-fluid">
+<div class="row">
+            <div class="col-lg-12 col-md-12 col-sm-12 col-xs-12">
+              <div class="dash-prameter-lists pull-left">
+                   <div class="dash-top-header-menu-list">
+                     <a href="#">Ledger Heads</a>
+                     <a href="#">Flat / Shop Detail</a>
+                     <a href="#">Bill</a>
+                     <a href="#">Member Receipts</a>
+                     <a href="#">Payment Entry</a>
+                     <a href="#">Generate Bill</a>
+                   </div>
+               </div>   
+                </div>
+        </div>
+
+    <div class="row">
+        <div class="col-sm-12">
+            <div class="panel panel-default card-view">
+                <div class="panel-heading">
+                    <div class="pull-left">
+                        <h6 class="panel-title txt-dark">Update Society Details</h6>
+                    </div>
+                    <div class="clearfix"></div>
+                </div>
+                <div class="panel-wrapper collapse in">
+                    <div class="panel-body">
+                        <div class="form-wrap">
+                            <div id="show_notify_error">
+
+                            </div>
+                            <form class="form-horizontal" method="post" id="SocietyUpdateForm" name="SocietyUpdateForm" data-parsley-trigger="blur" class="form_parsley" data-validate="parsley" autocomplete="off">
+                                <div class="row">
+                                    <div class="col-md-6">    
+                                        <div class="form-group">
+                                            <label class="control-label col-md-3" for="username_society">Society Name <span class="required">*</span></label>
+                                            <div class="col-md-9">
+                                                <input type="hidden" id="society_user_id" value="<?php echo isset($singleSocietyRecord['Society']['user_id']) ? $singleSocietyRecord['Society']['user_id'] : '';?>">
+                                                <input type="hidden" name="data[Society][id]" value="<?php echo isset($singleSocietyRecord['Society']['id']) ? $singleSocietyRecord['Society']['id'] : '';?>">
+                                                <input type="text" class="form-control" id="society_name" name="data[Society][society_name]"  maxlength="100" placeholder="Society Name" onblur="societyShortCode(this.value);" value="<?php echo isset($singleSocietyRecord['Society']['society_name']) ? $singleSocietyRecord['Society']['society_name'] : ''; ?>" required="">
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">    
+                                        <div class="form-group">
+                                            <label class="control-label col-md-3" for="username_society">ShortCode</label>
+                                            <div class="col-md-9">
+                                                <input type="text" readonly="readonly" class="form-control" id="society_code" name="data[Society][society_code]" placeholder="Society ShortCode" value="<?php echo isset($singleSocietyRecord['Society']['society_code']) ? $singleSocietyRecord['Society']['society_code'] : ''; ?>">
+                                            </div>
+                                        </div>
+                                    </div>    
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="form-group">
+                                            <label class="control-label col-md-3" for="registration_no">Registration No.</label>
+                                            <div class="col-md-9">
+                                                <input type="text" class="form-control" id="registration_no" name="data[Society][registration_no]" placeholder="Registration_no" value="<?php echo isset($singleSocietyRecord['Society']['registration_no']) ? $singleSocietyRecord['Society']['registration_no'] : ''; ?>">
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="form-group">
+                                            <label class="control-label col-md-3" for="registration_date">Registration Date</label>
+                                            <div class="col-md-9">
+                                                <input type="date" class="form-control" id="registration_date" name="data[Society][registration_date]" placeholder="Registration Date" value="<?php echo isset($singleSocietyRecord['Society']['registration_date']) ? $singleSocietyRecord['Society']['registration_date'] : ''; ?>">
+                                            </div>
+                                        </div>
+                                    </div>    
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="form-group">
+                                            <label class="control-label col-md-3" for="service_tax_no">Service Tax No.</label>
+                                            <div class="col-md-9">
+                                                <input type="text" class="form-control" id="service_tax_no" name="data[Society][service_tax_no]" placeholder="Service Tax No." value="<?php echo isset($singleSocietyRecord['Society']['service_tax_no']) ? $singleSocietyRecord['Society']['service_tax_no'] : ''; ?>">
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="form-group">
+                                            <label class="control-label col-md-3" for="address">Address<span class="required">*</span></label>
+                                            <div class="col-md-9">
+                                                <input type="text" class="form-control" id="address" name="data[Society][address]" placeholder="Address" value="<?php echo isset($singleSocietyRecord['Society']['address']) ? $singleSocietyRecord['Society']['address'] : ''; ?>" required="">
+                                            </div>
+                                        </div>
+                                    </div>    
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="form-group">
+                                            <label class="control-label col-md-3" for="telephone_no">Telephone No</label>
+                                            <div class="col-md-9">
+                                                <input type="text" class="form-control" id="telephone_no" name="data[Society][telephone_no]" placeholder="Telephone No" value="<?php echo isset($singleSocietyRecord['Society']['telephone_no']) ? $singleSocietyRecord['Society']['telephone_no'] : ''; ?>">
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">  
+                                        <div class="form-group">
+                                            <label class="control-label col-md-3" for="fax_no">Fax no.</label>
+                                            <div class="col-md-9">
+                                                <input type="text" class="form-control" id="fax_no" name="data[Society][fax_no]" placeholder="Fax no." value="<?php echo isset($singleSocietyRecord['Society']['fax_no']) ? $singleSocietyRecord['Society']['fax_no'] : ''; ?>">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="form-group">
+                                            <label class="control-label col-md-3" for="email_id">Email Id</label>
+                                            <div class="col-md-9">
+                                                <input type="text" class="form-control" id="email_id" name="data[Society][email_id]" placeholder="Email Id"  value="<?php echo isset($singleSocietyRecord['Society']['email_id']) ? $singleSocietyRecord['Society']['email_id'] : ''; ?>">
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="form-group">
+                                            <label class="control-label col-md-3" for="url">Society Url</label>
+                                            <div class="col-md-9">
+                                                <input type="text" class="form-control" id="url" name="data[Society][url]" placeholder="Society Url" data-parsley-type="url" maxlength="50" value="<?php echo isset($singleSocietyRecord['Society']['url']) ? $singleSocietyRecord['Society']['url'] : ''; ?>">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="form-group">
+                                            <label class="control-label col-md-3" for="tan_no">Tan No.</label>
+                                            <div class="col-md-9">
+                                                <input type="text" class="form-control" id="tan_no" name="data[Society][tan_no]" placeholder="Tan No." value="<?php echo isset($singleSocietyRecord['Society']['tan_no']) ? $singleSocietyRecord['Society']['tan_no'] : ''; ?>">
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="form-group">
+                                            <label class="control-label col-md-3" for="pan_no">Pan No.</label>
+                                            <div class="col-md-9">
+                                                <input type="text" class="form-control" id="pan_no" name="data[Society][pan_no]" placeholder="Pan No."  maxlength="20" value="<?php echo isset($singleSocietyRecord['Society']['pan_no']) ? $singleSocietyRecord['Society']['pan_no'] : ''; ?>">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="form-group">
+                                            <label class="control-label col-md-3" for="circle">Circle</label>
+                                            <div class="col-md-9">
+                                                <input type="text" class="form-control" id="circle" name="data[Society][circle]" placeholder="Circle" value="<?php echo isset($singleSocietyRecord['Society']['circle']) ? $singleSocietyRecord['Society']['circle'] : ''; ?>">
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="form-group">
+                                            <label class="control-label col-md-3" for="gstin_no">GSTIN No.</label>
+                                            <div class="col-md-9">
+                                                <input type="text" class="form-control" id="gstin_no" name="data[Society][gstin_no]" placeholder="GSTIN No." data-parsley-type="gst_no" maxlength="20" value="<?php echo isset($singleSocietyRecord['Society']['gstin_no']) ? $singleSocietyRecord['Society']['gstin_no'] : ''; ?>">
+                                            </div>
+                                        </div>
+                                    </div> 
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="form-group">
+                                            <label class="control-label col-md-3" for="cgst_no">CGST No.</label>
+                                            <div class="col-md-9">     
+                                                <input type="text" class="form-control" id="cgst_no" name="data[Society][cgst_no]" placeholder="CGST No" value="<?php echo isset($singleSocietyRecord['Society']['cgst_no']) ? $singleSocietyRecord['Society']['cgst_no'] : ''; ?>">
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="form-group">
+                                            <label class="control-label col-md-3" for="igst_no">IGST No.</label>
+                                            <div class="col-md-9">
+                                                <input type="text" class="form-control" id="igst_no" name="data[Society][igst_no]" placeholder="IGST No" value="<?php echo isset($singleSocietyRecord['Society']['igst_no']) ? $singleSocietyRecord['Society']['igst_no'] : ''; ?>">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="form-group">
+                                            <label class="control-label col-md-3" for="is_conveyance">Is Conveyance</label>
+                                            <div class="col-md-9">
+                                                <select class="form-control" name="data[Society][is_conveyance]">
+                                                    <option value="0" <?php if($singleSocietyRecord['Society']['is_conveyance'] == 0) { echo 'selected';} ?>>No</option>
+                                                    <option value="1" <?php if($singleSocietyRecord['Society']['is_conveyance'] == 1) { echo 'selected';} ?>>Yes</option>
+                                                </select>                                                
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="form-group">
+                                            <label class="control-label col-md-3" for="conveynace_date">conveynace_date</label>
+                                            <div class="col-md-9">
+                                                <input type="date" class="form-control" id="conveynace_date" name="data[Society][conveynace_date]" placeholder="conveynace_date" value="<?php echo isset($singleSocietyRecord['Society']['conveynace_date']) ? $singleSocietyRecord['Society']['conveynace_date'] : ''; ?>">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="form-group">
+                                            <label class="control-label col-md-3" for="financial_year">Financial Year</label>
+                                            <div class="col-md-9">
+                                                <select class="form-control" name="data[Society][financial_year]">
+                                                    <option value="2014" <?php if($singleSocietyRecord['Society']['financial_year'] == 2014) { echo 'selected';} ?>>2014</option>
+                                                    <option value="2015" <?php if($singleSocietyRecord['Society']['financial_year'] == 2015) { echo 'selected';} ?>>2015</option>
+                                                    <option value="2016" <?php if($singleSocietyRecord['Society']['financial_year'] == 2016) { echo 'selected';} ?>>2016</option>
+                                                    <option value="2017" <?php if($singleSocietyRecord['Society']['financial_year'] == 2017) { echo 'selected';} ?>>2017</option>
+                                                    <option value="2018" <?php if($singleSocietyRecord['Society']['financial_year'] == 2018) { echo 'selected';} ?>>2018</option>
+                                                    <option value="2019" <?php if($singleSocietyRecord['Society']['financial_year'] == 2019) { echo 'selected';} ?>>2019</option>
+                                                    <option value="2020" <?php if($singleSocietyRecord['Society']['financial_year'] == 2020) { echo 'selected';} ?>>2020</option>
+                                                    <option value="2021" <?php if($singleSocietyRecord['Society']['financial_year'] == 2021) { echo 'selected';} ?>>2021</option>
+                                                    <option value="2022" <?php if($singleSocietyRecord['Society']['financial_year'] == 2022) { echo 'selected';} ?>>2022</option>
+                                                    <option value="2023" <?php if($singleSocietyRecord['Society']['financial_year'] == 2023) { echo 'selected';} ?>>2023</option>
+                                                    <option value="2024" <?php if($singleSocietyRecord['Society']['financial_year'] == 2024) { echo 'selected';} ?>>2024</option>
+                                                    <option value="2025" <?php if($singleSocietyRecord['Society']['financial_year'] == 2025) { echo 'selected';} ?>>2025</option>
+                                                    <option value="2026" <?php if($singleSocietyRecord['Society']['financial_year'] == 2026) { echo 'selected';} ?>>2026</option>
+                                                    <option value="2027" <?php if($singleSocietyRecord['Society']['financial_year'] == 2027) { echo 'selected';} ?>>2027</option>
+                                                </select>                                                
+                                            </div>
+                                        </div>
+                                    </di<option value="2014" <?php if($singleSocietyRecord['Society']['financial_year'] == 2014) { echo 'selected';} ?>>2014</option>
+
+                                    <div class="col-md-6">
+                                        <div class="form-group">
+                                            <label class="control-label col-md-3" for="authorised_person">Authorised Person</label>
+                                            <div class="col-md-9">
+                                                <input type="text" class="form-control" id="authorised_person" name="data[Society][authorised_person]" placeholder="Name of Authorised Person" value="<?php echo isset($singleSocietyRecord['Society']['authorised_person']) ? $singleSocietyRecord['Society']['authorised_person'] : ''; ?>">
+                                            </div>
+                                        </div>
+                                    </div> 
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="form-group">
+                                            <label class="control-label col-md-3" for="is_conveyance">Status</label>
+                                            <div class="col-md-9">
+                                                <select class="form-control" name="data[Society][status]">
+                                                    <option value="0" <?php if($singleSocietyRecord['Society']['status'] == 0) { echo 'selected';} ?>>InActive</option>
+                                                    <option value="1" <?php if($singleSocietyRecord['Society']['status'] == 1) { echo 'selected';} ?>>Active</option>
+                                                </select>                                                
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="form-group mb-0">
+                                    <div class="col-sm-offset-2 col-sm-10">
+                                        <?php echo $this->Html->link('<span class="btn-text">Cancel</span>',array('controller' => 'admin', 'action' => 'dashboard'), array('class' => 'btn btn-default', 'data-toggle' => 'tooltip', 'data-original-title' => 'Go to view socity details', 'escape' => false)); ?> 
+                                        <?php if (isset($singleSocietyRecord['User']['id']) && $singleSocietyRecord['User']['id'] != '') { ?>    
+                                        <button type="button" data-toggle="tooltip" data-original-title="Update society details" class="btn btn-success btn-anim" onclick="updateSocietyDetailsBySocietyId();"><i class="icon-rocket"></i><span class="btn-text">Update</span></button>
+                                        <?php } else { ?>
+                                        <button type="button" data-toggle="tooltip" data-original-title="Update society details" class="btn btn-success btn-anim" onclick="updateSocietyDetailsBySocietyId();"><i class="icon-rocket"></i><span class="btn-text">Update</span></button>
+                                        <?php } ?>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+

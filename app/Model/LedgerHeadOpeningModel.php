@@ -1,0 +1,1 @@
+<?phpApp::uses('AppModel', 'Model');/** * Role Model * * @property User $User */class LedgerHeadOpeningModel extends AppModel {    public $useTable = 'society_ledger_heads_opening_year_wise';}

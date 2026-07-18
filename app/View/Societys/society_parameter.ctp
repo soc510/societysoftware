@@ -1,0 +1,279 @@
+<link rel="stylesheet" href="https://code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css">
+
+<style>
+.ui-draggable, .ui-droppable {
+	background-position: top;
+}
+
+#sortable { list-style-type: none; margin: 0; padding: 0; width: 40%; }
+#sortable li { margin: 0 3px 3px 3px; padding: 0.4em; padding-left: 1.5em;}
+#sortable li span { position: absolute; margin-left: -1.3em; }
+ </style>
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-sm-12">
+            <div class="panel panel-default card-view">
+            <?php echo $this->Session->flash(); ?>
+                <div class="panel-heading">
+                    <div class="pull-left">
+                        <h6 class="panel-title txt-dark">Society Parameter</h6>
+                    </div>
+                    <div class="clearfix"></div>
+                </div>
+                <div class="panel-wrapper collapse in ">
+                    <form  method="post" id="societyParameters" name="societyParameters" autocomplete="off" enctype="multipart/form-data">
+                        <div class="panel-body">
+                            <div class="col-md-12" style="border:1px solid #cfcfcf;padding:5px;">
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                        <div class="col-md-12">
+                                            <div class="form-group">
+                                                <label for="frequency_type" class="control-label">Billing Frequency</label>                                            
+                                                <select class="form-control" id="frequency_type" name="data[SocietyParameter][billing_frequency_id]">
+                                                    <option value="">Select Billing Frequency </option>
+                                            <?php
+                                                if (isset($billingFrequencyLists) && count($billingFrequencyLists) > 0) :
+                                                    $s = 1;
+                                                    foreach ($billingFrequencyLists as $billingFrequencyId => $billingFrequencyName) {
+                                                        if (isset($this->request->data['SocietyParameter']['billing_frequency_id']) && $this->request->data['SocietyParameter']['billing_frequency_id'] == $billingFrequencyId) {
+                                                            ?>
+                                                    <option value="<?php echo $billingFrequencyId; ?>" selected=""><?php echo $billingFrequencyName; ?></option>
+                                                        <?php } else { ?>
+                                                    <option value="<?php echo $billingFrequencyId; ?>"><?php echo $billingFrequencyName; ?></option>
+                                                            <?php
+                                                            $s++;
+                                                        }
+                                                    } endif;
+                                                    ?> 
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-12">
+                                            <div class="form-group">
+                                                <label for="interest_type" class="control-label">Interest Type</label>                                            
+                                                <select class="form-control" id="interest_type" name="data[SocietyParameter][interest_type_id]">                                               
+                                                    <option value="">Select Interest Type </option>
+                                            <?php
+                                                if (isset($InterestTypeLists) && count($InterestTypeLists) > 0) :
+                                                    $s = 1;
+                                                    foreach ($InterestTypeLists as $InterestTypeId => $InterestTypeName) {
+                                                        if (isset($this->request->data['SocietyParameter']['interest_type_id']) && $this->request->data['SocietyParameter']['interest_type_id'] == $InterestTypeId) {
+                                                            ?>
+                                                    <option value="<?php echo $InterestTypeId; ?>" selected=""><?php echo $InterestTypeName; ?></option>
+                                                        <?php } else { ?>
+                                                    <option value="<?php echo $InterestTypeId; ?>"><?php echo $InterestTypeName; ?></option>
+                                                            <?php
+                                                            $s++;
+                                                        }
+                                                    } endif;
+                                                    ?> 
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-12">
+                                            <div class="form-group">
+                                                <label for="interest_method" class="control-label">Interest Method</label>                                            
+                                                <select class="form-control" id="interest_method" name="data[SocietyParameter][method_id]">                                               
+                                                    <option value="">Select Interest Method </option>
+                                            <?php
+                                                if (isset($InterestMethodLists) && count($InterestMethodLists) > 0) :
+                                                    $s = 1;
+                                                    foreach ($InterestMethodLists as $InterestMethodId => $InterestMethodName) {
+                                                        if (isset($this->request->data['SocietyParameter']['method_id']) && $this->request->data['SocietyParameter']['method_id'] == $InterestMethodId) {
+                                                            ?>
+                                                    <option value="<?php echo $InterestMethodId; ?>" selected=""><?php echo $InterestMethodName; ?></option>
+                                                        <?php } else { ?>
+                                                    <option value="<?php echo $InterestMethodId; ?>"><?php echo $InterestMethodName; ?></option>
+                                                            <?php
+                                                            $s++;
+                                                        }
+                                                    } endif;
+                                                    ?> 
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-12">
+                                            <div class="form-group">
+                                                <label for="interest_rate" class="control-label">Tariff Type</label>                                            
+                                                <select class="form-control" id="interest_rate" name="data[SocietyParameter][tariff_id]">                                               
+                                                    <option value="">Select Tariff Type </option>
+                                            <?php
+                                                if (isset($TariffTypeLists) && count($TariffTypeLists) > 0) :
+                                                    $s = 1;
+                                                    foreach ($TariffTypeLists as $TariffTypeId => $TariffTypeName) {
+                                                        //Temporarily hidden
+                                                        if($TariffTypeName == 'Composition' || $TariffTypeName == 'Floor') {
+                                                            continue;
+                                                        }
+                                                        if (isset($this->request->data['SocietyParameter']['tariff_id']) && $this->request->data['SocietyParameter']['tariff_id'] == $TariffTypeId) {
+                                                            ?>
+                                                    <option value="<?php echo $TariffTypeId; ?>" selected=""><?php  echo $TariffTypeName; ?></option>
+                                                        <?php } else { ?>
+                                                    <option value="<?php echo $TariffTypeId; ?>"><?php echo $TariffTypeName; ?></option>
+                                                            <?php
+                                                            $s++;
+                                                        }
+                                                    } endif;
+                                                    ?> 
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-12">
+                                            <div class="form-group">
+                                                <label for="interest_rate" class="control-label">Interest Rate (% yearly)</label>                                            
+                                                <input type="hidden" name="data[SocietyParameter][id]" value="<?php echo isset($this->request->data['SocietyParameter']['id']) ? $this->request->data['SocietyParameter']['id'] :''; ?>">
+                                                <input type="text" class="form-control" id="title" name="data[SocietyParameter][interest_rate]" value="<?php echo isset($this->request->data['SocietyParameter']['interest_rate']) ? $this->request->data['SocietyParameter']['interest_rate'] :''; ?>">
+                                            </div>
+                                        </div>
+                                        <div class="col-md-12">
+                                            <div class="form-group">
+                                                <label for="penality" class="control-label">Penality</label>                                            
+                                                <input type="hidden" name="data[SocietyParameter][id]" value="<?php echo isset($this->request->data['SocietyParameter']['id']) ? $this->request->data['SocietyParameter']['id'] :''; ?>">
+                                                <input type="text" class="form-control" id="title" name="data[SocietyParameter][penality]" value="<?php echo isset($this->request->data['SocietyParameter']['penality']) ? $this->request->data['SocietyParameter']['penality'] :''; ?>">
+                                            </div>
+                                        </div>
+                                        <div class="col-md-12">
+                                            <div class="form-group">
+                                                <label for="interest_plus_penality" class="control-label">Both interest And  Penality</label>                                            
+                                                <input type="hidden" name="data[SocietyParameter][id]" value="<?php echo isset($this->request->data['SocietyParameter']['id']) ? $this->request->data['SocietyParameter']['id'] :''; ?>">
+                                                <input type="text" class="form-control" id="title" name="data[SocietyParameter][interest_plus_penality]" value="<?php echo isset($this->request->data['SocietyParameter']['interest_plus_penality']) ? $this->request->data['SocietyParameter']['interest_plus_penality'] :''; ?>">
+                                            </div>
+                                        </div>
+                                        <div class="col-md-12">
+                                            <div class="form-group">
+                                                <label for="gst_limit" class="control-label">GST LIMIT</label>                                            
+                                                <input type="text" class="form-control" id="title" name="data[SocietyParameter][gst_limit]" value="<?php echo isset($this->request->data['SocietyParameter']['gst_limit']) ? $this->request->data['SocietyParameter']['gst_limit'] :''; ?>">
+                                            </div>
+                                        </div>
+                                        <div class="col-md-12">
+                                            <div class="form-group">                                                
+                                                <label for="special_field" class="control-label">Special Field</label> 
+                                                <textarea rows="4" cols="50" style="resize: none;" type="text" class="form-control" id="special_field" name="data[SocietyParameter][special_field]" value="<?php echo isset($this->request->data['SocietyParameter']['special_field']) ? $this->request->data['SocietyParameter']['special_field'] :''; ?>"><?php echo isset($this->request->data['SocietyParameter']['special_field']) ? $this->request->data['SocietyParameter']['special_field'] :''; ?></textarea>
+                                            </div>
+                                        </div>                                        
+                                        </div>
+                                       <div class="col-md-6">
+                                        <div class="col-md-12">
+                                            <div class="form-group">
+                                                <label for="interest_rate" class="control-label">IGST(%)</label>                                            
+                                                <input type="text" class="form-control" id="title" name="data[SocietyParameter][igst_tax_per]" value="<?php echo isset($this->request->data['SocietyParameter']['igst_tax_per']) ? $this->request->data['SocietyParameter']['igst_tax_per'] :''; ?>">
+                                            </div>
+                                        </div>
+                                        <div class="col-md-12">
+                                            <div class="form-group">
+                                                <label for="interest_rate" class="control-label">SGST(%)</label>                                            
+                                                <input type="text" class="form-control" id="title" name="data[SocietyParameter][sgst_tax_per]" value="<?php echo isset($this->request->data['SocietyParameter']['interest_rate']) ? $this->request->data['SocietyParameter']['sgst_tax_per'] :''; ?>">
+                                            </div>
+                                        </div>
+                                        <div class="col-md-12">
+                                            <div class="form-group">
+                                                <label for="interest_rate" class="control-label">CGST (%)</label>                                            
+                                                <input type="hidden" name="data[SocietyParameter][id]" value="<?php echo isset($this->request->data['SocietyParameter']['id']) ? $this->request->data['SocietyParameter']['id'] :''; ?>">
+                                                <input type="text" class="form-control" id="title" name="data[SocietyParameter][cgst_tax_per]" value="<?php echo isset($this->request->data['SocietyParameter']['cgst_tax_per']) ? $this->request->data['SocietyParameter']['cgst_tax_per'] :''; ?>">
+                                            </div>
+                                        </div>                                        
+                                        <div class="col-md-12">
+                                            <div class="form-group">                                                
+                                                <label for="bill_note" class="control-label">Bill Notes</label> 
+                                                <textarea rows="4" cols="50" style="resize: none;" type="text" class="form-control" id="bill_note" name="data[SocietyParameter][bill_note]" value="<?php echo isset($this->request->data['SocietyParameter']['bill_note']) ? $this->request->data['SocietyParameter']['bill_note'] :''; ?>"><?php echo isset($this->request->data['SocietyParameter']['bill_note']) ? $this->request->data['SocietyParameter']['bill_note'] :''; ?></textarea>
+                                            </div>
+                                        </div> 
+                                        <div class="col-md-12">
+                                            <div class="form-group">
+                                                <label for="is_tariff_mothly" class="control-label">Is Tariff Monthly</label>                                            
+                                                <select class="form-control" id="is_tariff_mothly" name="data[SocietyParameter][is_tariff_mothly]">                                                                                                   
+                                                    <option value="0"<?php if(isset($this->request->data['SocietyParameter']['is_tariff_mothly']) && $this->request->data['SocietyParameter']['is_tariff_mothly'] == 0) { echo 'selected';} ?>>No</option>                                            
+                                                    <option value="1"<?php if(isset($this->request->data['SocietyParameter']['is_tariff_mothly']) && $this->request->data['SocietyParameter']['is_tariff_mothly'] == 1) { echo 'selected';} ?>>Yes</option>                                            
+                                                </select>
+                                            </div>
+                                        </div> 
+                                        <div class="col-md-12">
+                                            <div class="form-group">
+                                                <label for="settlement" class="control-label">Settlement</label>                                            
+                                                <select class="form-control" id="settlement" name="data[SocietyParameter][settlement]"  >                                                                                                   
+                                                    <option value="1"<?php if(isset($this->request->data['SocietyParameter']['settlement']) && $this->request->data['SocietyParameter']['settlement'] == 1) { echo 'selected';} ?>>FIFO</option>                                            
+                                                    <option value="2"<?php if(isset($this->request->data['SocietyParameter']['settlement']) && $this->request->data['SocietyParameter']['settlement'] == 2) { echo 'selected';} ?>>LIFO</option>                                            
+                                                </select>
+                                            </div>
+                                        </div>                                         
+                                         <div class="col-sm-12" id="set-order-box">
+                                            <div class="panel panel-default card-view">
+                                                <div class="panel-heading">
+                                                    <div id="modal_society_ledger_order"></div>
+                                                    <div class="pull-left">
+                                                        <h6 class="panel-title txt-dark">Set Settlement Order</h6>
+                                                    </div>
+                                                    <div class="clearfix"></div>
+                                                </div>
+                                                <div class="panel-wrapper collapse in ">
+                                                    <?php 
+                                                        $sortedOrder = $this->request->data['SocietyParameter']['settle_order'];
+                                                        echo "<ul id=\"param-settle-order\">";
+                                                        echo "<li id=".$sortedOrder[0]." class=\"ui-state-default\"><span class=\"ui-icon ui-icon-arrowthick-2-n-s\"></span>".$sortedOrder[0]."</li>";
+                                                        echo "<li id=".$sortedOrder[1]." class=\"ui-state-default\"><span class=\"ui-icon ui-icon-arrowthick-2-n-s\"></span>".$sortedOrder[1]."</li>";
+                                                        echo "<li id=".$sortedOrder[2]." class=\"ui-state-default\"><span class=\"ui-icon ui-icon-arrowthick-2-n-s\"></span>".$sortedOrder[2]."</li>";
+                                                        echo "</ul>";
+                                                    ?>
+                                                <input type="hidden" name ='sorted_order' id="sorted_order" >
+                                                </div>	
+                                                 
+                                            </div>
+                                        </div>                                        
+                                        <div class="col-md-12">
+                                            <div class="form-group">
+                                                <label for="show_all_tariff_name" class="control-label">Show all tariff in bill</label>                                            
+                                                <select class="form-control" id="show_all_tariff_name" name="data[SocietyParameter][show_all_tariff_name]">                                                                                                   
+                                                    <option value="0"<?php if(isset($this->request->data['SocietyParameter']['show_all_tariff_name']) && $this->request->data['SocietyParameter']['show_all_tariff_name'] == 0) { echo 'selected';} ?>>No</option>                                            
+                                                    <option value="1"<?php if(isset($this->request->data['SocietyParameter']['show_all_tariff_name']) && $this->request->data['SocietyParameter']['show_all_tariff_name'] == 1) { echo 'selected';} ?>>Yes</option>                                            
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-12">
+                                            <div class="form-group">
+                                                <label for="show_bills_in_receipt" class="control-label">Show bill numbers in receipt</label>                                            
+                                                <select class="form-control" id="show_bills_in_receipt" name="data[SocietyParameter][show_bills_in_receipt]">                                                                                                   
+                                                    <option value="0"<?php if(isset($this->request->data['SocietyParameter']['show_bills_in_receipt']) && $this->request->data['SocietyParameter']['show_bills_in_receipt'] == 0) { echo 'selected';} ?>>No</option>                                            
+                                                    <option value="1"<?php if(isset($this->request->data['SocietyParameter']['show_bills_in_receipt']) && $this->request->data['SocietyParameter']['show_bills_in_receipt'] == 1) { echo 'selected';} ?>>Yes</option>                                            
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-12">
+                                            <div class="form-group">                                                
+                                                <label for="special_field" class="control-label">Apply Gst on Current Interest</label> 
+                                                <select class="form-control" id="gst_interest" name="data[SocietyParameter][gst_interest]">                                                                                                   
+                                                    <option value="N"<?php if(isset($this->request->data['SocietyParameter']['gst_interest']) && $this->request->data['SocietyParameter']['gst_interest'] == 'N') { echo 'selected';} ?>>No</option>                                            
+                                                    <option value="Y"<?php if(isset($this->request->data['SocietyParameter']['gst_interest']) && $this->request->data['SocietyParameter']['gst_interest'] == 'Y') { echo 'selected';} ?>>Yes</option>                                            
+                                                </select>                                                
+                                            </div>
+                                        </div>
+                                        <div class="col-md-12">
+                                            <div class="form-group">                                                
+                                                <label for="special_field" class="control-label">Apply Gst on Interest Arreas</label> 
+                                                <select class="form-control" id="gst_interest_arreas" name="data[SocietyParameter][gst_interest_arreas]">                                                                                                   
+                                                    <option value="N"<?php if(isset($this->request->data['SocietyParameter']['gst_interest_arreas']) && $this->request->data['SocietyParameter']['gst_interest_arreas'] == 'N') { echo 'selected';} ?>>No</option>                                            
+                                                    <option value="Y"<?php if(isset($this->request->data['SocietyParameter']['gst_interest_arreas']) && $this->request->data['SocietyParameter']['gst_interest_arreas'] == 'Y') { echo 'selected';} ?>>Yes</option>                                            
+                                                </select>                                                
+                                            </div>
+                                        </div> 
+                                        <div class="col-md-12">
+                                            <div class="form-group">                                                
+                                                <label for="Scanner Image" class="control-label">Scanner Image </label> 
+                                                <?php if(!empty($this->request->data['SocietyParameter']['scanner_image_path'])) echo $this->Html->image($this->request->data['SocietyParameter']['scanner_image_path'], array('height' => '100', 'width' => '100', 'fullBase' => true, 'plugin' => false)); ?>
+                                                <input type="file" class="form-control" id="title" name="data[SocietyParameter][scanner_image]" value="<?php echo isset($this->request->data['SocietyParameter']['scanner_image']) ? $this->request->data['SocietyParameter']['scanner_image'] :''; ?>">
+                                            </div>
+                                        </div>
+                                        </div>
+                                    </div>
+                                    <div class="form-group mb-0">
+                                        <div class="col-sm-offset-2 col-sm-10"> 
+                                           <button type="button" data-toggle="tooltip" data-original-title="Update Parameters" onclick="submitSocietyParameter()" class="btn btn-success btn-anim" onclick=""><i class="icon-rocket"></i><span class="btn-text">Add/Update Parameters</span></button>                                                                       
+                                        </div>
+                                    </div>
+                            </div>
+                        </div>                    
+                    </form>
+                </div>	
+            </div>
+        </div>
+    </div>
+</div>
