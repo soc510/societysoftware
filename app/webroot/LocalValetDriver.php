@@ -10,6 +10,14 @@ use Valet\Drivers\BasicValetDriver;
  * webroot/index.php instead - the same thing the Apache .htaccess does in
  * production. This file is ignored outside Herd/Valet.
  */
+
+// On the live servers Valet does not exist, so requesting this file directly
+// would fatal on the missing parent class and leak the path in the response.
+// Bail out instead - Valet has the class loaded by the time it scans drivers.
+if (!class_exists(BasicValetDriver::class, false)) {
+    return;
+}
+
 class LocalValetDriver extends BasicValetDriver
 {
     public function serves(string $sitePath, string $siteName, string $uri): bool
