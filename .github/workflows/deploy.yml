@@ -42,6 +42,36 @@ jobs:
 
       - uses: actions/checkout@v4
 
+      - name: Check required secrets
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+        run: |
+          # Without this the run dies inside ssh-keyscan with a bare
+          # "exit code 1", which says nothing about the actual cause.
+          missing=""
+          if [ -z "$SSH_HOST" ]; then missing="$missing SSH_HOST"; fi
+          if [ -z "$SSH_USER" ]; then missing="$missing SSH_USER"; fi
+          if [ -z "$DEPLOY_PATH" ]; then missing="$missing DEPLOY_PATH"; fi
+          if [ -z "$SSH_PRIVATE_KEY" ]; then missing="$missing SSH_PRIVATE_KEY"; fi
+          if [ -n "$missing" ]; then
+            echo "::error::Missing environment secrets:$missing"
+            echo ""
+            echo "Add them under: Settings -> Environments -> (testing|production)"
+            echo "                -> Environment secrets"
+            echo ""
+            echo "  SSH_HOST         88.222.245.214"
+            echo "  SSH_USER         the site user, e.g. societynew1"
+            echo "  DEPLOY_PATH      /home/<user>/htdocs/<domain>"
+            echo "  SSH_PRIVATE_KEY  contents of the deploy private key"
+            echo ""
+            echo "Full walkthrough: docs/DEPLOYMENT.md, section 3."
+            exit 1
+          fi
+          echo "All required secrets present."
+
       - name: Configure SSH
         env:
           SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
