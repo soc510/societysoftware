@@ -1,0 +1,81 @@
+name: Deploy
+
+# dev        -> testing subdomain
+# production -> live site
+# main       -> integration branch, never auto-deploys
+on:
+  push:
+    branches: [dev, production]
+  workflow_dispatch:
+    inputs:
+      target:
+        description: Environment to deploy
+        type: choice
+        options: [testing, production]
+        required: true
+
+# Two deploys to the same server at once would fight over the git checkout.
+concurrency:
+  group: deploy-${{ inputs.target || github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    # Secrets are scoped per environment, so the same step works for both.
+    # Add a required reviewer on the `production` environment in GitHub to make
+    # live deploys need an approval click.
+    environment: ${{ inputs.target || (github.ref_name == 'production' && 'production' || 'testing') }}
+
+    steps:
+      - name: Resolve branch for this environment
+        id: target
+        run: |
+          # Derived from the environment, not from github.ref, so dispatching
+          # "production" can never ship whatever branch you happened to be on.
+          if [ "${{ inputs.target || github.ref_name }}" = "production" ]; then
+            echo "branch=production" >> "$GITHUB_OUTPUT"
+          else
+            echo "branch=dev" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v4
+
+      - name: Configure SSH
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_PORT: ${{ vars.SSH_PORT || '22' }}
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -p "$SSH_PORT" -H "$SSH_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Deploy
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_PORT: ${{ vars.SSH_PORT || '22' }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+          BRANCH: ${{ steps.target.outputs.branch }}
+        run: |
+          ssh -i ~/.ssh/deploy_key -p "$SSH_PORT" "$SSH_USER@$SSH_HOST" \
+            "bash -s -- '$DEPLOY_PATH' '$BRANCH'" < .github/scripts/deploy.sh
+
+      - name: Health check
+        if: vars.SITE_URL != ''
+        run: |
+          # A deploy that returns 500 is a failed deploy, even if git succeeded.
+          for i in 1 2 3; do
+            code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 30 "${{ vars.SITE_URL }}" || echo 000)
+            if [ "$code" = "200" ]; then
+              echo "OK: ${{ vars.SITE_URL }} returned 200"
+              exit 0
+            fi
+            echo "attempt $i: got HTTP $code, retrying..."
+            sleep 5
+          done
+          echo "FAILED: ${{ vars.SITE_URL }} never returned 200 (last: $code)"
+          exit 1
