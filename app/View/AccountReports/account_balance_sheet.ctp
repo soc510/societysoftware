@@ -45,8 +45,25 @@ error_reporting(0);
                                             <div class="account-report-form-field-box">
                                                 <button type="submit" data-toggle="tooltip" data-original-title="" class="btn btn-success btn-sm btn-anim"><i class="icon-rocket"></i><span class="btn-text">Show</span></button>                                        
                                                 <a type="button" data-toggle="tooltip" data-original-title="Print Friendly" class="btn btn-success btn-anim btn-sm" href="javascript:void(0);" onclick="printAllReports('print_account_balancesheet');"><i class="fa fa-print"></i><span class="btn-text">Print Friendly</span></a>                                                                            
-                                                <a data-toggle="tooltip" data-original-title="Export to PDF" class="btn btn-success btn-anim btn-sm" href="javascript:void(0);" onclick=""><i class="fa fa-file-excel-o"></i><span class="btn-text">Export to PDF</span></a>  
-                                                <?php echo $this->Html->link('<i class="fa fa-download" style="color:#fff;font-size:10px;"></i> Export to Excel', array('controller'=>'excels_report','action' => 'download_account_balance_sheet','?' => array('to_date' => isset($postData['to_date']) ? base64_encode($postData['to_date']) : '','set_order' => isset($postData['set_order']) ? base64_encode($postData['set_order']) : '','order_liabilities' => isset($postData['order_liabilities']) ? base64_encode($postData['order_liabilities']) : '','order_assets' => isset($postData['order_assets']) ? base64_encode($postData['order_assets']) : '')), array('class' => 'btn btn-success btns','data-toggle' => 'tooltip', 'data-original-title' => 'download account balance sheet','escape' => false,'target' => '_blank')); ?> 
+                                                <?php /* onclick was empty - the button rendered but did nothing. Sends the same rendered block Print Friendly uses, so the PDF matches the screen; pick "Save as PDF" in the print dialog. */ ?>
+                                                <a data-toggle="tooltip" data-original-title="Export to PDF" class="btn btn-success btn-anim btn-sm" href="javascript:void(0);" onclick="printAllReports('print_account_balancesheet');"><i class="fa fa-file-pdf-o"></i><span class="btn-text">Export to PDF</span></a>
+                                                <?php
+                                                /*
+                                                 * The server-side export (ExcelsReportController::download_account_balance_sheet)
+                                                 * is hidden, not removed.
+                                                 *
+                                                 * It is a hand-copied fork of account_balance_sheet() that has drifted badly:
+                                                 * none of its fourteen ledger queries filter on financial_year_id, so it sums
+                                                 * every year at once, and its dues/advance figures come from getMembersDueAmount(),
+                                                 * which has no society filter, no year filter and no date bounds. On a society
+                                                 * with five years of vouchers that is a 15x overstatement, and the dues column
+                                                 * can include other societies' members.
+                                                 *
+                                                 * Use the "Export Excel" button instead - it exports the table rendered above,
+                                                 * so it always agrees with what is on screen. Re-enable this only once the
+                                                 * fork shares the page's data builder.
+                                                 */
+                                                ?>
                                                 <a type="button" data-toggle="tooltip" data-original-title="Go to member payment list" class="btn btn-success btn-sm btn-anim" href=""><i class="icon-rocket"></i><span class="btn-text">Cancel</span></a>                                                                            
                                               <div ><button type="button" class="btn btn-primary" onclick="export_product_excel()" value="Export" >Export  Excel</button></div>
                                             </div>
@@ -614,17 +631,34 @@ error_reporting(0);
             </div>
         </div>
     </div>
-</div
-<script lang="javascript" src="dist/xlsx.full.min.js"></script>
+</div>
 <script type="text/javascript" src="https://unpkg.com/xlsx@0.15.1/dist/xlsx.full.min.js"></script>
 <script>
+   /*
+    * Exports whatever the page is currently showing.
+    *
+    * This used to look up 'export_to_excel_balance_Sheet', an id that exists
+    * nowhere in this view, so getElementById returned null and the next line
+    * fell through to an undefined global - the button silently did nothing.
+    * The real container is 'print_account_balancesheet' (line 58), the same one
+    * Print Friendly uses.
+    *
+    * Reading the rendered table is deliberate: the figures come from whatever
+    * the page computed, so the spreadsheet can never drift away from the screen
+    * the way the server-side export in ExcelsReportController has.
+    */
    function export_product_excel(){
-      let export_to_excel_Balance__Sheet=document.getElementById('export_to_excel_balance_Sheet');
-      var pxe=XLSX.utils.table_to_book(export_to_excel_balance_sheet,{sheet:'Balance_Sheet'});
-      XLSX.write(pxe,{
-         bookType:'xlsx',
-         type:'base64'
-      });
-      XLSX.writeFile(pxe,'export_to_excel_balance_Sheet.xlsx');
+      var source = document.getElementById('print_account_balancesheet');
+      if (!source) {
+         alert('Balance sheet not loaded yet - press Show first.');
+         return;
+      }
+      var table = source.querySelector('table');
+      if (!table) {
+         alert('Nothing to export - press Show to load the balance sheet.');
+         return;
+      }
+      var book = XLSX.utils.table_to_book(table, {sheet: 'Balance Sheet'});
+      XLSX.writeFile(book, 'BalanceSheet.xlsx');
    }
 </script>
