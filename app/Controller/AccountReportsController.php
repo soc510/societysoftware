@@ -20694,7 +20694,38 @@ function account_balance_sheet() {
 				if ($headCategory == 'Income & Expenditure A/c.') {
 
 					$incomeExp = $this->account_income_exp_statement(1, $from_date, $to_date);
-                    $societyHeadSubCategory[$accountCategory][$headCategory]['heads'][$ledgerHeadId]['txnAmount'] = $incomeExp;
+
+					// Journal vouchers posted straight to this head used to disappear.
+					// The `continue` below skips the debit/credit accumulation every
+					// other head gets, and account_income_exp_statement() only sums
+					// income and expense category heads - not this liability head. So
+					// "Dr sinking fund / Cr income and expenditure" showed only its debit
+					// leg and the balance sheet came out short by the credit amount.
+					// Same credit - debit convention the normal heads use below.
+					$jvDebitOnHead = $this->JournalVoucher->find('first', array(
+						'conditions' => array(
+							'JournalVoucher.jv_debit_ledger_head_id' => $ledgerHeadId,
+							'JournalVoucher.financial_year_id' => $financialYearId,
+							'JournalVoucher.society_id' => $societyLoginID,
+							'JournalVoucher.voucher_date >=' => $from_date,
+							'JournalVoucher.voucher_date <=' => $to_date,
+						),
+						'fields' => array('sum(JournalVoucher.jv_amount_debited) as totalDebited'),
+					));
+					$jvCreditOnHead = $this->JournalVoucher->find('first', array(
+						'conditions' => array(
+							'JournalVoucher.jv_credit_ledger_head_id' => $ledgerHeadId,
+							'JournalVoucher.financial_year_id' => $financialYearId,
+							'JournalVoucher.society_id' => $societyLoginID,
+							'JournalVoucher.voucher_date >=' => $from_date,
+							'JournalVoucher.voucher_date <=' => $to_date,
+						),
+						'fields' => array('sum(JournalVoucher.jv_amount_credited) as totalCredited'),
+					));
+					$jvDrOnHead = empty($jvDebitOnHead[0]['totalDebited']) ? 0 : $jvDebitOnHead[0]['totalDebited'];
+					$jvCrOnHead = empty($jvCreditOnHead[0]['totalCredited']) ? 0 : $jvCreditOnHead[0]['totalCredited'];
+
+                    $societyHeadSubCategory[$accountCategory][$headCategory]['heads'][$ledgerHeadId]['txnAmount'] = $incomeExp + ($jvCrOnHead - $jvDrOnHead);
 					continue;
 				}
 
