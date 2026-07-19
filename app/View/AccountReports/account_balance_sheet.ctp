@@ -44,9 +44,9 @@ error_reporting(0);
                                         <div class="col-md-6">                                
                                             <div class="account-report-form-field-box">
                                                 <button type="submit" data-toggle="tooltip" data-original-title="" class="btn btn-success btn-sm btn-anim"><i class="icon-rocket"></i><span class="btn-text">Show</span></button>                                        
-                                                <a type="button" data-toggle="tooltip" data-original-title="Print Friendly" class="btn btn-success btn-anim btn-sm" href="javascript:void(0);" onclick="printAllReports('print_account_balancesheet');"><i class="fa fa-print"></i><span class="btn-text">Print Friendly</span></a>                                                                            
-                                                <?php /* onclick was empty - the button rendered but did nothing. Sends the same rendered block Print Friendly uses, so the PDF matches the screen; pick "Save as PDF" in the print dialog. */ ?>
-                                                <a data-toggle="tooltip" data-original-title="Export to PDF" class="btn btn-success btn-anim btn-sm" href="javascript:void(0);" onclick="printAllReports('print_account_balancesheet');"><i class="fa fa-file-pdf-o"></i><span class="btn-text">Export to PDF</span></a>
+                                                <a type="button" data-toggle="tooltip" data-original-title="Print Friendly" class="btn btn-success btn-anim btn-sm" href="javascript:void(0);" onclick="printAllReports('print_account_balancesheet', 'landscape');"><i class="fa fa-print"></i><span class="btn-text">Print Friendly</span></a>                                                                            
+                                                <?php /* onclick was empty, then briefly the same as Print Friendly - which only opened the print dialog, so the button never produced a file. It now writes the PDF straight out. */ ?>
+                                                <a data-toggle="tooltip" data-original-title="Export to PDF" class="btn btn-success btn-anim btn-sm" href="javascript:void(0);" onclick="export_product_pdf();"><i class="fa fa-file-pdf-o"></i><span class="btn-text">Export to PDF</span></a>
                                                 <?php
                                                 /*
                                                  * The server-side export (ExcelsReportController::download_account_balance_sheet)
@@ -633,6 +633,8 @@ error_reporting(0);
     </div>
 </div>
 <script type="text/javascript" src="https://unpkg.com/xlsx@0.15.1/dist/xlsx.full.min.js"></script>
+<script type="text/javascript" src="https://unpkg.com/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+<script type="text/javascript" src="https://unpkg.com/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
 <script>
    /*
     * Exports whatever the page is currently showing.
@@ -647,11 +649,21 @@ error_reporting(0);
     * the page computed, so the spreadsheet can never drift away from the screen
     * the way the server-side export in ExcelsReportController has.
     */
-   function export_product_excel(){
+   var isAmount = function (v) {
+      return /^-?[\d,]+(\.\d+)?\s*(Cr|Dr)?$/i.test(String(v).trim()) && /\d/.test(String(v));
+   };
+
+   /*
+    * Both exports need the same reading of the report - the two halves as plain
+    * grids, which rows are headings, where each half starts. Worked out once
+    * here so the spreadsheet and the PDF can never drift apart.
+    * Returns null and explains itself if the page has nothing to export yet.
+    */
+   function balanceSheetLayout(){
       var source = document.getElementById('print_account_balancesheet');
       if (!source) {
          alert('Balance sheet not loaded yet - press Show first.');
-         return;
+         return null;
       }
       /*
        * The first table on the page is only a layout shell: a single <tr> whose
@@ -664,15 +676,8 @@ error_reporting(0);
       var inner = source.querySelectorAll('.table-wrap1 > table > tbody > tr > td > table');
       if (!inner.length) {
          alert('Nothing to export - press Show to load the balance sheet.');
-         return;
+         return null;
       }
-
-      var esc = function (v) {
-         return String(v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-      };
-      var isAmount = function (v) {
-         return /^-?[\d,]+(\.\d+)?\s*(Cr|Dr)?$/i.test(String(v).trim()) && /\d/.test(String(v));
-      };
 
       var grids = [], widths = [], height = 0, i, r, c, w;
       for (i = 0; i < inner.length; i++) {
@@ -729,25 +734,8 @@ error_reporting(0);
          }
       }
 
-      /*
-       * Written as an HTML table with inline styles rather than a real .xlsx.
-       * The free build of SheetJS cannot write cell styles at all - borders,
-       * bold and alignment are paid features - and this report is read as a
-       * document, so the ruled layout matters. Excel opens HTML sent under the
-       * ms-excel type and applies the CSS. It may first warn that the extension
-       * does not match the contents; that is expected, answer Yes.
-       *
-       * The figures still come from the table rendered above, so they stay in
-       * step with the screen. Do not swap this for
-       * ExcelsReportController::download_account_balance_sheet, which is prettier
-       * but filters on no financial year at all and so adds every year together.
-       */
-      var BORDER = 'border:0.5pt solid #000;';
-      var html = [];
-      html.push('<table style="border-collapse:collapse;font-family:Calibri;font-size:11pt;">');
-
       // Society name, registration number, address, report title - the same
-      // block the page prints above the table.
+      // block the page prints above the table. Flagged bold or not.
       var banner = [];
       var h5 = source.querySelector('h5');
       if (h5 && h5.textContent.trim()) { banner.push([h5.textContent.trim(), true]); }
@@ -755,47 +743,209 @@ error_reporting(0);
       for (i = 0; i < addr.length; i++) {
          if (addr[i].textContent.trim()) { banner.push([addr[i].textContent.trim(), false]); }
       }
-      var title = source.querySelector('.report-bill');
-      if (title && title.textContent.trim()) { banner.push([title.textContent.trim(), true]); }
-      for (i = 0; i < banner.length; i++) {
-         html.push('<tr><td colspan="' + columns + '" style="text-align:center;' +
-                   (banner[i][1] ? 'font-weight:bold;' : '') + '">' +
-                   esc(banner[i][0]) + '</td></tr>');
+      var reportTitle = source.querySelector('.report-bill');
+      if (reportTitle && reportTitle.textContent.trim()) {
+         banner.push([reportTitle.textContent.trim(), true]);
       }
-      html.push('<tr><td colspan="' + columns + '"></td></tr>');
+
+      return {
+         grids: grids, widths: widths, height: height, columns: columns,
+         halfOf: halfOf, offsetOf: offsetOf, boldAt: boldAt,
+         cellAt: cellAt, banner: banner,
+         // The value at an output column, '' for the spacer between the halves.
+         valueAt: function (row, col) {
+            var half = halfOf[col];
+            return half < 0 ? '' : cellAt(half, row, col - offsetOf[half]);
+         },
+         boldFor: function (row, col) {
+            var half = halfOf[col];
+            return half >= 0 && boldAt[half][row];
+         }
+      };
+   }
+
+   function export_product_excel(){
+      var layout = balanceSheetLayout();
+      if (!layout) { return; }
+      var columns = layout.columns, height = layout.height, banner = layout.banner;
+      var halfOf = layout.halfOf, offsetOf = layout.offsetOf;
+      var i, r, c;
+
+      /*
+       * Written as SpreadsheetML 2003 rather than a real .xlsx.
+       *
+       * The free build of SheetJS cannot write cell styles at all - borders,
+       * bold and alignment are paid features - and this report is read as a
+       * document, so the ruled layout matters. An HTML table sent as ms-excel
+       * was tried first and Excel dropped most of the CSS; SpreadsheetML states
+       * every border and alignment outright, so what Excel shows is what is
+       * written here. Excel may warn that the extension does not match the
+       * contents; that is expected, answer Yes.
+       *
+       * The figures still come from the table rendered above, so they stay in
+       * step with the screen. Do not swap this for
+       * ExcelsReportController::download_account_balance_sheet, which is prettier
+       * but filters on no financial year at all and so adds every year together.
+       */
+      var xml = function (v) {
+         return String(v).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+                         .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+      };
+      var box = '<Borders>' +
+                ['Left', 'Right', 'Top', 'Bottom'].map(function (side) {
+                   return '<Border ss:Position="' + side +
+                          '" ss:LineStyle="Continuous" ss:Weight="1"/>';
+                }).join('') +
+                '</Borders>';
+
+      var out = [];
+      out.push('<?xml version="1.0"?>');
+      out.push('<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"' +
+               ' xmlns:o="urn:schemas-microsoft-com:office:office"' +
+               ' xmlns:x="urn:schemas-microsoft-com:office:excel"' +
+               ' xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">');
+      out.push('<Styles>');
+      out.push('<Style ss:ID="Default" ss:Name="Normal"><Font ss:FontName="Calibri" ss:Size="11"/>' +
+               '<Alignment ss:Vertical="Center"/></Style>');
+      out.push('<Style ss:ID="ttl"><Font ss:FontName="Calibri" ss:Size="14" ss:Bold="1"/>' +
+               '<Alignment ss:Horizontal="Center"/></Style>');
+      out.push('<Style ss:ID="sub"><Alignment ss:Horizontal="Center"/></Style>');
+      out.push('<Style ss:ID="hd"><Font ss:FontName="Calibri" ss:Size="11" ss:Bold="1"/>' +
+               '<Alignment ss:Horizontal="Center" ss:Vertical="Center" ss:WrapText="1"/>' + box + '</Style>');
+      out.push('<Style ss:ID="tx">' + box + '</Style>');
+      out.push('<Style ss:ID="nm"><Alignment ss:Horizontal="Right"/>' + box + '</Style>');
+      out.push('<Style ss:ID="bt"><Font ss:FontName="Calibri" ss:Size="11" ss:Bold="1"/>' + box + '</Style>');
+      out.push('<Style ss:ID="bn"><Font ss:FontName="Calibri" ss:Size="11" ss:Bold="1"/>' +
+               '<Alignment ss:Horizontal="Right"/>' + box + '</Style>');
+      out.push('<Style ss:ID="gap"/>');
+      out.push('</Styles>');
+      out.push('<Worksheet ss:Name="Balance Sheet"><Table>');
+
+      // Column two of each half carries the ledger head and needs the room; the
+      // rest hold figures, and the spacer between the halves stays narrow.
+      for (c = 0; c < columns; c++) {
+         var within = halfOf[c] < 0 ? -1 : c - offsetOf[halfOf[c]];
+         out.push('<Column ss:AutoFitWidth="0" ss:Width="' +
+                  (within < 0 ? 18 : (within === 1 ? 200 : 95)) + '"/>');
+      }
+
+      var row = function (cells) { out.push('<Row>' + cells.join('') + '</Row>'); };
+      var cell = function (style, value, across) {
+         return '<Cell ss:StyleID="' + style + '"' +
+                (across ? ' ss:MergeAcross="' + across + '"' : '') +
+                '><Data ss:Type="String">' + xml(value) + '</Data></Cell>';
+      };
+
+      for (i = 0; i < banner.length; i++) {
+         row([cell(banner[i][1] ? 'ttl' : 'sub', banner[i][0], columns - 1)]);
+      }
+      row([]);
 
       for (r = 0; r < height; r++) {
-         html.push('<tr>');
+         var cells = [];
          for (c = 0; c < columns; c++) {
-            var half = halfOf[c];
-            var value = half < 0 ? '' : cellAt(half, r, c - offsetOf[half]);
-            var style = half < 0 ? '' : BORDER;
-            if (half >= 0 && boldAt[half][r]) { style += 'font-weight:bold;'; }
-            if (isAmount(value)) { style += 'text-align:right;'; }
-            // Excel would read "5,000.00 Cr" as a number and drop the Cr, and
-            // turn a bare figure into one it may reformat; keep them as typed.
-            style += 'mso-number-format:"\\@";';
-            html.push('<td style="' + style + '">' + esc(value) + '</td>');
+            if (halfOf[c] < 0) { cells.push(cell('gap', '')); continue; }
+            var value = layout.valueAt(r, c);
+            var bold = layout.boldFor(r, c);
+            // Values stay strings: as numbers Excel would drop the Cr/Dr suffix
+            // that says which side of the ledger a figure sits on.
+            var style = r < 2 ? 'hd'
+                      : isAmount(value) ? (bold ? 'bn' : 'nm')
+                      : (bold ? 'bt' : 'tx');
+            cells.push(cell(style, value));
          }
-         html.push('</tr>');
+         row(cells);
       }
-      html.push('</table>');
 
-      var page = '<html xmlns:x="urn:schemas-microsoft-com:office:excel">' +
-                 '<head><meta charset="utf-8">' +
-                 '<!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets>' +
-                 '<x:ExcelWorksheet><x:Name>Balance Sheet</x:Name>' +
-                 '<x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions>' +
-                 '</x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]-->' +
-                 '</head><body>' + html.join('') + '</body></html>';
+      out.push('</Table>');
+      out.push('<WorksheetOptions xmlns="urn:schemas-microsoft-com:office:excel">' +
+               '<PageSetup><Layout x:Orientation="Landscape"/>' +
+               '<PageMargins x:Left="0.4" x:Right="0.4" x:Top="0.5" x:Bottom="0.5"/></PageSetup>' +
+               '<FitToPage/><Print><FitWidth>1</FitWidth><FitHeight>0</FitHeight>' +
+               '<ValidPrinterInfo/><Scale>100</Scale></Print>' +
+               '</WorksheetOptions>');
+      out.push('</Worksheet></Workbook>');
 
       var link = document.createElement('a');
-      link.href = URL.createObjectURL(new Blob(['\ufeff' + page],
+      link.href = URL.createObjectURL(new Blob(['\ufeff' + out.join('')],
                                                {type: 'application/vnd.ms-excel'}));
       link.download = 'BalanceSheet.xls';
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(link.href);
+   }
+
+   /*
+    * "Export To PDF" used to call printAllReports, which only opened the print
+    * dialog and left the operator to pick "Save as PDF" - so the button did not
+    * do what it said. This writes the file directly.
+    *
+    * autoTable draws real text rather than a screenshot of the page, so the
+    * figures stay selectable and searchable in the PDF and the file stays small.
+    */
+   function export_product_pdf(){
+      if (!window.jspdf || !window.jspdf.jsPDF) {
+         alert('PDF library did not load - check the connection and reload the page.');
+         return;
+      }
+      var layout = balanceSheetLayout();
+      if (!layout) { return; }
+
+      var doc = new window.jspdf.jsPDF({orientation: 'landscape', unit: 'mm', format: 'a4'});
+      var pageWidth = doc.internal.pageSize.getWidth();
+      var y = 12;
+
+      for (var b = 0; b < layout.banner.length; b++) {
+         doc.setFont('helvetica', layout.banner[b][1] ? 'bold' : 'normal');
+         doc.setFontSize(layout.banner[b][1] ? 12 : 9);
+         doc.text(String(layout.banner[b][0]), pageWidth / 2, y, {align: 'center'});
+         y += layout.banner[b][1] ? 6 : 5;
+      }
+
+      var rowValues = function (r) {
+         var cells = [];
+         for (var c = 0; c < layout.columns; c++) { cells.push(layout.valueAt(r, c)); }
+         return cells;
+      };
+      var head = [], body = [], r;
+      for (r = 0; r < 2 && r < layout.height; r++) { head.push(rowValues(r)); }
+      for (r = 2; r < layout.height; r++) { body.push(rowValues(r)); }
+
+      // The ledger head needs the width; figures and the spacer do not.
+      var columnStyles = {};
+      for (var c = 0; c < layout.columns; c++) {
+         var half = layout.halfOf[c];
+         var within = half < 0 ? -1 : c - layout.offsetOf[half];
+         columnStyles[c] = within < 0 ? {cellWidth: 4}
+                         : within === 1 ? {cellWidth: 'auto'}
+                         : {cellWidth: 22, halign: 'right'};
+      }
+
+      doc.autoTable({
+         head: head,
+         body: body,
+         startY: y + 1,
+         theme: 'grid',
+         margin: {left: 8, right: 8},
+         styles: {fontSize: 7, cellPadding: 1.2, lineColor: [0, 0, 0], lineWidth: 0.1,
+                  textColor: [0, 0, 0], overflow: 'linebreak'},
+         headStyles: {fillColor: [235, 235, 235], textColor: [0, 0, 0],
+                      fontStyle: 'bold', halign: 'center'},
+         columnStyles: columnStyles,
+         didParseCell: function (data) {
+            if (data.section !== 'body') { return; }
+            // +2 because the body starts after the two heading rows.
+            if (layout.boldFor(data.row.index + 2, data.column.index)) {
+               data.cell.styles.fontStyle = 'bold';
+            }
+            if (layout.halfOf[data.column.index] < 0) {
+               // The spacer between the halves is a gap, not a column.
+               data.cell.styles.lineWidth = 0;
+            }
+         }
+      });
+
+      doc.save('BalanceSheet.pdf');
    }
 </script>
