@@ -799,7 +799,13 @@ error_reporting(0);
                 '</Borders>';
 
       var out = [];
-      out.push('<?xml version="1.0"?>');
+      // Built from pieces on purpose: the servers run with short_open_tag on,
+      // where an angle bracket followed by a question mark opens PHP mode. Spelt
+      // out in one string, the xml declaration below is read as PHP and the whole
+      // view dies with "unexpected 'version'". Local PHP has the setting off, so
+      // that failure only ever shows up once deployed. Keep it split, and keep
+      // this comment free of that character pair too.
+      out.push('<' + '?xml version="1.0"?' + '>');
       out.push('<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"' +
                ' xmlns:o="urn:schemas-microsoft-com:office:office"' +
                ' xmlns:x="urn:schemas-microsoft-com:office:excel"' +
