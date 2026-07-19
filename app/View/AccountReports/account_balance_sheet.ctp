@@ -667,7 +667,14 @@ error_reporting(0);
          return;
       }
 
-      var grids = [], widths = [], height = 0, i, r, w;
+      var esc = function (v) {
+         return String(v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      };
+      var isAmount = function (v) {
+         return /^-?[\d,]+(\.\d+)?\s*(Cr|Dr)?$/i.test(String(v).trim()) && /\d/.test(String(v));
+      };
+
+      var grids = [], widths = [], height = 0, i, r, c, w;
       for (i = 0; i < inner.length; i++) {
          // header:1 keeps it as plain rows; colspan/rowspan are already expanded.
          var grid = XLSX.utils.sheet_to_json(XLSX.utils.table_to_sheet(inner[i]),
@@ -680,32 +687,115 @@ error_reporting(0);
          if (grid.length > height) { height = grid.length; }
       }
 
-      // Pad every half to its own full width, so the right half always starts in
-      // the same column even where a row on the left is short.
-      var rows = [];
-      for (r = 0; r < height; r++) {
-         var row = [];
-         for (i = 0; i < grids.length; i++) {
-            if (i) { row.push(''); }   // blank spacer column between the halves
-            var cells = (grids[i][r] || []).slice();
-            while (cells.length < widths[i]) { cells.push(''); }
-            row = row.concat(cells);
-         }
-         rows.push(row);
+      // sheet_to_json leaves a hole where a cell was empty, and String(undefined)
+      // is "undefined" - which would read as content in the tests below.
+      var cellAt = function (half, row, col) {
+         var cells = grids[half][row];
+         var value = cells ? cells[col] : '';
+         return (value === undefined || value === null) ? '' : String(value);
+      };
+
+      // Lay the halves out left to right with one blank column between them, so
+      // the right half starts in the same column even where a row on the left is
+      // short. halfOf maps an output column back to its half, -1 being a spacer.
+      var halfOf = [], offsetOf = [], columns = 0;
+      for (i = 0; i < grids.length; i++) {
+         if (i) { halfOf.push(-1); columns++; }
+         offsetOf.push(columns);
+         for (w = 0; w < widths[i]; w++) { halfOf.push(i); columns++; }
       }
 
-      var text = function (sel) {
-         var el = source.querySelector(sel);
-         return el ? el.textContent.replace(/\s+/g, ' ').trim() : '';
-      };
-      var head = [];
-      if (text('h5')) { head.push([text('h5')]); }
-      if (text('.report-bill')) { head.push([text('.report-bill')]); }
-      if (head.length) { head.push([]); }
+      // Bold is decided per half rather than per row: the two sides carry their
+      // section headings on different rows, so a single verdict for the whole row
+      // would either bold figures on one side or miss a heading on the other.
+      var boldAt = [];
+      for (i = 0; i < grids.length; i++) {
+         boldAt.push([]);
+         for (r = 0; r < height; r++) {
+            var filled = 0, label = '', total = false;
+            for (c = 0; c < widths[i]; c++) {
+               var cell = cellAt(i, r, c).trim();
+               if (cell !== '') {
+                  filled++;
+                  if (label === '') { label = cell; }
+                  // Any column, not just the first - the total row opens with
+                  // last year's figure and carries the word in column two.
+                  if (/^total$/i.test(cell)) { total = true; }
+               }
+            }
+            // The first two rows are the column headings; a row carrying just a
+            // label is a section heading; the closing total is bold as well.
+            boldAt[i].push(r < 2 || total || (filled === 1 && !isAmount(label)));
+         }
+      }
 
-      var book = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(book, XLSX.utils.aoa_to_sheet(head.concat(rows)),
-                                   'Balance Sheet');
-      XLSX.writeFile(book, 'BalanceSheet.xlsx');
+      /*
+       * Written as an HTML table with inline styles rather than a real .xlsx.
+       * The free build of SheetJS cannot write cell styles at all - borders,
+       * bold and alignment are paid features - and this report is read as a
+       * document, so the ruled layout matters. Excel opens HTML sent under the
+       * ms-excel type and applies the CSS. It may first warn that the extension
+       * does not match the contents; that is expected, answer Yes.
+       *
+       * The figures still come from the table rendered above, so they stay in
+       * step with the screen. Do not swap this for
+       * ExcelsReportController::download_account_balance_sheet, which is prettier
+       * but filters on no financial year at all and so adds every year together.
+       */
+      var BORDER = 'border:0.5pt solid #000;';
+      var html = [];
+      html.push('<table style="border-collapse:collapse;font-family:Calibri;font-size:11pt;">');
+
+      // Society name, registration number, address, report title - the same
+      // block the page prints above the table.
+      var banner = [];
+      var h5 = source.querySelector('h5');
+      if (h5 && h5.textContent.trim()) { banner.push([h5.textContent.trim(), true]); }
+      var addr = source.querySelectorAll('.report-address-heading');
+      for (i = 0; i < addr.length; i++) {
+         if (addr[i].textContent.trim()) { banner.push([addr[i].textContent.trim(), false]); }
+      }
+      var title = source.querySelector('.report-bill');
+      if (title && title.textContent.trim()) { banner.push([title.textContent.trim(), true]); }
+      for (i = 0; i < banner.length; i++) {
+         html.push('<tr><td colspan="' + columns + '" style="text-align:center;' +
+                   (banner[i][1] ? 'font-weight:bold;' : '') + '">' +
+                   esc(banner[i][0]) + '</td></tr>');
+      }
+      html.push('<tr><td colspan="' + columns + '"></td></tr>');
+
+      for (r = 0; r < height; r++) {
+         html.push('<tr>');
+         for (c = 0; c < columns; c++) {
+            var half = halfOf[c];
+            var value = half < 0 ? '' : cellAt(half, r, c - offsetOf[half]);
+            var style = half < 0 ? '' : BORDER;
+            if (half >= 0 && boldAt[half][r]) { style += 'font-weight:bold;'; }
+            if (isAmount(value)) { style += 'text-align:right;'; }
+            // Excel would read "5,000.00 Cr" as a number and drop the Cr, and
+            // turn a bare figure into one it may reformat; keep them as typed.
+            style += 'mso-number-format:"\\@";';
+            html.push('<td style="' + style + '">' + esc(value) + '</td>');
+         }
+         html.push('</tr>');
+      }
+      html.push('</table>');
+
+      var page = '<html xmlns:x="urn:schemas-microsoft-com:office:excel">' +
+                 '<head><meta charset="utf-8">' +
+                 '<!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets>' +
+                 '<x:ExcelWorksheet><x:Name>Balance Sheet</x:Name>' +
+                 '<x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions>' +
+                 '</x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]-->' +
+                 '</head><body>' + html.join('') + '</body></html>';
+
+      var link = document.createElement('a');
+      link.href = URL.createObjectURL(new Blob(['\ufeff' + page],
+                                               {type: 'application/vnd.ms-excel'}));
+      link.download = 'BalanceSheet.xls';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(link.href);
    }
 </script>
