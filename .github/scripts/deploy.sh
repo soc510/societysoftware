@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 #
-# Runs ON THE SERVER, piped in over SSH by .github/workflows/deploy.yml.
+# Runs ON THE SERVER, invoked by .github/workflows/deploy.yml on that server's
+# own self-hosted runner.
 # Can also be run by hand:  bash deploy.sh /path/to/site production
 #
 set -euo pipefail

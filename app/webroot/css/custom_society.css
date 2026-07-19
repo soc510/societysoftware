@@ -535,6 +535,15 @@ table .table-print-all-bill{
         padding: 20px !important;
         font-size:12px !important;
     }
+    /* The balance sheet is one <tr> holding both 50% columns, and
+       bootstrap.css sets `tr{page-break-inside:avoid}` for print. Chrome then
+       refuses to split that row, cannot fit it below the heading, and moves the
+       whole report to page 2 - leaving page 1 blank. Releasing only the outer
+       layout row fixes that; inner data rows keep Bootstrap's `avoid`, so a
+       single figure still never splits across pages. */
+    .print-account-balancesheet .table-wrap1 > table > tbody > tr{
+        page-break-inside: auto;
+    }
     /* account_payment_register reports */
     .print-account-payment-register{
         padding: 20px !important;
