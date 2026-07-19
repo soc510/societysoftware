@@ -43,3 +43,4 @@
 # a diff anyway, which plain `-text` alone would not.
 # Fix the endings properly in a commit of their own, then drop the entry.
 app/webroot/css/custom_society.css -text diff
+app/Config/app_config.php -text diff

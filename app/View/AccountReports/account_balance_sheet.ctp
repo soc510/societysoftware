@@ -653,12 +653,59 @@ error_reporting(0);
          alert('Balance sheet not loaded yet - press Show first.');
          return;
       }
-      var table = source.querySelector('table');
-      if (!table) {
+      /*
+       * The first table on the page is only a layout shell: a single <tr> whose
+       * two cells each hold a real table - liabilities left, assets right.
+       * Passing that shell to table_to_book flattened each nested table into one
+       * spreadsheet cell on row 1, then repeated both further down, stacked
+       * rather than side by side. So read the two inner tables and lay them out
+       * the way the page shows them.
+       */
+      var inner = source.querySelectorAll('.table-wrap1 > table > tbody > tr > td > table');
+      if (!inner.length) {
          alert('Nothing to export - press Show to load the balance sheet.');
          return;
       }
-      var book = XLSX.utils.table_to_book(table, {sheet: 'Balance Sheet'});
+
+      var grids = [], widths = [], height = 0, i, r, w;
+      for (i = 0; i < inner.length; i++) {
+         // header:1 keeps it as plain rows; colspan/rowspan are already expanded.
+         var grid = XLSX.utils.sheet_to_json(XLSX.utils.table_to_sheet(inner[i]),
+                                             {header: 1, raw: false, defval: ''});
+         for (w = 0, r = 0; r < grid.length; r++) {
+            if (grid[r].length > w) { w = grid[r].length; }
+         }
+         grids.push(grid);
+         widths.push(w);
+         if (grid.length > height) { height = grid.length; }
+      }
+
+      // Pad every half to its own full width, so the right half always starts in
+      // the same column even where a row on the left is short.
+      var rows = [];
+      for (r = 0; r < height; r++) {
+         var row = [];
+         for (i = 0; i < grids.length; i++) {
+            if (i) { row.push(''); }   // blank spacer column between the halves
+            var cells = (grids[i][r] || []).slice();
+            while (cells.length < widths[i]) { cells.push(''); }
+            row = row.concat(cells);
+         }
+         rows.push(row);
+      }
+
+      var text = function (sel) {
+         var el = source.querySelector(sel);
+         return el ? el.textContent.replace(/\s+/g, ' ').trim() : '';
+      };
+      var head = [];
+      if (text('h5')) { head.push([text('h5')]); }
+      if (text('.report-bill')) { head.push([text('.report-bill')]); }
+      if (head.length) { head.push([]); }
+
+      var book = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(book, XLSX.utils.aoa_to_sheet(head.concat(rows)),
+                                   'Balance Sheet');
       XLSX.writeFile(book, 'BalanceSheet.xlsx');
    }
 </script>
