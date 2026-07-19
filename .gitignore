@@ -20,6 +20,15 @@
 # CakePHP 2
 
 /app/tmp/*
-/app/Config/core.php
-/app/Config/database.php
+# Trailing * on purpose. These hold live credentials, and the servers carry
+# hand-made copies next to them - "database.php1", "database.php test",
+# "core.php.bak". Without the wildcard those copies are not ignored, and a
+# `git add .` run on a server commits the live database password.
+/app/Config/core.php*
+/app/Config/database.php*
 /vendors/*
+
+# Leftovers of the original manual upload, ~594MB, and scratch files people
+# drop in the public webroot. Neither belongs in the repo.
+/app/archive.zip
+/app/webroot/phptest-*
