@@ -1,14 +1,22 @@
 # Deployment
 
-Auto-deploy for this CakePHP 2 app using GitHub Actions over SSH.
+Auto-deploy for this CakePHP 2 app using GitHub Actions.
+
+One repository serves both sites. A branch decides which server a push lands on,
+so nothing is ever copied between them by hand.
 
 ## Branches
 
-| Branch       | Deploys to       | Trigger                    |
-| ------------ | ---------------- | -------------------------- |
-| `dev`        | Testing subdomain | Automatic on push          |
-| `production` | Live site         | Automatic on push          |
-| `main`       | *nothing*        | Integration branch only    |
+| Branch       | Environment  | Site                             | Server user            | Trigger                 |
+| ------------ | ------------ | -------------------------------- | ---------------------- | ----------------------- |
+| `dev`        | `testing`    | https://societynew.in            | `societynew1`          | Automatic on push       |
+| `production` | `production` | https://easylogicstechnology.com | `easylogicstechnology` | Automatic on push       |
+| `main`       | —            | *nothing*                        | —                      | Integration branch only |
+
+The environment name in that table is the GitHub Environment the job runs under
+*and* the label its self-hosted runner is registered with. Both are derived from
+the branch in `.github/workflows/deploy.yml`; get the label wrong and the job
+queues forever instead of failing.
 
 Intended flow:
 
