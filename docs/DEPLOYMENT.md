@@ -22,43 +22,33 @@ Live only moves when someone deliberately merges into `production`.
 
 ## How it works
 
-`.github/workflows/deploy.yml` connects to the server over SSH and pipes in
-`.github/scripts/deploy.sh`, which runs `git fetch` + `git reset --hard` in the
-site directory, fixes `app/tmp` permissions, and clears CakePHP's schema cache.
-No files are uploaded from the runner — **the server pulls from GitHub itself**.
+Each server runs its **own GitHub Actions runner**. The server dials *out* to
+GitHub, picks up the job, and runs `.github/scripts/deploy.sh` locally — which
+does `git fetch` + `git reset --hard` in the site directory, fixes `app/tmp`
+permissions, and clears CakePHP's schema cache. No files are uploaded from
+GitHub — **the server pulls from GitHub itself**.
+
+```
+GitHub  <--[runner polls out]--  Server  --[key B]-->  GitHub repo
+```
+
+Nothing connects *into* the server, so there are no SSH deploy secrets, no host
+key to scan, and no inbound port for a firewall or fail2ban to block.
+
+> This replaced an earlier design where a GitHub-hosted runner SSH'd into the
+> server. That version failed intermittently — the inbound SSH connection was
+> unreliable — and needed four secrets per environment. If you find
+> `SSH_HOST` / `SSH_USER` / `SSH_PRIVATE_KEY` still set on an environment, they
+> are leftovers and can be deleted.
 
 ---
 
 ## One-time setup
 
-### 1. Two SSH key pairs
+### 1. One SSH key pair (key B)
 
-This trips people up: there are **two** separate hops, so **two** key pairs.
-
-```
-GitHub Actions  --[key A]-->  Server  --[key B]-->  GitHub repo
-```
-
-**Key A — Actions logging into the server**
-
-Generate anywhere (your laptop):
-
-```bash
-ssh-keygen -t ed25519 -f actions_key -C "github-actions-deploy" -N ""
-```
-
-- `actions_key` (private) → GitHub secret `SSH_PRIVATE_KEY` (step 3)
-- `actions_key.pub` (public) → append to the server's `~/.ssh/authorized_keys`
-
-In CloudPanel: **Site → SSH/FTP** to get shell access, then:
-
-```bash
-mkdir -p ~/.ssh && chmod 700 ~/.ssh
-echo "ssh-ed25519 AAAA...  github-actions-deploy" >> ~/.ssh/authorized_keys
-chmod 600 ~/.ssh/authorized_keys
-```
-
-**Key B — the server pulling from GitHub**
+The runner talks to GitHub over HTTPS on its own, so the only key you need is
+the one the *site checkout* uses to pull from GitHub.
 
 The repo is private, so the server needs its own credential. Generate it
 **on the server**:
@@ -76,6 +66,11 @@ Verify from the server:
 ```bash
 ssh -T git@github.com    # should say: Hi easylogicstechnology/... successfully authenticated
 ```
+
+> If that instead says `Hi <username>!`, the server is authenticating as a
+> **personal account**, not a deploy key — which means the server can *push* to
+> the repo, and the access follows that person rather than the machine. Replace
+> it with a repo deploy key as above and remove the key from the account.
 
 ### 2. Turn the existing site directory into a git checkout
 
@@ -114,7 +109,62 @@ Repeat on the testing server with `dev` instead of `production`.
 > so the checkout never touches them. The server keeps its own copies with the
 > real database credentials — that is intended, do not commit them.
 
-### 3. GitHub Environments and secrets
+### 3. Install the Actions runner on the server
+
+Do this **once per server**, logged in as the site user — not as root. The
+runner inherits that user, and deploy.sh writes into the site directory, so a
+root-owned runner would leave root-owned files the web server cannot read.
+
+```bash
+ssh societynew1@88.222.245.214        # testing; use the live user for production
+whoami                                # must be the site user
+```
+
+Go to **Repo → Settings → Actions → Runners → New self-hosted runner**, pick
+**Linux / x64**. GitHub shows a download and a `./config.sh` command with a
+registration token baked in — use *those* commands, they carry the current
+runner version and a token that expires in an hour.
+
+Run the download block as shown, then register with a **label naming the
+environment**:
+
+```bash
+# testing server
+./config.sh --url https://github.com/easylogicstechnology/easylogicstechnology \
+            --token <TOKEN-FROM-GITHUB> \
+            --name societynew-testing \
+            --labels testing \
+            --unattended
+
+# production server
+./config.sh --url https://github.com/easylogicstechnology/easylogicstechnology \
+            --token <TOKEN-FROM-GITHUB> \
+            --name easylogics-production \
+            --labels production \
+            --unattended
+```
+
+The label is what `runs-on: [self-hosted, testing|production]` matches. Get it
+wrong and the job queues forever instead of failing.
+
+Then keep it running across reboots. With sudo:
+
+```bash
+sudo ./svc.sh install "$(whoami)"
+sudo ./svc.sh start
+sudo ./svc.sh status
+```
+
+CloudPanel site users often have no sudo. Without it, use cron:
+
+```bash
+(crontab -l 2>/dev/null; echo "@reboot cd ~/actions-runner && ./run.sh >> ~/actions-runner/runner.log 2>&1") | crontab -
+cd ~/actions-runner && nohup ./run.sh >> runner.log 2>&1 &
+```
+
+Confirm it shows **Idle** under Settings → Actions → Runners before pushing.
+
+### 4. GitHub Environments and variables
 
 **Repo → Settings → Environments** → create `testing` and `production`.
 
@@ -123,19 +173,24 @@ live deploys need one approval click.
 
 Add per environment:
 
-| Type     | Name              | Example                                                    |
-| -------- | ----------------- | ---------------------------------------------------------- |
-| Secret   | `SSH_HOST`        | `88.222.245.214`                                            |
-| Secret   | `SSH_USER`        | `easylogicstechnology`                                      |
-| Secret   | `SSH_PRIVATE_KEY` | contents of `actions_key` (whole file, including header)     |
-| Secret   | `DEPLOY_PATH`     | `/home/easylogicstechnology/htdocs/easylogicstechnology.com` |
-| Variable | `SITE_URL`        | `https://easylogicstechnology.com`                           |
-| Variable | `SSH_PORT`        | only if not `22`                                             |
+| Type     | Name          | Example                                                      |
+| -------- | ------------- | ------------------------------------------------------------ |
+| Variable | `DEPLOY_PATH` | `/home/easylogicstechnology/htdocs/easylogicstechnology.com` |
+| Variable | `SITE_URL`    | `https://easylogicstechnology.com`                            |
 
-The `testing` environment gets the same names with the subdomain's own host,
-user and path.
+The `testing` environment gets the same names with the subdomain's own path and
+URL (`/home/societynew1/htdocs/societynew.in`, `https://societynew.in`).
 
-### 4. First deploy
+`DEPLOY_PATH` is a *variable*, not a secret — a path is not sensitive, and as a
+secret it shows up masked as `***` in the log exactly when you need to read it.
+An existing `DEPLOY_PATH` secret still works, so this does not have to be
+migrated in a hurry.
+
+> `SSH_HOST`, `SSH_USER`, `SSH_PRIVATE_KEY` and `SSH_PORT` are no longer used.
+> Delete them, and remove the Actions public key from the server's
+> `~/.ssh/authorized_keys`.
+
+### 5. First deploy
 
 ```bash
 git push origin dev
@@ -203,14 +258,26 @@ credentials and are gitignored for that reason.
 
 ## Troubleshooting
 
-**`Permission denied (publickey)` in the Actions log**
-Key A is wrong. Check `SSH_PRIVATE_KEY` contains the *entire* file including
-`-----BEGIN OPENSSH PRIVATE KEY-----`, and that the matching `.pub` is in the
-server's `~/.ssh/authorized_keys`.
+**The run sits on "Waiting for a runner to pick up this job"**
+No online runner carries the label this job asked for. Check **Settings →
+Actions → Runners**: the right one must show **Idle**, not **Offline**, and its
+label must be exactly `testing` or `production`. If it is offline, log into that
+server and restart it (`sudo ./svc.sh start`, or the `nohup ./run.sh` line from
+section 3).
+
+**`<path> is not a git checkout on this runner`**
+Either `DEPLOY_PATH` is wrong for that environment, or the runner is registered
+on the wrong server — a `production`-labelled runner installed on the testing
+box will happily accept live deploys. Check `whoami` and `pwd` on the server
+against the environment's `DEPLOY_PATH`.
 
 **`Repository not found` / `Permission denied` during `git fetch` on the server**
 Key B is wrong. Run `ssh -T git@github.com` on the server and confirm the deploy
 key is registered on the repo.
+
+**Deploy leaves files the site cannot read**
+The runner is running as the wrong user — most likely it was installed as root.
+`sudo ./svc.sh uninstall`, then reinstall as the site user per section 3.
 
 **Deploy succeeds but the site 500s**
 Usually a stale schema cache or `app/tmp` permissions. Check

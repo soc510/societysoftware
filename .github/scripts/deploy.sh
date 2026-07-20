@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 #
-# Runs ON THE SERVER, piped in over SSH by .github/workflows/deploy.yml.
+# Runs ON THE SERVER, invoked by .github/workflows/deploy.yml on that server's
+# own self-hosted runner.
 # Can also be run by hand:  bash deploy.sh /path/to/site production
 #
 set -euo pipefail
@@ -24,11 +25,23 @@ fi
 # below throws such edits away, so snapshot them as a patch first - recovering
 # from a patch is easy, recovering from nothing is not.
 # --------------------------------------------------------------------------
-if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
+# --ignore-cr-at-eol: .gitattributes asks for `eol=lf` but many files were
+# committed with CRLF, so git reports them as modified on every checkout,
+# forever. Without this filter every deploy writes a ~700KB patch of pure
+# line-ending noise, and a genuine edit would be invisible inside it.
+#
+# `git diff HEAD` rather than plain `git diff` so staged-but-uncommitted edits
+# are caught too - those would otherwise be destroyed by the reset below with
+# nothing saved.
+CHANGED_FILES="$(git diff HEAD --ignore-cr-at-eol --name-only)"
+
+if [ -n "$CHANGED_FILES" ]; then
 	mkdir -p ../deploy-backups
 	PATCH="../deploy-backups/server-edits-$(date +%Y%m%d-%H%M%S).patch"
-	git diff > "$PATCH"
-	echo "WARNING: server had uncommitted edits to tracked files."
+	# Patch only the genuinely-changed files, so it stays reviewable.
+	echo "$CHANGED_FILES" | xargs -d '\n' git diff HEAD -- > "$PATCH"
+	echo "WARNING: server had uncommitted edits to tracked files:"
+	echo "$CHANGED_FILES" | sed 's/^/           /'
 	echo "         Saved to $(cd .. && pwd)/deploy-backups/$(basename "$PATCH")"
 	echo "         Apply with: git apply <patch>"
 fi

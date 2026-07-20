@@ -184,8 +184,15 @@ class SocietyBillComponent extends Component {
 
 
         $financialYear = $this->getFinancialYearFromDate();
-        if (isset($financialYear) && $financialYear != '') {
-            $checkYear = isset($financialYear) ? substr($financialYear, 0, 4) : date('Y');
+
+        // getFinancialYearFromDate() concatenates Auth.start_year and Auth.end_year
+        // from the session. When neither is set - an admin who has not entered a
+        // society yet, or a session that expired - it returns a bare "-", which is
+        // not empty, so the old `!= ''` guard let it through. substr("-", 0, 4) is
+        // "-", and DateTime("--07-01") then throws, turning every screen that loads
+        // the nav dropdowns into a blank 500. Require a real 4-digit year instead.
+        $checkYear = substr((string)$financialYear, 0, 4);
+        if (ctype_digit($checkYear) && strlen($checkYear) === 4) {
             $checkMonth = date('m');
             $financialStartEndDate = $this->Util->getBillDateBilldueDateFromFinancialYearDate($checkYear, $checkMonth);
             if (isset($financialStartEndDate) && $financialStartEndDate != '') {
