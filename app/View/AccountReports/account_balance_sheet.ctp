@@ -654,6 +654,58 @@ error_reporting(0);
    };
 
    /*
+    * The two halves are separate tables, each ending in its own Total row, and
+    * they almost never hold the same number of ledger heads - so the two Totals
+    * came out at different heights and the sheet read as though one side had
+    * been cut short.
+    *
+    * Padded here rather than in the PHP above because the liabilities table is
+    * already written out by the time the assets rows exist, so neither side can
+    * know the other's length while rendering. Print, the PDF and the spreadsheet
+    * all read this same rendered table, so doing it once in the DOM covers the
+    * screen and all three exports.
+    */
+   function alignBalanceSheetTotals(){
+      var source = document.getElementById('print_account_balancesheet');
+      if (!source) { return; }
+      var tables = source.querySelectorAll('.table-wrap1 > table > tbody > tr > td > table');
+      if (tables.length !== 2) { return; }
+
+      var bodyRows = function (table) {
+         var rows = [], all = table.rows, i;
+         for (i = 0; i < all.length; i++) {
+            // thead holds the column headings - only ledger rows line up.
+            if (all[i].parentNode.tagName.toLowerCase() !== 'thead') { rows.push(all[i]); }
+         }
+         return rows;
+      };
+
+      var left = bodyRows(tables[0]), right = bodyRows(tables[1]);
+      var shorter = left.length < right.length ? left : right;
+      var gap = Math.abs(left.length - right.length);
+      if (!gap || !shorter.length) { return; }
+
+      // Above the Total, not below it, so the Total stays the last line on both
+      // sides however many rows get added.
+      var totalRow = shorter[shorter.length - 1];
+      var columns = totalRow.cells.length, n, c;
+      for (n = 0; n < gap; n++) {
+         var blank = document.createElement('tr');
+         blank.className = 'bs-pad';
+         for (c = 0; c < columns; c++) {
+            var cell = document.createElement('td');
+            cell.innerHTML = '&nbsp;';
+            blank.appendChild(cell);
+         }
+         totalRow.parentNode.insertBefore(blank, totalRow);
+      }
+   }
+
+   // Runs before any export, which only read the table on click.
+   if (window.jQuery) { jQuery(document).ready(alignBalanceSheetTotals); }
+   else if (document.addEventListener) { document.addEventListener('DOMContentLoaded', alignBalanceSheetTotals); }
+
+   /*
     * Both exports need the same reading of the report - the two halves as plain
     * grids, which rows are headings, where each half starts. Worked out once
     * here so the spreadsheet and the PDF can never drift apart.
@@ -697,7 +749,12 @@ error_reporting(0);
       var cellAt = function (half, row, col) {
          var cells = grids[half][row];
          var value = cells ? cells[col] : '';
-         return (value === undefined || value === null) ? '' : String(value);
+         if (value === undefined || value === null) { return ''; }
+         // The spacer rows are &nbsp;, which arrives here as U+00A0 and
+         // would land in the spreadsheet as a cell holding an invisible
+         // character. Escaped, not typed literally - it is unreadable in a diff.
+         value = String(value).replace(/\u00a0/g, ' ');
+         return value.trim() === '' ? '' : value;
       };
 
       // Lay the halves out left to right with one blank column between them, so
