@@ -88,7 +88,10 @@
                                         <div class="col-md-4 account-report-form"> 
                                             <button type="submit" data-toggle="tooltip" data-original-title="" class="btn btn-success btn-anim btns"><i class="icon-rocket"></i><span class="btn-text">Submit</span></button>      
                                             <a type="button" data-toggle="tooltip" data-original-title="Print Friendly" class="btn btn-success btn-anim btns" href="javascript:void(0);" onclick="printAllReports('print_account_bank_book');"><i class="fa fa-print"></i><span class="btn-text">Print Friendly</span></a>                                                                            
-                                            <a data-toggle="tooltip" data-original-title="Export to PDF" class="btn btn-success btn-anim btns" href="javascript:void(0);" onclick=""><i class="fa fa-file-excel-o"></i><span class="btn-text">Export to PDF</span></a>                                        
+                                            <?php /* onclick was empty - the button rendered but did nothing. Writes the
+                                                     file directly, off the table rendered below, so it carries whatever
+                                                     bank and date range is on screen. */ ?>
+                                            <a data-toggle="tooltip" data-original-title="Export to PDF" class="btn btn-success btn-anim btns" href="javascript:void(0);" onclick="export_bank_book_pdf();"><i class="fa fa-file-pdf-o"></i><span class="btn-text">Export to PDF</span></a>
                                             <a type="button" data-toggle="tooltip" data-original-title="Go to member payment list" class="btn btn-success btn-anim btns" href=""><i class="icon-rocket"></i><span class="btn-text">Cancel</span></a>
 <?php echo $this->Html->link('<i class="fa fa-download" style="color:#fff;font-size:10px;"></i> Export to Excel', array('controller'=>'excels_report','action' => 'download_bank_book_sheet','?' => array('payment_date' => isset($postData['BankBook']['payment_date']) ? base64_encode($postData['BankBook']['payment_date']) : '','payment_date_to' => isset($postData['BankBook']['payment_date_to']) ? base64_encode($postData['BankBook']['payment_date_to']) : '','bill_generated_date' => isset($postData['BankBook']['bill_generated_date']) ? base64_encode($postData['BankBook']['payment_date']) : '','society_bank_id' => isset($postData['BankBook']['society_bank_id']) ? base64_encode($postData['BankBook']['society_bank_id']) : '','report_type' => isset($postData['BankBook']['report_type']) ? base64_encode($postData['BankBook']['report_type']) : '','operator' => isset($postData['BankBook']['operator']) ? base64_encode($postData['BankBook']['operator']) : '','amount' => isset($postData['BankBook']['amount']) ? base64_encode($postData['BankBook']['amount']) : '')), array('class' => 'btn btn-success btns','data-toggle' => 'tooltip', 'data-original-title' => 'download bill register','escape' => false,'target' => '_blank')); ?> 
                                         </div>   
@@ -263,6 +266,17 @@
 </div>
 
 
+<script type="text/javascript" src="https://unpkg.com/xlsx@0.15.1/dist/xlsx.full.min.js"></script>
+<script type="text/javascript" src="https://unpkg.com/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+<script type="text/javascript" src="https://unpkg.com/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
+<script type="text/javascript" src="<?php echo $this->webroot; ?>js/report_export.js"></script>
+<script type="text/javascript">
+   // One plain ledger table rather than the two-column shape the balance sheet
+   // and income & expenditure use; the shared exporter handles both.
+   function export_bank_book_pdf(){
+      reportExport.pdf('print_account_bank_book', 'BankBook.pdf');
+   }
+</script>
 <script>
 document.addEventListener("DOMContentLoaded", function() {
   document.querySelectorAll(".db-part-link").forEach(function(cell) {

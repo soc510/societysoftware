@@ -24,6 +24,9 @@
    };
 
    var INNER_TABLES = '.table-wrap1 > table > tbody > tr > td > table';
+   // Bank book and cash book are one plain ledger table with no inner tables,
+   // so the wrapper itself is the report.
+   var SINGLE_TABLE = '.table-wrap1 > table';
 
    /*
     * The two halves are separate tables, each ending in its own Total row, and
@@ -92,10 +95,21 @@
        * So read the two inner tables and lay them out as the page shows them.
        */
       var inner = source.querySelectorAll(INNER_TABLES);
+      if (!inner.length) { inner = source.querySelectorAll(SINGLE_TABLE); }
       if (!inner.length) {
          alert('Nothing to export - press Show to load the report.');
          return null;
       }
+
+      // How many rows the table gives to column headings. The two-column reports
+      // use two; a plain ledger uses one. Assuming two would embolden the first
+      // line of data on the bank book and push it into the PDF's header.
+      var headRows = 0;
+      for (var t = 0; t < inner.length; t++) {
+         var found = inner[t].querySelectorAll('thead tr').length;
+         if (found > headRows) { headRows = found; }
+      }
+      if (!headRows) { headRows = 1; }
 
       var grids = [], widths = [], height = 0, i, r, c, w;
       for (i = 0; i < inner.length; i++) {
@@ -151,9 +165,9 @@
                   if (/^total$/i.test(cell)) { total = true; }
                }
             }
-            // The first two rows are the column headings; a row carrying just a
-            // label is a section heading; the closing total is bold as well.
-            boldAt[i].push(r < 2 || total || (filled === 1 && !isAmount(label)));
+            // The heading rows are bold; a row carrying just a label is a section
+            // heading; the closing total is bold as well.
+            boldAt[i].push(r < headRows || total || (filled === 1 && !isAmount(label)));
          }
       }
 
@@ -174,7 +188,7 @@
       return {
          grids: grids, widths: widths, height: height, columns: columns,
          halfOf: halfOf, offsetOf: offsetOf, boldAt: boldAt,
-         cellAt: cellAt, banner: banner,
+         cellAt: cellAt, banner: banner, headRows: headRows,
          // The value at an output column, '' for the spacer between the halves.
          valueAt: function (row, col) {
             var half = halfOf[col];
@@ -267,7 +281,7 @@
             var bold = layout.boldFor(r, c);
             // Values stay strings: as numbers Excel would drop the Cr/Dr suffix
             // that says which side of the ledger a figure sits on.
-            var style = r < 2 ? 'hd'
+            var style = r < layout.headRows ? 'hd'
                       : isAmount(value) ? (bold ? 'bn' : 'nm')
                       : (bold ? 'bt' : 'tx');
             cells.push(cell(style, value));
@@ -327,8 +341,8 @@
          return cells;
       };
       var head = [], body = [], r;
-      for (r = 0; r < 2 && r < layout.height; r++) { head.push(rowValues(r)); }
-      for (r = 2; r < layout.height; r++) { body.push(rowValues(r)); }
+      for (r = 0; r < layout.headRows && r < layout.height; r++) { head.push(rowValues(r)); }
+      for (r = layout.headRows; r < layout.height; r++) { body.push(rowValues(r)); }
 
       // The ledger head needs the width; figures and the spacer do not.
       var columnStyles = {};
@@ -353,8 +367,8 @@
          columnStyles: columnStyles,
          didParseCell: function (data) {
             if (data.section !== 'body') { return; }
-            // +2 because the body starts after the two heading rows.
-            if (layout.boldFor(data.row.index + 2, data.column.index)) {
+            // Offset because the body starts after the heading rows.
+            if (layout.boldFor(data.row.index + layout.headRows, data.column.index)) {
                data.cell.styles.fontStyle = 'bold';
             }
             if (layout.halfOf[data.column.index] < 0) {
