@@ -4769,17 +4769,17 @@ function account_cash_book() {
 		$financialYearId = $this->Util->getFinancialYear();
 
 		if ($type == 'cashbook') {
-			$optionsSociety['AND'] = array('SocietyPayment.society_id' => $societyId);
-			$optionsSociety['AND'] = array('SocietyPayment.financial_year_id' => $financialYearId);
+			$optionsSociety['AND'] = array('SocietyPayment.society_id' => $societyId, 'SocietyPayment.financial_year_id' => $financialYearId);
 			
-			$options['AND'] = array('MemberPayment.society_id' => $societyId);
-			$options['AND'] = array('MemberPayment.financial_year_id' => $financialYearId);
 			
-			$optionsCashWithdraw['AND'] = array('CashWithdraw.society_id' => $societyId);
-			$optionsCashWithdraw['AND'] = array('CashWithdraw.financial_year_id' => $financialYearId);
+			$options['AND'] = array('MemberPayment.society_id' => $societyId, 'MemberPayment.financial_year_id' => $financialYearId);
 			
-			$optionsOtherIncome['AND'] = array('SocietyOtherIncome.society_id' => $societyId);
-			$optionsOtherIncome['AND'] = array('SocietyOtherIncome.financial_year_id' => $financialYearId);
+			
+			$optionsCashWithdraw['AND'] = array('CashWithdraw.society_id' => $societyId, 'CashWithdraw.financial_year_id' => $financialYearId);
+			
+			
+			$optionsOtherIncome['AND'] = array('SocietyOtherIncome.society_id' => $societyId, 'SocietyOtherIncome.financial_year_id' => $financialYearId);
+			
 
 
 			if (isset($ledgerHeadId) && !empty($ledgerHeadId)) {
@@ -4923,28 +4923,28 @@ function account_cash_book() {
 
 
 
-			$options['AND'] = array('MemberPayment.society_id' => $societyId);
-			$options['AND'] = array('MemberPayment.financial_year_id' => $financialYearId);
+			$options['AND'] = array('MemberPayment.society_id' => $societyId, 'MemberPayment.financial_year_id' => $financialYearId);
+			
 
 
 
-			$optionsSociety['AND'] = array('SocietyPayment.society_id' => $societyId);
-			$optionsSociety['AND'] = array('SocietyPayment.financial_year_id' => $financialYearId);
+			$optionsSociety['AND'] = array('SocietyPayment.society_id' => $societyId, 'SocietyPayment.financial_year_id' => $financialYearId);
+			
 
 
 
-			$optionsCashWithdraw['AND'] = array('CashWithdraw.society_id' => $societyId);
-			$optionsCashWithdraw['AND'] = array('CashWithdraw.financial_year_id' => $financialYearId);
+			$optionsCashWithdraw['AND'] = array('CashWithdraw.society_id' => $societyId, 'CashWithdraw.financial_year_id' => $financialYearId);
+			
 
 
 
-			$optionsContraReceived['AND'] = array('CashWithdraw.society_id' => $societyId);
-			$optionsContraReceived['AND'] = array('CashWithdraw.financial_year_id' => $financialYearId);
+			$optionsContraReceived['AND'] = array('CashWithdraw.society_id' => $societyId, 'CashWithdraw.financial_year_id' => $financialYearId);
+			
 
 
 
-			$optionsSocietyOtherIncome['AND'] = array('SocietyOtherIncome.society_id' => $societyId);
-			$optionsSocietyOtherIncome['AND'] = array('SocietyOtherIncome.financial_year_id' => $financialYearId);
+			$optionsSocietyOtherIncome['AND'] = array('SocietyOtherIncome.society_id' => $societyId, 'SocietyOtherIncome.financial_year_id' => $financialYearId);
+			
 
 
 
