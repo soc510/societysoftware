@@ -44,8 +44,10 @@
                                             <div class="account-report-form-field-box">
                                                 <button type="submit" data-toggle="tooltip" data-original-title="" class="btn btn-success btn-sm btn-anim btn-sm"><i class="icon-rocket"></i><span class="btn-text">Show</span></button>  
                                             <a type="button" data-toggle="tooltip" data-original-title="Print Friendly" class="btn btn-success btn-anim btn-sm" href="javascript:void(0);" onclick="printAllReports('print_income_exp_statement');"><i class="fa fa-print"></i><span class="btn-text">Print Friendly</span></a>                                                                            
-                                            <!--    <a data-toggle="tooltip" data-original-title="Export to PDF" class="btn btn-success btn-anim btn-sm" href="javascript:void(0);" onclick=""><i class="fa fa-file-excel-o"></i><span class="btn-text">Export to PDF</span></a>                                        -->
-                                                <a type="button" data-toggle="tooltip" data-original-title="Go to member payment list" class="btn btn-success btn-sm btn-anim btn-sm" href=""><i class="icon-rocket"></i><span class="btn-text">Cancel</span></a>                                                                            
+                                                <?php /* Both exports send the same rendered block Print Friendly uses, so the file always agrees with what is on screen. For PDF, choose "Save as PDF" in the print dialog. */ ?>
+                                                <a data-toggle="tooltip" data-original-title="Export to PDF" class="btn btn-success btn-anim btn-sm" href="javascript:void(0);" onclick="export_income_exp_pdf();"><i class="fa fa-file-pdf-o"></i><span class="btn-text">Export to PDF</span></a>
+                                                <a data-toggle="tooltip" data-original-title="Export to Excel" class="btn btn-success btn-anim btn-sm" href="javascript:void(0);" onclick="export_income_exp_excel();"><i class="fa fa-file-excel-o"></i><span class="btn-text">Export Excel</span></a>
+                                                <a type="button" data-toggle="tooltip" data-original-title="Go to member payment list" class="btn btn-success btn-sm btn-anim btn-sm" href=""><i class="icon-rocket"></i><span class="btn-text">Cancel</span></a>
                                             </div>
                                         </div>                                                         
                                     </div>  
@@ -290,4 +292,22 @@ var total_val = Number(subtotalval)-Number(totalamountexpenditure);
 total_val = total_val.toLocaleString();
 $('#over_expenditure').text(total_val);
 });
+</script>
+<script type="text/javascript" src="https://unpkg.com/xlsx@0.15.1/dist/xlsx.full.min.js"></script>
+<script type="text/javascript" src="https://unpkg.com/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+<script type="text/javascript" src="https://unpkg.com/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
+<script type="text/javascript" src="<?php echo $this->webroot; ?>js/report_export.js"></script>
+<script type="text/javascript">
+   // Same two-column shape as the balance sheet - Expenditure|Income here,
+   // Liabilities|Assets there - so both run the shared exporter rather than
+   // each carrying its own copy.
+   reportExport.alignOnReady('print_income_exp_statement');
+
+   function export_income_exp_excel(){
+      reportExport.excel('print_income_exp_statement', 'Income & Expenditure', 'IncomeExpenditure.xls');
+   }
+
+   function export_income_exp_pdf(){
+      reportExport.pdf('print_income_exp_statement', 'IncomeExpenditure.pdf');
+   }
 </script>

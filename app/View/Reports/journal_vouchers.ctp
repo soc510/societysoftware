@@ -130,7 +130,26 @@
 				<br/>
 			</div>
 		</div> 
-		<button type="button" class="btn btn-success btn-sm btn-add-component" style="margin-left:10px;" data-btn-id="1" onclick="add_component(this);"><span class="glyphicon glyphicon-plus"></span> Add More</button>
+		<?php /* Add More sits on the totals line rather than above it: the button
+		         and the running figures are one strip of controls under the entry
+		         rows, and stacking them left a band of empty space that pushed the
+		         balance note down onto Submit.
+
+		         Column widths mirror the entry rows above - 2/4/3/3 - so the two
+		         figures land directly under the Dr. and Cr. inputs they add up. */ ?>
+		<div class="row" id="jv-totals" style="margin-top:12px;">
+			<div class="col-md-2">
+				<button type="button" class="btn btn-success btn-sm btn-add-component" data-btn-id="1" onclick="add_component(this);"><span class="glyphicon glyphicon-plus"></span> Add More</button>
+			</div>
+			<div class="col-md-4" style="text-align:right;padding-right:15px;font-weight:bold;line-height:30px;">Total</div>
+			<div class="col-md-3" style="font-weight:bold;line-height:30px;"><span id="jv-total-debit">0.00</span></div>
+			<div class="col-md-3" style="font-weight:bold;line-height:30px;"><span id="jv-total-credit">0.00</span></div>
+		</div>
+		<div class="row">
+			<div class="col-md-12" style="padding-top:6px;padding-bottom:4px;">
+				<span id="jv-balance-note"></span>
+			</div>
+		</div>
 
 
 	</div>		
@@ -379,7 +398,9 @@ var cloneDiv = '<div class="input-group component-input">'+
 			'</div>';
 				$('#component-list'+id).append(cloneDiv);
 
-				
+				// A new row starts at 0, so the totals do not move - but the
+				// display would go stale after a row is removed without this.
+				if (typeof jvUpdateTotals === 'function') { jvUpdateTotals(); }
 			}
 
 function disableInputs(obj){
@@ -390,27 +411,71 @@ function disableInputs(obj){
 		$('#debit'+id).attr('readonly', true);
 		$('#debit'+id).val(0);
 		$('#credit'+id).attr('readonly', false); }
-	else if (value == 'Debit') { 
+	else if (value == 'Debit') {
 		$('#credit'+id).attr('readonly', true)
 		$('#credit'+id).val(0);
 		$('#debit'+id).attr('readonly', false); }
+
+	// This zeroes the other side, which changes the totals - and .val() does
+	// not raise the change event the totals listen for.
+	if (typeof jvUpdateTotals === 'function') { jvUpdateTotals(); }
 }
+/*
+ * One place that adds the rows up, used by both the totals display and by
+ * validate(). Two separate additions could disagree, and the whole point of
+ * showing a total is that it says what Submit is about to decide on.
+ *
+ * parseFloat, not parseInt: parseInt('5000.50') is 5000, so two sides that
+ * differ only in paise used to read as balanced.
+ */
+function jvSums(){
+	var sum = function (selector) {
+		var total = 0;
+		$(selector).each(function () {
+			var value = parseFloat($(this).val());
+			if (!isNaN(value)) { total += value; }
+		});
+		return total;
+	};
+	return {debit: sum('.debit'), credit: sum('.credit')};
+}
+
+function jvUpdateTotals(){
+	var sums = jvSums();
+	// Rounded before comparing: 0.1 + 0.2 is not 0.3 in floating point, and a
+	// voucher that looks balanced on screen must not be rejected on submit.
+	var difference = Math.round((sums.debit - sums.credit) * 100) / 100;
+
+	$('#jv-total-debit').text(sums.debit.toFixed(2));
+	$('#jv-total-credit').text(sums.credit.toFixed(2));
+
+	var note = $('#jv-balance-note');
+	if (sums.debit === 0 && sums.credit === 0) {
+		note.text('').css('color', '');
+	} else if (difference === 0) {
+		note.text('Debit and credit match.').css('color', '#3c763d');
+	} else {
+		note.text('Out of balance by ' + Math.abs(difference).toFixed(2) +
+		          ' - ' + (difference > 0 ? 'credit' : 'debit') + ' is short.')
+		    .css('color', '#a94442');
+	}
+}
+
+// Rows are added after page load, so bind on the container rather than on the
+// inputs themselves.
+$(document).on('input change keyup', '.debit, .credit', jvUpdateTotals);
+$(document).ready(jvUpdateTotals);
+
 function validate(){
 
-	var debitSum = 0;
-	var creditSum = 0;
+	var sums = jvSums();
+	var debitSum = sums.debit;
+	var creditSum = sums.credit;
+	var difference = Math.round((debitSum - creditSum) * 100) / 100;
 
-	$('.debit').each(function(){
-    		debitSum = debitSum + parseInt($(this).val());
-		
-		  // Or this.innerHTML, this.innerText
-	});
+	jvUpdateTotals();
 
-	$('.credit').each(function(){
-    		creditSum = creditSum + parseInt($(this).val());  // Or this.innerHTML, this.innerText
-	});
-
-	if ((debitSum !=0) && (creditSum !=0) && (debitSum == creditSum))
+	if ((debitSum !== 0) && (creditSum !== 0) && (difference === 0))
 		$('#jvForm').submit();
 	else
 	{
