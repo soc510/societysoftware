@@ -165,10 +165,15 @@ error_reporting(0);
                                                                      $lastFlag = 'Dr';
                                                                  }
                                                                  
-                                                                 if($headCategory != 'Share Capital') {
-                                                                    $totalLiaOpening += $ledgerHeadDetails['openingAmount'];
-                                                                    $totalLiaTxn += $txnAmount;
-                                                                 }
+                                                                 /* Share Capital used to be skipped here, so the head printed its
+                                                                    own row but its opening balance and movement were left out of the
+                                                                    liability totals - the sheet then came up short by exactly that
+                                                                    head and could not agree with the asset side. It is a liability
+                                                                    like any other and belongs in the total; $totalLiaOpening and
+                                                                    $totalLiaTxn are added to in only two places (here and Advance
+                                                                    From Members), so counting it here cannot double it. */
+                                                                 $totalLiaOpening += $ledgerHeadDetails['openingAmount'];
+                                                                 $totalLiaTxn += $txnAmount;
                                                                                                                                   
                                                                  $openingPr = '';
                                                                  if(!empty($ledgerHeadDetails['openingAmount'])) {

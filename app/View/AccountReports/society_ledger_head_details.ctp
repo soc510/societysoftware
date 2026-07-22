@@ -112,7 +112,12 @@ error_reporting(0);
                                 <input type="checkbox" name="ledger_heads_is_interest_free" id="ledger_heads_is_interest_free" <?php echo isset($ledgerTransactionDetails['SocietyLedgerHeads']['is_interest_free']) && $ledgerTransactionDetails['SocietyLedgerHeads']['is_interest_free'] == 1 ? 'checked' :''; ?>> interest Free?<br>
                                 <div class="modal-ledger-form-btn">
                                     <button type="button" class="btn btn-success btn-anim btns" onclick="addUpdateSocietyLedgerHeads();"><i class="icon-rocket"></i><span class="btn-text"> Update</span></button>                            
-                                    <a type="button" data-toggle="tooltip" data-original-title="Go to dashboard" class="btn btn-success btn-anim btns" href="<?php echo Router::url(array('controller' =>'societys','action' =>'dashboard')); ?>"><i class="icon-rocket"></i><span class="btn-text">Cancel</span></a>
+                                    <?php /* This view is opened by the balance sheet with window.open(), so the
+                                             only way out was a Cancel that navigated the popup to the dashboard -
+                                             leaving a stray window sitting behind the report. Closes itself when
+                                             it is a popup, and falls back to the dashboard link when it was
+                                             reached as a normal page. */ ?>
+                                    <a type="button" data-toggle="tooltip" data-original-title="Close" class="btn btn-success btn-anim btns" href="<?php echo Router::url(array('controller' =>'societys','action' =>'dashboard')); ?>" onclick="if (window.opener &amp;&amp; !window.opener.closed) { window.close(); return false; }"><i class="icon-rocket"></i><span class="btn-text">Close</span></a>
                                     <a type="button" data-toggle="tooltip" data-original-title="Print Friendly" class="btn btn-success btn-anim btns" href="javascript:void(0);" onclick="printFlatShopReports('print_ledger_heads','print_ledger_heads_section');"><i class="fa fa-print"></i><span class="btn-text">Print Friendly</span></a>  
                                 </div>
                             </div> 
