@@ -130,16 +130,23 @@
 				<br/>
 			</div>
 		</div> 
-		<button type="button" class="btn btn-success btn-sm btn-add-component" style="margin-left:10px;" data-btn-id="1" onclick="add_component(this);"><span class="glyphicon glyphicon-plus"></span> Add More</button>
+		<?php /* Add More sits on the totals line rather than above it: the button
+		         and the running figures are one strip of controls under the entry
+		         rows, and stacking them left a band of empty space that pushed the
+		         balance note down onto Submit.
 
-		<?php /* The two sides must balance before Submit will go through. Showing
-		         the running totals here means that is visible while typing, instead
-		         of only as an alert after pressing Submit. */ ?>
-		<div class="row" id="jv-totals" style="margin-top:12px;font-weight:bold;">
-			<div class="col-md-6" style="text-align:right;padding-right:15px;">Total</div>
-			<div class="col-md-3"><span id="jv-total-debit">0.00</span></div>
-			<div class="col-md-3"><span id="jv-total-credit">0.00</span></div>
-			<div class="col-md-12" style="font-weight:normal;padding-top:4px;">
+		         Column widths mirror the entry rows above - 2/4/3/3 - so the two
+		         figures land directly under the Dr. and Cr. inputs they add up. */ ?>
+		<div class="row" id="jv-totals" style="margin-top:12px;">
+			<div class="col-md-2">
+				<button type="button" class="btn btn-success btn-sm btn-add-component" data-btn-id="1" onclick="add_component(this);"><span class="glyphicon glyphicon-plus"></span> Add More</button>
+			</div>
+			<div class="col-md-4" style="text-align:right;padding-right:15px;font-weight:bold;line-height:30px;">Total</div>
+			<div class="col-md-3" style="font-weight:bold;line-height:30px;"><span id="jv-total-debit">0.00</span></div>
+			<div class="col-md-3" style="font-weight:bold;line-height:30px;"><span id="jv-total-credit">0.00</span></div>
+		</div>
+		<div class="row">
+			<div class="col-md-12" style="padding-top:6px;padding-bottom:4px;">
 				<span id="jv-balance-note"></span>
 			</div>
 		</div>
