@@ -24,12 +24,24 @@ error_reporting(0);
                             <form class="" method="post" id="balanceSheetFrm" name="balanceSheetFrm" data-parsley-trigger="blur" class="form_parsley" data-validate="parsley" autocomplete="off"> 
                                 <div class="col-md-12 member-tariff-left-box"> 
                                     <div class="row">                                                       
-                                        <div class="col-md-3 nopadding1">  
-                                            <div class="account-report-form-field-box">     
-                                                <div class="account-report-form-field-box">   
-                                                    <div class="account-report-form-box-label">As On Date &nbsp;</div>  
+                                        <?php /* Only "As On Date" used to be here, and the controller ignored it -
+                                                 both ends came from the session financial year, so every run covered
+                                                 the whole year whatever was picked. Both ends are read now; leave
+                                                 either blank and that end falls back to the financial year. */ ?>
+                                        <div class="col-md-3 nopadding1">
+                                            <div class="account-report-form-field-box">
+                                                <div class="account-report-form-field-box">
+                                                    <div class="account-report-form-box-label">From &nbsp;</div>
+                                                    <input type="date" name='from_date' class="account-report-form-box-field-date-50" id="" value="<?php echo isset($postData['from_date']) ? $postData['from_date'] :'' ; ?>">
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3 nopadding1">
+                                            <div class="account-report-form-field-box">
+                                                <div class="account-report-form-field-box">
+                                                    <div class="account-report-form-box-label">To (As On) &nbsp;</div>
                                                     <input type="date" name='to_date'  class="account-report-form-box-field-date-50" id=""  value="<?php echo isset($postData['to_date']) ? $postData['to_date'] :'' ; ?>">
-                                                </div> 
+                                                </div>
                                             </div>
                                         </div>
                                         <div class="col-md-3 nopadding1">  
@@ -41,7 +53,10 @@ error_reporting(0);
                                                 </div> 
                                             </div>
                                         </div>
-                                        <div class="col-md-6">                                
+                                        <?php /* Was col-md-6 next to a single date box. With From and To both
+                                                 present the row came to 15 of 12 columns and the buttons dropped
+                                                 below, so the button strip takes the full width of its own line. */ ?>
+                                        <div class="col-md-12">
                                             <div class="account-report-form-field-box">
                                                 <button type="submit" data-toggle="tooltip" data-original-title="" class="btn btn-success btn-sm btn-anim"><i class="icon-rocket"></i><span class="btn-text">Show</span></button>                                        
                                                 <a type="button" data-toggle="tooltip" data-original-title="Print Friendly" class="btn btn-success btn-anim btn-sm" href="javascript:void(0);" onclick="printAllReports('print_account_balancesheet', 'landscape');"><i class="fa fa-print"></i><span class="btn-text">Print Friendly</span></a>                                                                            

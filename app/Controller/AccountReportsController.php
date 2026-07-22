@@ -20649,9 +20649,21 @@ function account_balance_sheet() {
 			} else {
 				$from_date = '2018-04-01';
 			}**/
-			$from_date = $this->Session->read('Auth.year_start_date');
-			$to_date = $this->Session->read('Auth.year_end_date');
-			//$to_date = (isset($postData['to_date']) && !empty($postData['to_date'])) ? $postData['to_date'] : date("Y-m-d");
+			/*
+			 * Honour the dates on the form.
+			 *
+			 * Both ends used to come from the session financial year, with the line
+			 * that read the posted date commented out - so the date boxes were
+			 * decorative and every run covered the whole year whatever was picked.
+			 * The financial year stays the fallback for whichever end is left
+			 * blank, which is what the report did before.
+			 */
+			$from_date = (isset($postData['from_date']) && !empty($postData['from_date']))
+				? $postData['from_date']
+				: $this->Session->read('Auth.year_start_date');
+			$to_date = (isset($postData['to_date']) && !empty($postData['to_date']))
+				? $postData['to_date']
+				: $this->Session->read('Auth.year_end_date');
 
 			$totalLiabilityAmount = 0;
 			$totalPrevLiabilityAmount = 0;
