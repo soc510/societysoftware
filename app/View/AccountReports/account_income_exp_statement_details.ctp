@@ -296,7 +296,7 @@ $('#over_expenditure').text(total_val);
 <script type="text/javascript" src="https://unpkg.com/xlsx@0.15.1/dist/xlsx.full.min.js"></script>
 <script type="text/javascript" src="https://unpkg.com/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script type="text/javascript" src="https://unpkg.com/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
-<script type="text/javascript" src="<?php echo $this->webroot; ?>js/report_export.js"></script>
+<script type="text/javascript" src="<?php echo $this->webroot; ?>js/report_export.js?version=<?php echo Configure::read('FileVersion');?>"></script>
 <script type="text/javascript">
    // Same two-column shape as the balance sheet - Expenditure|Income here,
    // Liabilities|Assets there - so both run the shared exporter rather than

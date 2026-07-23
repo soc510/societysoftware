@@ -114,7 +114,11 @@
       var grids = [], widths = [], height = 0, i, r, c, w;
       for (i = 0; i < inner.length; i++) {
          // header:1 keeps it as plain rows; colspan/rowspan are already expanded.
-         var grid = XLSX.utils.sheet_to_json(XLSX.utils.table_to_sheet(inner[i]),
+         // raw:true stops SheetJS re-reading cell text - without it "01/04/2025"
+         // was parsed as a date and rewritten "1/4/25" (and day/month could swap
+         // for days <= 12), and "500.00" lost its ".00". Every cell is written as
+         // a string anyway, so keeping the text verbatim is what the report needs.
+         var grid = XLSX.utils.sheet_to_json(XLSX.utils.table_to_sheet(inner[i], {raw: true}),
                                              {header: 1, raw: false, defval: ''});
          for (w = 0, r = 0; r < grid.length; r++) {
             if (grid[r].length > w) { w = grid[r].length; }
@@ -344,14 +348,22 @@
       for (r = 0; r < layout.headRows && r < layout.height; r++) { head.push(rowValues(r)); }
       for (r = layout.headRows; r < layout.height; r++) { body.push(rowValues(r)); }
 
-      // The ledger head needs the width; figures and the spacer do not.
+      // Which column holds the long text differs by report - the balance sheet's
+      // is column 1 (the ledger head), the bank book's is the particular - so it
+      // is detected from the data rather than hardcoded. A column whose body is
+      // mostly amounts gets a fixed narrow width and right alignment; the rest
+      // share the remaining width, so the description column is the one that grows.
       var columnStyles = {};
       for (var c = 0; c < layout.columns; c++) {
-         var half = layout.halfOf[c];
-         var within = half < 0 ? -1 : c - layout.offsetOf[half];
-         columnStyles[c] = within < 0 ? {cellWidth: 4}
-                         : within === 1 ? {cellWidth: 'auto'}
-                         : {cellWidth: 22, halign: 'right'};
+         if (layout.halfOf[c] < 0) { columnStyles[c] = {cellWidth: 4}; continue; }
+         var amounts = 0, filled = 0;
+         for (r = layout.headRows; r < layout.height; r++) {
+            var v = layout.valueAt(r, c).trim();
+            if (v !== '') { filled++; if (isAmount(v)) { amounts++; } }
+         }
+         columnStyles[c] = (filled > 0 && amounts >= filled * 0.6)
+                         ? {cellWidth: 22, halign: 'right'}
+                         : {cellWidth: 'auto'};
       }
 
       doc.autoTable({

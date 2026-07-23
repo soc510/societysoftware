@@ -655,7 +655,7 @@ error_reporting(0);
 <script type="text/javascript" src="https://unpkg.com/xlsx@0.15.1/dist/xlsx.full.min.js"></script>
 <script type="text/javascript" src="https://unpkg.com/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script type="text/javascript" src="https://unpkg.com/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
-<script type="text/javascript" src="<?php echo $this->webroot; ?>js/report_export.js"></script>
+<script type="text/javascript" src="<?php echo $this->webroot; ?>js/report_export.js?version=<?php echo Configure::read('FileVersion');?>"></script>
 <script>
    // The report reading, the SpreadsheetML writer and the autoTable PDF all
    // live in js/report_export.js so the income & expenditure statement, which
