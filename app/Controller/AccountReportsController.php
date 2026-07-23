@@ -80,6 +80,11 @@ class AccountReportsController extends AppController {
 
 	public $societyloginID = '';
 
+	// Set by getOpeningBalanceForthePeriod: the date of the last transaction
+	// before the requested period. Lets the opening balance row show when the
+	// balance was actually struck instead of the financial year start date.
+	public $openingBalanceAsOfDate = null;
+
 
 
 	public $societyBillingFrequencyId = 0;
@@ -1260,7 +1265,8 @@ class AccountReportsController extends AppController {
 
 
 
-        $this->set(compact('postData', 'societyBankLists', 'accountBankBbook', 'societyDetails', 'bankBookData', 'ledgerHeadDetails', 'openingBalance'));
+		$openingBalanceAsOfDate = $this->openingBalanceAsOfDate;
+        $this->set(compact('postData', 'societyBankLists', 'accountBankBbook', 'societyDetails', 'bankBookData', 'ledgerHeadDetails', 'openingBalance', 'openingBalanceAsOfDate'));
 
 
 
@@ -4047,7 +4053,8 @@ function account_cash_book() {
 
 
 				$totalBal = $totalDeposit - abs($totalWithdraw);
-
+				// Last transaction date before the period - dates the opening row.
+				$this->openingBalanceAsOfDate = (isset($cashBookData) && count($cashBookData) > 0) ? max(array_keys($cashBookData)) : $this->openingBalanceAsOfDate;
 
 
 			}
@@ -4766,6 +4773,7 @@ function account_cash_book() {
 	function getOpeningBalanceForthePeriod($date, $societyId, $ledgerHeadId, $type) {
 
 		$totalBal = 0;
+		$this->openingBalanceAsOfDate = null;
 		$financialYearId = $this->Util->getFinancialYear();
 
 		if ($type == 'cashbook') {
@@ -5385,6 +5393,8 @@ function account_cash_book() {
 
 
 			ksort($bankBookData); //sorting society and member payment by payment 
+			// Last transaction date before the period - dates the opening row.
+			$this->openingBalanceAsOfDate = (isset($bankBookData) && count($bankBookData) > 0) ? max(array_keys($bankBookData)) : $this->openingBalanceAsOfDate;
 
 
 

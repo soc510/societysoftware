@@ -186,7 +186,11 @@
                                                                 } else { $posNegSym = 'Dr';}
                                                         ?>
                                                         <tr id="">
-                                                            <td><?php echo $this->Session->read('Auth.formated_year_start_date');?></td>
+                                                            <?php /* Dated to the last transaction before this period, so the opening
+                                                                     reads as "balance as it stood then" rather than the year start.
+                                                                     Falls back to the year start when the opening is a carried-forward
+                                                                     amount with no transaction behind it. */ ?>
+                                                            <td><?php echo !empty($openingBalanceAsOfDate) ? $utilObj->getFormatDate($openingBalanceAsOfDate,'d/m/Y') : $this->Session->read('Auth.formated_year_start_date'); ?></td>
                                                             <td></td>
                                                             <td></td>
                                                             <td>Opening Balance</td>
