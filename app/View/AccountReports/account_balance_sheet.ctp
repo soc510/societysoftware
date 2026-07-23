@@ -32,7 +32,10 @@ error_reporting(0);
                                             <div class="account-report-form-field-box">
                                                 <div class="account-report-form-field-box">
                                                     <div class="account-report-form-box-label">From &nbsp;</div>
-                                                    <input type="date" name='from_date' class="account-report-form-box-field-date-50" id="" value="<?php echo isset($postData['from_date']) ? $postData['from_date'] :'' ; ?>">
+                                                    <?php /* Defaults to the selected financial year: 2025-2026 opens as
+                                                             01-04-2025 to 31-03-2026. Auth.year_start_date is already Y-m-d,
+                                                             which is what the date input needs. */ ?>
+                                                    <input type="date" name='from_date' class="account-report-form-box-field-date-50" id="" value="<?php echo !empty($postData['from_date']) ? $postData['from_date'] : $this->Session->read('Auth.year_start_date'); ?>">
                                                 </div>
                                             </div>
                                         </div>
@@ -40,7 +43,7 @@ error_reporting(0);
                                             <div class="account-report-form-field-box">
                                                 <div class="account-report-form-field-box">
                                                     <div class="account-report-form-box-label">To (As On) &nbsp;</div>
-                                                    <input type="date" name='to_date'  class="account-report-form-box-field-date-50" id=""  value="<?php echo isset($postData['to_date']) ? $postData['to_date'] :'' ; ?>">
+                                                    <input type="date" name='to_date'  class="account-report-form-box-field-date-50" id=""  value="<?php echo !empty($postData['to_date']) ? $postData['to_date'] : $this->Session->read('Auth.year_end_date'); ?>">
                                                 </div>
                                             </div>
                                         </div>
@@ -572,18 +575,33 @@ error_reporting(0);
                                         </div>                                
                                     </div> 
                                     <br>
-                                <div class="row">
-                                    <div class="col-md-6 col-xs-6 text-left"><?php echo isset($resellerDetails['firstname']) ? $resellerDetails['firstname'] : ''; echo ' ';echo isset($resellerDetails['lastname']) ? $resellerDetails['lastname'] : ''; echo " ($resellerDetails[job_role]) "; ?></div>
-                                    <div class="col-md-6 col-xs-3 text-center"><?php echo isset($societyDetails['Society']['society_name']) ? $societyDetails['Society']['society_name'] : ''; ?></div>
-                                    <div class="clearfix"></div><br><br>
-                                    <div class="col-md-2 col-xs-3 text-left">License No : </div>
-                                    <div class="col-md-2 col-xs-3 text-left"><?php echo isset($resellerDetails['license_no']) ? $resellerDetails['license_no'] : ''; ?></div>
-                                    <div class="col-md-2 col-xs-3 text-center">&nbsp;</div>
-                                    
-                                    <div class="col-md-2 col-xs-3 text-center">Chairman</div>
-                                    <div class="col-md-2 col-xs-3 text-center">Secretary</div>
-                                    <div class="col-md-2 col-xs-3 text-center">Treasurer</div>
-                                </div>
+                                <?php
+                                    // Built the signature block as a table rather than a Bootstrap row.
+                                    // The col-md-* columns collapsed to full width in the print window,
+                                    // stacking the three signatures; a table keeps them side by side and
+                                    // evenly spaced on screen and in print alike.
+                                    $resellerName = trim((isset($resellerDetails['firstname']) ? $resellerDetails['firstname'] : '') . ' '
+                                                       . (isset($resellerDetails['lastname']) ? $resellerDetails['lastname'] : ''));
+                                    $resellerRole = isset($resellerDetails['job_role']) ? trim($resellerDetails['job_role']) : '';
+                                    // Only add the parentheses when there is a role - an empty reseller was
+                                    // printing a bare "()".
+                                    if ($resellerName !== '' && $resellerRole !== '') { $resellerName .= ' (' . $resellerRole . ')'; }
+                                    elseif ($resellerRole !== '') { $resellerName = '(' . $resellerRole . ')'; }
+                                ?>
+                                <table style="width:100%; margin-top:15px; border:0;">
+                                    <tr>
+                                        <td style="text-align:left; border:0;"><?php echo h($resellerName); ?></td>
+                                        <td colspan="3" style="text-align:right; border:0;"><?php echo isset($societyDetails['Society']['society_name']) ? h($societyDetails['Society']['society_name']) : ''; ?></td>
+                                    </tr>
+                                    <tr><td colspan="4" style="border:0;">&nbsp;</td></tr>
+                                    <tr><td colspan="4" style="border:0;">&nbsp;</td></tr>
+                                    <tr>
+                                        <td style="text-align:left; border:0;">License No : <?php echo isset($resellerDetails['license_no']) ? h($resellerDetails['license_no']) : ''; ?></td>
+                                        <td style="text-align:center; border:0;">Chairman</td>
+                                        <td style="text-align:center; border:0;">Secretary</td>
+                                        <td style="text-align:center; border:0;">Treasurer</td>
+                                    </tr>
+                                </table>
                                 </div> 
                             </div> 
                         </div>
