@@ -42,7 +42,7 @@ error_reporting(0);
                                         <div class="col-md-3 nopadding1">
                                             <div class="account-report-form-field-box">
                                                 <div class="account-report-form-field-box">
-                                                    <div class="account-report-form-box-label">To (As On) &nbsp;</div>
+                                                    <div class="account-report-form-box-label">To &nbsp;</div>
                                                     <input type="date" name='to_date'  class="account-report-form-box-field-date-50" id=""  value="<?php echo !empty($postData['to_date']) ? $postData['to_date'] : $this->Session->read('Auth.year_end_date'); ?>">
                                                 </div>
                                             </div>
@@ -82,8 +82,10 @@ error_reporting(0);
                                                  * fork shares the page's data builder.
                                                  */
                                                 ?>
-                                                <a type="button" data-toggle="tooltip" data-original-title="Go to member payment list" class="btn btn-success btn-sm btn-anim" href=""><i class="icon-rocket"></i><span class="btn-text">Cancel</span></a>                                                                            
-                                              <div ><button type="button" class="btn btn-primary" onclick="export_product_excel()" value="Export" >Export  Excel</button></div>
+                                                <a type="button" data-toggle="tooltip" data-original-title="Go to member payment list" class="btn btn-success btn-sm btn-anim" href=""><i class="icon-rocket"></i><span class="btn-text">Cancel</span></a>
+                                                <?php /* Was wrapped in its own <div>, which is block-level and dropped the
+                                                         button onto a second line; inline like the rest keeps the strip on one row. */ ?>
+                                                <a type="button" data-toggle="tooltip" data-original-title="Export to Excel" class="btn btn-success btn-sm btn-anim" href="javascript:void(0);" onclick="export_product_excel();"><i class="fa fa-download"></i><span class="btn-text">Export Excel</span></a>
                                             </div>
                                         </div>                                                         
                                     </div>  
