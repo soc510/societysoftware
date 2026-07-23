@@ -195,12 +195,12 @@ error_reporting(0);
                                                                                                                                   
                                                                  $openingPr = '';
                                                                  if(!empty($ledgerHeadDetails['openingAmount'])) {
-                                                                     $openingPr = number_format($ledgerHeadDetails['openingAmount'],2).' '.$openFlag;
+                                                                     $openingPr = number_format($ledgerHeadDetails['openingAmount'],2);
                                                                  }
                                                                  
                                                                  $txnPr = '';
                                                                  if(!empty($txnAmount)) {
-                                                                     $txnPr = number_format(abs($txnAmount),2).' '.$txnFlag;
+                                                                     $txnPr = number_format(abs($txnAmount),2);
                                                                  }
                                                                  
                                                                  
@@ -223,7 +223,7 @@ error_reporting(0);
                                                                     $headPr = '';
                                                                     if(!empty($ledgerHeadTotal)) {
                                                                         //echo $ledgerHeadTotal.'<br>';
-                                                                        $headPr = number_format(abs($ledgerHeadTotal),2).' '.$headFlag;
+                                                                        $headPr = number_format(abs($ledgerHeadTotal),2);
                                                                     }
                                                                  
                                                                     echo "<td style='font-weight:600;'>$headPr</td>";
@@ -275,12 +275,12 @@ error_reporting(0);
                                                                  
                                                                  $openingPr = '';
                                                                  if(!empty($advanceOpening)) {
-                                                                     $openingPr = number_format(abs($advanceOpening),2).' '.$openFlag;
+                                                                     $openingPr = number_format(abs($advanceOpening),2);
                                                                  }
                                                                  
                                                                  $txnPr = '';
                                                                  if(!empty($advanceTxn)) {
-                                                                     $txnPr = number_format(abs($advanceTxn),2).' '.$txnFlag;
+                                                                     $txnPr = number_format(abs($advanceTxn),2);
                                                                  }
                                                                  
                                                              echo "<tr>
@@ -336,12 +336,12 @@ error_reporting(0);
                                                          
                                                                  $openingPr = '';
                                                                  if(!empty($totalLiaOpening)) {
-                                                                     $openingPr = number_format(abs($totalLiaOpening),2).' '.$openFlag;
+                                                                     $openingPr = number_format(abs($totalLiaOpening),2);
                                                                  }
                                                                  
                                                                  $txnPr = '';
                                                                  if(!empty($totalLiaTxn)) {
-                                                                     $txnPr = number_format(abs($totalLiaTxn),2).' '.$txnFlag;
+                                                                     $txnPr = number_format(abs($totalLiaTxn),2);
                                                                  }
                                                                  
                                                          echo "<tr>
@@ -427,12 +427,12 @@ error_reporting(0);
                                                                                                                                   
                                                                  $openingPr = '';
                                                                  if(!empty($ledgerHeadDetails['openingAmount'])) {
-                                                                     $openingPr = number_format($ledgerHeadDetails['openingAmount'],2).' '.$openFlag;
+                                                                     $openingPr = number_format($ledgerHeadDetails['openingAmount'],2);
                                                                  }
                                                                  
                                                                  $txnPr = '';
                                                                  if(!empty($txnAmount)) {
-                                                                     $txnPr = number_format(abs($txnAmount),2).' '.$txnFlag;
+                                                                     $txnPr = number_format(abs($txnAmount),2);
                                                                  }
                                                                  
                                                                  echo "<tr>
@@ -453,7 +453,7 @@ error_reporting(0);
                                                                  
                                                                     $headPr = '';
                                                                     if(!empty($ledgerHeadTotal)) {
-                                                                        $headPr = number_format(abs($ledgerHeadTotal),2).' '.$headFlag;
+                                                                        $headPr = number_format(abs($ledgerHeadTotal),2);
                                                                     }
                                                                  
                                                                     echo "<td style='font-weight:600;'>$headPr</td>";
@@ -496,12 +496,12 @@ error_reporting(0);
                                                                  
                                                                  $openingPr = '';
                                                                  if(!empty($duesOpening)) {
-                                                                     $openingPr = number_format(abs($duesOpening),2).' '.$openFlag;
+                                                                     $openingPr = number_format(abs($duesOpening),2);
                                                                  }
                                                                  
                                                                  $txnPr = '';
                                                                  if(!empty($duesTxn)) {
-                                                                     $txnPr = number_format(abs($duesTxn),2).' '.$txnFlag;
+                                                                     $txnPr = number_format(abs($duesTxn),2);
                                                                  }
                                                              
                                                              
@@ -552,12 +552,12 @@ error_reporting(0);
                                                          
                                                                  $openingPr = '';
                                                                  if(!empty($totalAssetOpening)) {
-                                                                     $openingPr = number_format(abs($totalAssetOpening),2).' '.$openFlag;
+                                                                     $openingPr = number_format(abs($totalAssetOpening),2);
                                                                  }
                                                                  
                                                                  $txnPr = '';
                                                                  if(!empty($totalAssetTxn)) {
-                                                                     $txnPr = number_format(abs($totalAssetTxn),2).' '.$txnFlag;
+                                                                     $txnPr = number_format(abs($totalAssetTxn),2);
                                                                  }
                                                                  
                                                          echo "<tr>
