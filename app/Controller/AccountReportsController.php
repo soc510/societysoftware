@@ -80,6 +80,11 @@ class AccountReportsController extends AppController {
 
 	public $societyloginID = '';
 
+	// Set by getOpeningBalanceForthePeriod: the date of the last transaction
+	// before the requested period. Lets the opening balance row show when the
+	// balance was actually struck instead of the financial year start date.
+	public $openingBalanceAsOfDate = null;
+
 
 
 	public $societyBillingFrequencyId = 0;
@@ -1260,7 +1265,8 @@ class AccountReportsController extends AppController {
 
 
 
-        $this->set(compact('postData', 'societyBankLists', 'accountBankBbook', 'societyDetails', 'bankBookData', 'ledgerHeadDetails', 'openingBalance'));
+		$openingBalanceAsOfDate = $this->openingBalanceAsOfDate;
+        $this->set(compact('postData', 'societyBankLists', 'accountBankBbook', 'societyDetails', 'bankBookData', 'ledgerHeadDetails', 'openingBalance', 'openingBalanceAsOfDate'));
 
 
 
@@ -4047,7 +4053,8 @@ function account_cash_book() {
 
 
 				$totalBal = $totalDeposit - abs($totalWithdraw);
-
+				// Last transaction date before the period - dates the opening row.
+				$this->openingBalanceAsOfDate = (isset($cashBookData) && count($cashBookData) > 0) ? max(array_keys($cashBookData)) : $this->openingBalanceAsOfDate;
 
 
 			}
@@ -4766,20 +4773,21 @@ function account_cash_book() {
 	function getOpeningBalanceForthePeriod($date, $societyId, $ledgerHeadId, $type) {
 
 		$totalBal = 0;
+		$this->openingBalanceAsOfDate = null;
 		$financialYearId = $this->Util->getFinancialYear();
 
 		if ($type == 'cashbook') {
-			$optionsSociety['AND'] = array('SocietyPayment.society_id' => $societyId);
-			$optionsSociety['AND'] = array('SocietyPayment.financial_year_id' => $financialYearId);
+			$optionsSociety['AND'] = array('SocietyPayment.society_id' => $societyId, 'SocietyPayment.financial_year_id' => $financialYearId);
 			
-			$options['AND'] = array('MemberPayment.society_id' => $societyId);
-			$options['AND'] = array('MemberPayment.financial_year_id' => $financialYearId);
 			
-			$optionsCashWithdraw['AND'] = array('CashWithdraw.society_id' => $societyId);
-			$optionsCashWithdraw['AND'] = array('CashWithdraw.financial_year_id' => $financialYearId);
+			$options['AND'] = array('MemberPayment.society_id' => $societyId, 'MemberPayment.financial_year_id' => $financialYearId);
 			
-			$optionsOtherIncome['AND'] = array('SocietyOtherIncome.society_id' => $societyId);
-			$optionsOtherIncome['AND'] = array('SocietyOtherIncome.financial_year_id' => $financialYearId);
+			
+			$optionsCashWithdraw['AND'] = array('CashWithdraw.society_id' => $societyId, 'CashWithdraw.financial_year_id' => $financialYearId);
+			
+			
+			$optionsOtherIncome['AND'] = array('SocietyOtherIncome.society_id' => $societyId, 'SocietyOtherIncome.financial_year_id' => $financialYearId);
+			
 
 
 			if (isset($ledgerHeadId) && !empty($ledgerHeadId)) {
@@ -4791,7 +4799,13 @@ function account_cash_book() {
 
 			$optionsOtherIncome['AND']['SocietyOtherIncome.payment_mode'] = 'cash';
 			if (isset($date) && !empty($date)) {
-				$paymentDateFrom = $this->getFirstDayFinancialYear();
+				// The opening balance spans this financial year up to the day before the
+				// "From" date. getFirstDayFinancialYear() derives the year from the server
+				// clock, so once the calendar rolls into the next April it returns a start
+				// date later than the period being viewed and the BETWEEN matched nothing -
+				// no opening row at all. The selected financial year lives in the session,
+				// which is also where the year id filter above comes from.
+				$paymentDateFrom = $this->Util->getFinancialYearStartDate() ?: $this->getFirstDayFinancialYear();
 				
 				$paymentDateTo = date('Y-m-d', strtotime($date . ' - ' . '1' . ' days'));
 				$options['OR']['MemberPayment.payment_date BETWEEN ? and ?'] = array($paymentDateFrom, $paymentDateTo);
@@ -4923,28 +4937,28 @@ function account_cash_book() {
 
 
 
-			$options['AND'] = array('MemberPayment.society_id' => $societyId);
-			$options['AND'] = array('MemberPayment.financial_year_id' => $financialYearId);
+			$options['AND'] = array('MemberPayment.society_id' => $societyId, 'MemberPayment.financial_year_id' => $financialYearId);
+			
 
 
 
-			$optionsSociety['AND'] = array('SocietyPayment.society_id' => $societyId);
-			$optionsSociety['AND'] = array('SocietyPayment.financial_year_id' => $financialYearId);
+			$optionsSociety['AND'] = array('SocietyPayment.society_id' => $societyId, 'SocietyPayment.financial_year_id' => $financialYearId);
+			
 
 
 
-			$optionsCashWithdraw['AND'] = array('CashWithdraw.society_id' => $societyId);
-			$optionsCashWithdraw['AND'] = array('CashWithdraw.financial_year_id' => $financialYearId);
+			$optionsCashWithdraw['AND'] = array('CashWithdraw.society_id' => $societyId, 'CashWithdraw.financial_year_id' => $financialYearId);
+			
 
 
 
-			$optionsContraReceived['AND'] = array('CashWithdraw.society_id' => $societyId);
-			$optionsContraReceived['AND'] = array('CashWithdraw.financial_year_id' => $financialYearId);
+			$optionsContraReceived['AND'] = array('CashWithdraw.society_id' => $societyId, 'CashWithdraw.financial_year_id' => $financialYearId);
+			
 
 
 
-			$optionsSocietyOtherIncome['AND'] = array('SocietyOtherIncome.society_id' => $societyId);
-			$optionsSocietyOtherIncome['AND'] = array('SocietyOtherIncome.financial_year_id' => $financialYearId);
+			$optionsSocietyOtherIncome['AND'] = array('SocietyOtherIncome.society_id' => $societyId, 'SocietyOtherIncome.financial_year_id' => $financialYearId);
+			
 
 
 
@@ -5048,7 +5062,13 @@ function account_cash_book() {
 			if (isset($date) && !empty($date)) {
 
 
-				$paymentDateFrom = $this->getFirstDayFinancialYear();
+				// The opening balance spans this financial year up to the day before the
+				// "From" date. getFirstDayFinancialYear() derives the year from the server
+				// clock, so once the calendar rolls into the next April it returns a start
+				// date later than the period being viewed and the BETWEEN matched nothing -
+				// no opening row at all. The selected financial year lives in the session,
+				// which is also where the year id filter above comes from.
+				$paymentDateFrom = $this->Util->getFinancialYearStartDate() ?: $this->getFirstDayFinancialYear();
 
 
 
@@ -5373,6 +5393,8 @@ function account_cash_book() {
 
 
 			ksort($bankBookData); //sorting society and member payment by payment 
+			// Last transaction date before the period - dates the opening row.
+			$this->openingBalanceAsOfDate = (isset($bankBookData) && count($bankBookData) > 0) ? max(array_keys($bankBookData)) : $this->openingBalanceAsOfDate;
 
 
 
@@ -20649,9 +20671,21 @@ function account_balance_sheet() {
 			} else {
 				$from_date = '2018-04-01';
 			}**/
-			$from_date = $this->Session->read('Auth.year_start_date');
-			$to_date = $this->Session->read('Auth.year_end_date');
-			//$to_date = (isset($postData['to_date']) && !empty($postData['to_date'])) ? $postData['to_date'] : date("Y-m-d");
+			/*
+			 * Honour the dates on the form.
+			 *
+			 * Both ends used to come from the session financial year, with the line
+			 * that read the posted date commented out - so the date boxes were
+			 * decorative and every run covered the whole year whatever was picked.
+			 * The financial year stays the fallback for whichever end is left
+			 * blank, which is what the report did before.
+			 */
+			$from_date = (isset($postData['from_date']) && !empty($postData['from_date']))
+				? $postData['from_date']
+				: $this->Session->read('Auth.year_start_date');
+			$to_date = (isset($postData['to_date']) && !empty($postData['to_date']))
+				? $postData['to_date']
+				: $this->Session->read('Auth.year_end_date');
 
 			$totalLiabilityAmount = 0;
 			$totalPrevLiabilityAmount = 0;

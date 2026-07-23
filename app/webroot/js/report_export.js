@@ -24,6 +24,9 @@
    };
 
    var INNER_TABLES = '.table-wrap1 > table > tbody > tr > td > table';
+   // Bank book and cash book are one plain ledger table with no inner tables,
+   // so the wrapper itself is the report.
+   var SINGLE_TABLE = '.table-wrap1 > table';
 
    /*
     * The two halves are separate tables, each ending in its own Total row, and
@@ -92,15 +95,30 @@
        * So read the two inner tables and lay them out as the page shows them.
        */
       var inner = source.querySelectorAll(INNER_TABLES);
+      if (!inner.length) { inner = source.querySelectorAll(SINGLE_TABLE); }
       if (!inner.length) {
          alert('Nothing to export - press Show to load the report.');
          return null;
       }
 
+      // How many rows the table gives to column headings. The two-column reports
+      // use two; a plain ledger uses one. Assuming two would embolden the first
+      // line of data on the bank book and push it into the PDF's header.
+      var headRows = 0;
+      for (var t = 0; t < inner.length; t++) {
+         var found = inner[t].querySelectorAll('thead tr').length;
+         if (found > headRows) { headRows = found; }
+      }
+      if (!headRows) { headRows = 1; }
+
       var grids = [], widths = [], height = 0, i, r, c, w;
       for (i = 0; i < inner.length; i++) {
          // header:1 keeps it as plain rows; colspan/rowspan are already expanded.
-         var grid = XLSX.utils.sheet_to_json(XLSX.utils.table_to_sheet(inner[i]),
+         // raw:true stops SheetJS re-reading cell text - without it "01/04/2025"
+         // was parsed as a date and rewritten "1/4/25" (and day/month could swap
+         // for days <= 12), and "500.00" lost its ".00". Every cell is written as
+         // a string anyway, so keeping the text verbatim is what the report needs.
+         var grid = XLSX.utils.sheet_to_json(XLSX.utils.table_to_sheet(inner[i], {raw: true}),
                                              {header: 1, raw: false, defval: ''});
          for (w = 0, r = 0; r < grid.length; r++) {
             if (grid[r].length > w) { w = grid[r].length; }
@@ -151,9 +169,9 @@
                   if (/^total$/i.test(cell)) { total = true; }
                }
             }
-            // The first two rows are the column headings; a row carrying just a
-            // label is a section heading; the closing total is bold as well.
-            boldAt[i].push(r < 2 || total || (filled === 1 && !isAmount(label)));
+            // The heading rows are bold; a row carrying just a label is a section
+            // heading; the closing total is bold as well.
+            boldAt[i].push(r < headRows || total || (filled === 1 && !isAmount(label)));
          }
       }
 
@@ -166,15 +184,18 @@
       for (i = 0; i < addr.length; i++) {
          if (addr[i].textContent.trim()) { banner.push([addr[i].textContent.trim(), false]); }
       }
-      var reportTitle = source.querySelector('.report-bill');
-      if (reportTitle && reportTitle.textContent.trim()) {
-         banner.push([reportTitle.textContent.trim(), true]);
+      // All of them, not just the first: a report often has a second .report-bill
+      // under the title - the balance sheet's date range, the bank book's bank
+      // name - and those belong in the exported banner too.
+      var titles = source.querySelectorAll('.report-bill');
+      for (i = 0; i < titles.length; i++) {
+         if (titles[i].textContent.trim()) { banner.push([titles[i].textContent.trim(), true]); }
       }
 
       return {
          grids: grids, widths: widths, height: height, columns: columns,
          halfOf: halfOf, offsetOf: offsetOf, boldAt: boldAt,
-         cellAt: cellAt, banner: banner,
+         cellAt: cellAt, banner: banner, headRows: headRows,
          // The value at an output column, '' for the spacer between the halves.
          valueAt: function (row, col) {
             var half = halfOf[col];
@@ -267,7 +288,7 @@
             var bold = layout.boldFor(r, c);
             // Values stay strings: as numbers Excel would drop the Cr/Dr suffix
             // that says which side of the ledger a figure sits on.
-            var style = r < 2 ? 'hd'
+            var style = r < layout.headRows ? 'hd'
                       : isAmount(value) ? (bold ? 'bn' : 'nm')
                       : (bold ? 'bt' : 'tx');
             cells.push(cell(style, value));
@@ -327,17 +348,25 @@
          return cells;
       };
       var head = [], body = [], r;
-      for (r = 0; r < 2 && r < layout.height; r++) { head.push(rowValues(r)); }
-      for (r = 2; r < layout.height; r++) { body.push(rowValues(r)); }
+      for (r = 0; r < layout.headRows && r < layout.height; r++) { head.push(rowValues(r)); }
+      for (r = layout.headRows; r < layout.height; r++) { body.push(rowValues(r)); }
 
-      // The ledger head needs the width; figures and the spacer do not.
+      // Which column holds the long text differs by report - the balance sheet's
+      // is column 1 (the ledger head), the bank book's is the particular - so it
+      // is detected from the data rather than hardcoded. A column whose body is
+      // mostly amounts gets a fixed narrow width and right alignment; the rest
+      // share the remaining width, so the description column is the one that grows.
       var columnStyles = {};
       for (var c = 0; c < layout.columns; c++) {
-         var half = layout.halfOf[c];
-         var within = half < 0 ? -1 : c - layout.offsetOf[half];
-         columnStyles[c] = within < 0 ? {cellWidth: 4}
-                         : within === 1 ? {cellWidth: 'auto'}
-                         : {cellWidth: 22, halign: 'right'};
+         if (layout.halfOf[c] < 0) { columnStyles[c] = {cellWidth: 4}; continue; }
+         var amounts = 0, filled = 0;
+         for (r = layout.headRows; r < layout.height; r++) {
+            var v = layout.valueAt(r, c).trim();
+            if (v !== '') { filled++; if (isAmount(v)) { amounts++; } }
+         }
+         columnStyles[c] = (filled > 0 && amounts >= filled * 0.6)
+                         ? {cellWidth: 22, halign: 'right'}
+                         : {cellWidth: 'auto'};
       }
 
       doc.autoTable({
@@ -353,8 +382,8 @@
          columnStyles: columnStyles,
          didParseCell: function (data) {
             if (data.section !== 'body') { return; }
-            // +2 because the body starts after the two heading rows.
-            if (layout.boldFor(data.row.index + 2, data.column.index)) {
+            // Offset because the body starts after the heading rows.
+            if (layout.boldFor(data.row.index + layout.headRows, data.column.index)) {
                data.cell.styles.fontStyle = 'bold';
             }
             if (layout.halfOf[data.column.index] < 0) {
