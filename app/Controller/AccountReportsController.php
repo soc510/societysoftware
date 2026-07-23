@@ -4791,7 +4791,13 @@ function account_cash_book() {
 
 			$optionsOtherIncome['AND']['SocietyOtherIncome.payment_mode'] = 'cash';
 			if (isset($date) && !empty($date)) {
-				$paymentDateFrom = $this->getFirstDayFinancialYear();
+				// The opening balance spans this financial year up to the day before the
+				// "From" date. getFirstDayFinancialYear() derives the year from the server
+				// clock, so once the calendar rolls into the next April it returns a start
+				// date later than the period being viewed and the BETWEEN matched nothing -
+				// no opening row at all. The selected financial year lives in the session,
+				// which is also where the year id filter above comes from.
+				$paymentDateFrom = $this->Util->getFinancialYearStartDate() ?: $this->getFirstDayFinancialYear();
 				
 				$paymentDateTo = date('Y-m-d', strtotime($date . ' - ' . '1' . ' days'));
 				$options['OR']['MemberPayment.payment_date BETWEEN ? and ?'] = array($paymentDateFrom, $paymentDateTo);
@@ -5048,7 +5054,13 @@ function account_cash_book() {
 			if (isset($date) && !empty($date)) {
 
 
-				$paymentDateFrom = $this->getFirstDayFinancialYear();
+				// The opening balance spans this financial year up to the day before the
+				// "From" date. getFirstDayFinancialYear() derives the year from the server
+				// clock, so once the calendar rolls into the next April it returns a start
+				// date later than the period being viewed and the BETWEEN matched nothing -
+				// no opening row at all. The selected financial year lives in the session,
+				// which is also where the year id filter above comes from.
+				$paymentDateFrom = $this->Util->getFinancialYearStartDate() ?: $this->getFirstDayFinancialYear();
 
 
 

@@ -172,11 +172,15 @@
                                                         $balancePerRow = 0;
                                                         $totalDeposit = 0;
                                                         $totalWithdraw = 0;
+                                                        // Carried separately from $totalDeposit: the opening balance belongs in
+                                                        // the running balance, but adding it into $totalDeposit made the Total
+                                                        // Deposit column report opening + deposits instead of the deposits.
+                                                        $openingBal = 0;
 
-                                                        if(isset($ledgerHeadDetails) && !empty($openingBalance)) { 
+                                                        if(isset($ledgerHeadDetails) && !empty($openingBalance)) {
                                                             $balancePerRow = $openingBalance;
-                                                            $totalDeposit = $openingBalance;
-                                                            
+                                                            $openingBal = $openingBalance;
+
                                                             if($openingBalance < 0) {
                                                                    $posNegSym = 'Cr';
                                                                 } else { $posNegSym = 'Dr';}
@@ -209,7 +213,7 @@
                                                              ?>
                                                         <tr id="" <?php if (isset($finalData['ledgerexists']) && $finalData['ledgerexists'] == 0){?>style=""<?php } ?>>
                                                             <?php 
-                                                                $totalBalancePerRow = $totalDeposit - abs($totalWithdraw);
+                                                                $totalBalancePerRow = $openingBal + $totalDeposit - abs($totalWithdraw);
                                                                 //echo $totalBal;
                                                                 if($totalBalancePerRow < 0) {
                                                                    $posNeg = 'Cr';
@@ -232,7 +236,7 @@
                                                         <?php $idCount++; } } } } ?>
                                                         <tr id="" style="background-color: #DFDFDF;">
                                                             <?php 
-                                                                $totalBal = $totalDeposit - abs($totalWithdraw);
+                                                                $totalBal = $openingBal + $totalDeposit - abs($totalWithdraw);
                                                                 //echo $totalBal;
                                                                 if($totalBal < 0) {
                                                                    $posNeg = 'Cr';
