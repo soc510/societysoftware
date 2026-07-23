@@ -101,6 +101,16 @@ error_reporting(0);
                                     </div>
                                     <div class="row1">
                                         <div class="report-bill">Balance Sheet </div>
+                                        <?php
+                                            // Shows the period the report covers, inside the print block so it
+                                            // carries into Print Friendly and the PDF. Falls back to the selected
+                                            // financial year when a run left an end blank.
+                                            $bsFrom = !empty($postData['from_date']) ? $postData['from_date'] : $this->Session->read('Auth.year_start_date');
+                                            $bsTo   = !empty($postData['to_date'])   ? $postData['to_date']   : $this->Session->read('Auth.year_end_date');
+                                            if (!empty($bsFrom) && !empty($bsTo)) {
+                                                echo '<div class="report-bill">' . date('d-M-Y', strtotime($bsFrom)) . ' to ' . date('d-M-Y', strtotime($bsTo)) . '</div>';
+                                            }
+                                        ?>
                                         <div class="text-center"></div>
                                         <div class="report-bill-outer-section">
                                             <div class="table-wrap1"><table id="" class="table table-bordered padding-td-none padding-th-none" >
@@ -591,9 +601,11 @@ error_reporting(0);
                                     elseif ($resellerRole !== '') { $resellerName = '(' . $resellerRole . ')'; }
                                 ?>
                                 <table style="width:100%; margin-top:15px; border:0;">
+                                    <?php if ($resellerName !== '') { ?>
+                                    <tr><td colspan="4" style="text-align:left; border:0;"><?php echo h($resellerName); ?></td></tr>
+                                    <?php } ?>
                                     <tr>
-                                        <td style="text-align:left; border:0;"><?php echo h($resellerName); ?></td>
-                                        <td colspan="3" style="text-align:right; border:0;"><?php echo isset($societyDetails['Society']['society_name']) ? h($societyDetails['Society']['society_name']) : ''; ?></td>
+                                        <td colspan="4" style="text-align:center; border:0;"><?php echo isset($societyDetails['Society']['society_name']) ? h($societyDetails['Society']['society_name']) : ''; ?></td>
                                     </tr>
                                     <tr><td colspan="4" style="border:0;">&nbsp;</td></tr>
                                     <tr><td colspan="4" style="border:0;">&nbsp;</td></tr>
@@ -601,7 +613,7 @@ error_reporting(0);
                                         <td style="text-align:left; border:0;">License No : <?php echo isset($resellerDetails['license_no']) ? h($resellerDetails['license_no']) : ''; ?></td>
                                         <td style="text-align:center; border:0;">Chairman</td>
                                         <td style="text-align:center; border:0;">Secretary</td>
-                                        <td style="text-align:center; border:0;">Treasurer</td>
+                                        <td style="text-align:right; border:0;">Treasurer</td>
                                     </tr>
                                 </table>
                                 </div> 

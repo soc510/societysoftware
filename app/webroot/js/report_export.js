@@ -184,9 +184,12 @@
       for (i = 0; i < addr.length; i++) {
          if (addr[i].textContent.trim()) { banner.push([addr[i].textContent.trim(), false]); }
       }
-      var reportTitle = source.querySelector('.report-bill');
-      if (reportTitle && reportTitle.textContent.trim()) {
-         banner.push([reportTitle.textContent.trim(), true]);
+      // All of them, not just the first: a report often has a second .report-bill
+      // under the title - the balance sheet's date range, the bank book's bank
+      // name - and those belong in the exported banner too.
+      var titles = source.querySelectorAll('.report-bill');
+      for (i = 0; i < titles.length; i++) {
+         if (titles[i].textContent.trim()) { banner.push([titles[i].textContent.trim(), true]); }
       }
 
       return {
