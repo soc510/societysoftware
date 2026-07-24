@@ -122,7 +122,22 @@
                                     </div>
                                     <br>
                                     <div class="report-bill">Member Collection Register</div>
-                                    <div class="report-bill"></div>  
+                                    <?php
+                                        // States the range the report covers. Sits inside the print block, and
+                                        // the exporter reads every .report-bill, so Print and Excel both carry it.
+                                        // Either end can be left blank on the form, so each is handled on its own.
+                                        $mcrFrom = isset($postData['MemberPayment']['payment_date']) ? trim($postData['MemberPayment']['payment_date']) : '';
+                                        $mcrTo   = isset($postData['MemberPayment']['payment_date_to']) ? trim($postData['MemberPayment']['payment_date_to']) : '';
+                                        $mcrPeriod = '';
+                                        if ($mcrFrom !== '' && $mcrTo !== '') {
+                                            $mcrPeriod = date('d-M-Y', strtotime($mcrFrom)) . ' to ' . date('d-M-Y', strtotime($mcrTo));
+                                        } elseif ($mcrFrom !== '') {
+                                            $mcrPeriod = 'From ' . date('d-M-Y', strtotime($mcrFrom));
+                                        } elseif ($mcrTo !== '') {
+                                            $mcrPeriod = 'Up to ' . date('d-M-Y', strtotime($mcrTo));
+                                        }
+                                    ?>
+                                    <div class="report-bill"><?php echo $mcrPeriod; ?></div>
                                     <div class="report-bill-outer-section">
                                         <div class="table-wrap1">
                                             <table id="" class="table table-bordered padding-td-none padding-th-none">
