@@ -192,10 +192,35 @@
          if (titles[i].textContent.trim()) { banner.push([titles[i].textContent.trim(), true]); }
       }
 
+      // The block the report is signed off under. Print carries it because it
+      // copies the whole container; the exports build their own output, so they
+      // read it here and re-lay it out, otherwise the sheet and the PDF stop at
+      // the table and are not the same document.
+      var signature = [];
+      var sigTable = source.querySelector('.report-signature');
+      if (sigTable) {
+         for (r = 0; r < sigTable.rows.length; r++) {
+            var sigCells = [], sigRow = sigTable.rows[r];
+            for (c = 0; c < sigRow.cells.length; c++) {
+               var sigCell = sigRow.cells[c];
+               // Alignment is taken from the cell so the exports place each name
+               // where the page does - Chairman sits right of its column, the
+               // other two centred - instead of always centring.
+               var align = window.getComputedStyle ? window.getComputedStyle(sigCell).textAlign : '';
+               if (align !== 'left' && align !== 'right') { align = 'center'; }
+               sigCells.push({
+                  text: sigCell.textContent.replace(/\u00a0/g, ' ').trim(),
+                  align: align
+               });
+            }
+            signature.push(sigCells);
+         }
+      }
+
       return {
          grids: grids, widths: widths, height: height, columns: columns,
          halfOf: halfOf, offsetOf: offsetOf, boldAt: boldAt,
-         cellAt: cellAt, banner: banner, headRows: headRows,
+         cellAt: cellAt, banner: banner, headRows: headRows, signature: signature,
          // The value at an output column, '' for the spacer between the halves.
          valueAt: function (row, col) {
             var half = halfOf[col];
@@ -257,6 +282,9 @@
       out.push('<Style ss:ID="bn"><Font ss:FontName="Calibri" ss:Size="11" ss:Bold="1"/>' +
                '<Alignment ss:Horizontal="Right"/>' + box + '</Style>');
       out.push('<Style ss:ID="gap"/>');
+      // Borderless, for the signature block, which follows the page's alignment.
+      out.push('<Style ss:ID="sgl"><Alignment ss:Horizontal="Left"/></Style>');
+      out.push('<Style ss:ID="sgr"><Alignment ss:Horizontal="Right"/></Style>');
       out.push('</Styles>');
       out.push('<Worksheet ss:Name="' + xml(sheetName || 'Report') + '"><Table>');
 
@@ -294,6 +322,26 @@
             cells.push(cell(style, value));
          }
          row(cells);
+      }
+
+      // The signature block, laid back out across the sheet's columns: a row with
+      // one entry spans the width, the three signatories take a third each.
+      if (layout.signature.length) {
+         row([]);
+         for (r = 0; r < layout.signature.length; r++) {
+            var sig = layout.signature[r], sigOut = [];
+            if (!sig.length) { row([]); continue; }
+            var span = Math.max(1, Math.floor(columns / sig.length));
+            for (c = 0; c < sig.length; c++) {
+               // Last one soaks up any remainder so the row still fills the width.
+               var across = (c === sig.length - 1) ? (columns - span * c) : span;
+               var sigStyle = sig.length === 1 ? 'ttl'
+                            : sig[c].align === 'right' ? 'sgr'
+                            : sig[c].align === 'left' ? 'sgl' : 'sub';
+               sigOut.push(cell(sigStyle, sig[c].text, across - 1));
+            }
+            row(sigOut);
+         }
       }
 
       out.push('</Table>');
@@ -392,6 +440,34 @@
             }
          }
       });
+
+      // The signature block, under the table: one entry is centred across the
+      // page, three are spread a third each so they sit under their own space.
+      if (layout.signature.length) {
+         var sigY = (doc.lastAutoTable ? doc.lastAutoTable.finalY : y) + 10;
+         var left = 8, usable = pageWidth - 16;
+         doc.setFontSize(9);
+         for (r = 0; r < layout.signature.length; r++) {
+            var line = layout.signature[r], filled = '';
+            for (c = 0; c < line.length; c++) { filled += line[c].text; }
+            // Blank rows in the block are spacing, not text.
+            if (!line.length || !filled.trim()) { sigY += 6; continue; }
+            if (sigY > doc.internal.pageSize.getHeight() - 15) {
+               doc.addPage(); sigY = 20;
+            }
+            doc.setFont('helvetica', line.length === 1 ? 'bold' : 'normal');
+            for (c = 0; c < line.length; c++) {
+               if (!String(line[c].text).trim()) { continue; }
+               var slot = usable / line.length, slotStart = left + slot * c;
+               // Same alignment the page uses, within this entry's share of the width.
+               var sigX = line[c].align === 'right' ? slotStart + slot
+                        : line[c].align === 'left' ? slotStart
+                        : slotStart + slot / 2;
+               doc.text(String(line[c].text), sigX, sigY, {align: line[c].align});
+            }
+            sigY += 6;
+         }
+      }
 
       doc.save(fileName || 'Report.pdf');
    }
