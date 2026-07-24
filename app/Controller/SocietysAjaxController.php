@@ -4381,5 +4381,163 @@ function getOpeningBalanceForthePeriod($date, $societyId, $ledgerHeadId) {
 
     }
 
+    public function get_general_receipt_details() {
+
+        $this->layout = false;
+
+        $this->autoRender = false;
+
+        $response = array('error' => 1, 'error_message' => 'General receipt details could not be loaded.', 'data' => array());
+
+        if ($this->request->is('ajax')) {
+
+            $this->loadModel('SocietyOtherIncome');
+
+            $societyLoginID = $this->Session->read('Auth.User.id');
+
+            $generalReceiptId = isset($this->request->data['general_receipt_id']) ? $this->request->data['general_receipt_id'] : 0;
+
+            $generalReceiptData = $this->SocietyOtherIncome->find('first', array('conditions' => array('SocietyOtherIncome.id' => $generalReceiptId, 'SocietyOtherIncome.society_id' => $societyLoginID), 'recursive' => -1));
+
+            if (!empty($generalReceiptData)) {
+
+                $receiptData = $generalReceiptData['SocietyOtherIncome'];
+
+                foreach (array('payment_date', 'cheque_date') as $dateField) {
+
+                    if (!isset($receiptData[$dateField]) || $receiptData[$dateField] == '0000-00-00') {
+
+                        $receiptData[$dateField] = '';
+
+                    }
+
+                }
+
+                $response['error'] = 0;
+
+                $response['error_message'] = '';
+
+                $response['data'] = $receiptData;
+
+            } else {
+
+                $response['error_message'] = 'Requested general receipt is not found.';
+
+            }
+
+        }
+
+        return new CakeResponse(array('body' => json_encode($response), 'status' => 200));
+
+    }
+
+    public function update_general_receipt() {
+
+        $this->layout = false;
+
+        $this->autoRender = false;
+
+        $response = array('error' => 1, 'error_message' => 'The general receipt could not be updated. Please, try again.');
+
+        if ($this->request->is('ajax')) {
+
+            $this->loadModel('SocietyOtherIncome');
+
+            $societyLoginID = $this->Session->read('Auth.User.id');
+
+            $requestData = isset($this->request->data['SocietyOtherIncome']) ? $this->request->data['SocietyOtherIncome'] : array();
+
+            $generalReceiptId = isset($requestData['id']) ? $requestData['id'] : 0;
+
+            $generalReceiptData = $this->SocietyOtherIncome->find('first', array('conditions' => array('SocietyOtherIncome.id' => $generalReceiptId, 'SocietyOtherIncome.society_id' => $societyLoginID), 'recursive' => -1));
+
+            if (empty($generalReceiptData)) {
+
+                $response['error_message'] = 'Requested general receipt is not found.';
+
+                return new CakeResponse(array('body' => json_encode($response), 'status' => 200));
+
+            }
+
+            if (empty($requestData['ledger_head_id'])) {
+
+                $response['error_message'] = 'Please select the head in Received By.';
+
+                return new CakeResponse(array('body' => json_encode($response), 'status' => 200));
+
+            }
+
+            $paymentDate = isset($requestData['payment_date']) ? $requestData['payment_date'] : '';
+
+            if (empty($paymentDate) || !$this->Util->isDateInCurrentFinancialYear($paymentDate)) {
+
+                $response['error_message'] = 'Payment date should be within the current financial year.';
+
+                return new CakeResponse(array('body' => json_encode($response), 'status' => 200));
+
+            }
+
+            $postData = array();
+
+            $postData['id'] = $generalReceiptData['SocietyOtherIncome']['id'];
+
+            $postData['ledger_head_id'] = $requestData['ledger_head_id'];
+
+            $postData['payment_mode'] = isset($requestData['payment_mode']) ? trim($requestData['payment_mode']) : '';
+
+            $postData['amount_paid'] = isset($requestData['amount_paid']) && $requestData['amount_paid'] !== '' ? $requestData['amount_paid'] : '0.00';
+
+            $postData['tds_amount'] = isset($requestData['tds_amount']) && $requestData['tds_amount'] !== '' ? $requestData['tds_amount'] : '0.00';
+
+            $postData['net_amount'] = isset($requestData['net_amount']) && $requestData['net_amount'] !== '' ? $requestData['net_amount'] : '0.00';
+
+            $postData['tds_bank_id'] = isset($requestData['tds_bank_id']) ? $requestData['tds_bank_id'] : '';
+
+            $postData['title'] = isset($requestData['title']) ? $requestData['title'] : '';
+
+            $postData['description'] = isset($requestData['description']) ? $requestData['description'] : '';
+
+            $postData['payment_date'] = $paymentDate;
+
+            if ($postData['payment_mode'] == 'Bank') {
+
+                $postData['society_bank_id'] = isset($requestData['society_bank_id']) && $requestData['society_bank_id'] !== '' ? $requestData['society_bank_id'] : 0;
+
+                $postData['cheque_no'] = isset($requestData['cheque_no']) && $requestData['cheque_no'] !== '' ? $requestData['cheque_no'] : 0;
+
+                $postData['cheque_date'] = isset($requestData['cheque_date']) && $requestData['cheque_date'] != '' ? $requestData['cheque_date'] : null;
+
+                $postData['general_bank_name'] = isset($requestData['general_bank_name']) ? $requestData['general_bank_name'] : '';
+
+            } else {
+
+                $postData['society_bank_id'] = 0;
+
+                $postData['cheque_no'] = 0;
+
+                $postData['cheque_date'] = null;
+
+                $postData['general_bank_name'] = '';
+
+            }
+
+            $postData['udate'] = $this->Util->getDateTime();
+
+            $this->SocietyOtherIncome->id = $postData['id'];
+
+            if ($this->SocietyOtherIncome->save(array('SocietyOtherIncome' => $postData), false, array_keys($postData))) {
+
+                $response['error'] = 0;
+
+                $response['error_message'] = 'The general receipt has been updated.';
+
+            }
+
+        }
+
+        return new CakeResponse(array('body' => json_encode($response), 'status' => 200));
+
+    }
+
 }
 

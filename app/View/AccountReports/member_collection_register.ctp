@@ -60,7 +60,12 @@
                                             $flat_no = isset($postData['MemberPayment']['flat_no']) && !empty($postData['MemberPayment']['flat_no']) ? base64_encode($postData['MemberPayment']['flat_no']) : '';
                                             $flat_no_to = isset($postData['MemberPayment']['flat_no_to']) && !empty($postData['MemberPayment']['flat_no_to']) ? base64_encode($postData['MemberPayment']['flat_no_to']) : '';
                                             $wing_id = isset($postData['MemberPayment']['wing_id']) && !empty($postData['MemberPayment']['wing_id']) ? base64_encode($postData['MemberPayment']['wing_id']) : '';
-                                            echo $this->Html->link('<i class="fa fa-download" style="color:#fff;font-size:10px;"></i> Export to Excel', array('controller' => 'excels_report', 'action' => 'download_member_collection_register', '?' => array('payment_date_to' => $bill_date_to, 'payment_date' => $bill_date, 'month' => $month, 'month_to' => $month_to, 'receipt_id' => $receiptID, 'receipt_id_to' => $receiptIdTo,'building_id' => $building_id,'wing_id' => $wing_id,'flat_no' => $flat_no,'flat_no_to' => $flat_no_to)), array('class' => 'btn btn-success btns', 'data-toggle' => 'tooltip', 'data-original-title' => 'Member Collection Register', 'escape' => false, 'target' => '_blank'));?>
+                                            /* Was a link to excels_report/download_member_collection_register, a
+                                               separate server-side query with its own filtering - so the sheet did
+                                               not have to agree with the rows on screen, and it carried no total.
+                                               Exports the table rendered below instead, the same one Print uses. */
+                                        ?>
+                                        <a class="btn btn-success btns" data-toggle="tooltip" data-original-title="Member Collection Register" href="javascript:void(0);" onclick="export_member_collection_excel();"><i class="fa fa-download" style="color:#fff;font-size:10px;"></i> Export to Excel</a>
                                     </div>
                                 </div> 
                                 <div class="col-md-3 right-section">
@@ -152,6 +157,7 @@
                                                                     <td><?php echo isset($memberPaymentData['payment_date']) ? $utilObj->getFormatDate($memberPaymentData['payment_date'],'d/m/Y') :'' ; ?></td>
                                                                     <td class="text-center"><?php echo isset($memberPaymentData['receipt_id']) ? $memberPaymentData['receipt_id'] :'' ; ?></td>
                                                                     <td><?php echo isset($collectionPaymentData['Member']['member_prefix']) ? $collectionPaymentData['Member']['member_prefix'] :'' ; ?><?php echo isset($collectionPaymentData['Member']['member_name']) ? $collectionPaymentData['Member']['member_name'] :'' ; ?></td>
+                                                                    <?php $totalAmt += isset($memberPaymentData['amount_paid']) ? (float)$memberPaymentData['amount_paid'] : 0; ?>
                                                                     <td class="text-right"><?php echo isset($memberPaymentData['amount_paid']) ? $memberPaymentData['amount_paid'] :'' ; ?></td>
                                                                     <td class="text-center"><?php echo isset($memberPaymentData['cheque_reference_number']) ? $memberPaymentData['cheque_reference_number'] :'-' ; ?></td>
                                                                     <?php if(isset($memberPaymentData['payment_mode']) && $memberPaymentData['payment_mode'] == Configure::read('PaymentMode.Cash')) { ?>
@@ -164,8 +170,17 @@
                                                                 <?php $idCount++; }
                                                             }
                                                         }
-                                                    } ?>
-                                                </tbody>   
+                                                        // $totalAmt was being initialised and then never added up or shown.
+                                                        ?>
+                                                        <tr style="background-color: #DFDFDF;">
+                                                            <td colspan="7" class="text-right"><strong>Total</strong></td>
+                                                            <td class="text-right"><strong><?php echo number_format($totalAmt, 2, '.', ','); ?></strong></td>
+                                                            <td></td>
+                                                            <td></td>
+                                                            <td></td>
+                                                        </tr>
+                                                    <?php } ?>
+                                                </tbody>
                                             </table> 
                                         </div>
                                     </div>  
@@ -180,3 +195,10 @@
     </div>
 </div>
 
+<script type="text/javascript" src="https://unpkg.com/xlsx@0.15.1/dist/xlsx.full.min.js"></script>
+<script type="text/javascript" src="<?php echo $this->webroot; ?>js/report_export.js?version=<?php echo Configure::read('FileVersion');?>"></script>
+<script type="text/javascript">
+   function export_member_collection_excel(){
+      reportExport.excel('print_member_collection_register', 'Member Collection Register', 'MemberCollectionRegister.xls');
+   }
+</script>
