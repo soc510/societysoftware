@@ -208,9 +208,16 @@
                // other two centred - instead of always centring.
                var align = window.getComputedStyle ? window.getComputedStyle(sigCell).textAlign : '';
                if (align !== 'left' && align !== 'right') { align = 'center'; }
+               // Share of the row this cell occupies. Spacing between the names
+               // is set by the column widths on the page, so carrying the ratio
+               // is what keeps the exports matching it rather than splitting the
+               // width evenly and ignoring the layout.
+               var sigWidth = sigTable.offsetWidth
+                            ? (sigCell.offsetWidth / sigTable.offsetWidth) : 0;
                sigCells.push({
                   text: sigCell.textContent.replace(/\u00a0/g, ' ').trim(),
-                  align: align
+                  align: align,
+                  width: sigWidth
                });
             }
             signature.push(sigCells);
@@ -331,10 +338,17 @@
          for (r = 0; r < layout.signature.length; r++) {
             var sig = layout.signature[r], sigOut = [];
             if (!sig.length) { row([]); continue; }
-            var span = Math.max(1, Math.floor(columns / sig.length));
+            var used = 0;
             for (c = 0; c < sig.length; c++) {
-               // Last one soaks up any remainder so the row still fills the width.
-               var across = (c === sig.length - 1) ? (columns - span * c) : span;
+               // Columns in proportion to the page, so the names land at the same
+               // relative spacing. The last one takes the remainder, so the row
+               // always spans the sheet exactly however the rounding falls.
+               var share = sig[c].width || (1 / sig.length);
+               var across = (c === sig.length - 1)
+                          ? (columns - used)
+                          : Math.max(1, Math.round(columns * share));
+               if (across < 1) { across = 1; }
+               used += across;
                var sigStyle = sig.length === 1 ? 'ttl'
                             : sig[c].align === 'right' ? 'sgr'
                             : sig[c].align === 'left' ? 'sgl' : 'sub';
@@ -456,14 +470,19 @@
                doc.addPage(); sigY = 20;
             }
             doc.setFont('helvetica', line.length === 1 ? 'bold' : 'normal');
+            var slotStart = left;
             for (c = 0; c < line.length; c++) {
-               if (!String(line[c].text).trim()) { continue; }
-               var slot = usable / line.length, slotStart = left + slot * c;
-               // Same alignment the page uses, within this entry's share of the width.
-               var sigX = line[c].align === 'right' ? slotStart + slot
-                        : line[c].align === 'left' ? slotStart
-                        : slotStart + slot / 2;
-               doc.text(String(line[c].text), sigX, sigY, {align: line[c].align});
+               // The page's own column share, falling back to an even split if the
+               // block was not laid out (hidden, so no measurable width).
+               var slot = usable * (line[c].width || (1 / line.length));
+               if (String(line[c].text).trim()) {
+                  // Same alignment the page uses, within this entry's share.
+                  var sigX = line[c].align === 'right' ? slotStart + slot
+                           : line[c].align === 'left' ? slotStart
+                           : slotStart + slot / 2;
+                  doc.text(String(line[c].text), sigX, sigY, {align: line[c].align});
+               }
+               slotStart += slot;
             }
             sigY += 6;
          }

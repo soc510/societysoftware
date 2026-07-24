@@ -612,11 +612,16 @@ error_reporting(0);
                                     <tr><td colspan="3" style="border:0;">&nbsp;</td></tr>
                                     <tr><td colspan="3" style="border:0;">&nbsp;</td></tr>
                                     <tr>
-                                        <?php /* Chairman sits at the right of its third rather than the middle,
-                                                 which closes the gap to Secretary; the other two are unchanged. */ ?>
-                                        <td style="text-align:right; border:0; width:33%;">Chairman</td>
-                                        <td style="text-align:center; border:0; width:34%;">Secretary</td>
-                                        <td style="text-align:center; border:0; width:33%;">Treasurer</td>
+                                        <?php /* Chairman to the right of its third, Treasurer to the left of its
+                                                 own, Secretary centred between them - so the three sit as a group
+                                                 with an equal gap either side of Secretary instead of being
+                                                 stretched to the page edges. */ ?>
+                                        <?php /* The gap either side of Secretary is half the middle column, so
+                                                 the spacing is tuned by that width alone - keep the outer two
+                                                 equal and the group stays centred. */ ?>
+                                        <td style="text-align:right; border:0; width:42%;">Chairman</td>
+                                        <td style="text-align:center; border:0; width:16%;">Secretary</td>
+                                        <td style="text-align:left; border:0; width:42%;">Treasurer</td>
                                     </tr>
                                 </table>
                                 </div> 
