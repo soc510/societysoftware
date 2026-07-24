@@ -19412,7 +19412,10 @@ echo "<br>".$headDetails['society_head_sub_category_id'];
 
 
 
-		$conditionPayment = '';
+		// An empty string, then indexed as an array below: on PHP 7 that is an
+		// "Illegal string offset" warning followed by a fatal, so entering a date
+		// range killed the whole page - and the range was never applied.
+		$conditionPayment = array();
 
 
 

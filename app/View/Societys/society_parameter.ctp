@@ -150,7 +150,14 @@
                                                 <label for="special_field" class="control-label">Special Field</label> 
                                                 <textarea rows="4" cols="50" style="resize: none;" type="text" class="form-control" id="special_field" name="data[SocietyParameter][special_field]" value="<?php echo isset($this->request->data['SocietyParameter']['special_field']) ? $this->request->data['SocietyParameter']['special_field'] :''; ?>"><?php echo isset($this->request->data['SocietyParameter']['special_field']) ? $this->request->data['SocietyParameter']['special_field'] :''; ?></textarea>
                                             </div>
-                                        </div>                                        
+                                        </div>
+                                        <div class="col-md-12">
+                                            <div class="form-group">
+                                                <label for="signature_image" class="control-label">Signature Image </label>
+                                                <?php if(!empty($this->request->data['SocietyParameter']['signature_image_path'])) echo $this->Html->image($this->request->data['SocietyParameter']['signature_image_path'], array('height' => '70', 'fullBase' => true, 'plugin' => false)); ?>
+                                                <input type="file" class="form-control" id="signature_image" name="data[SocietyParameter][signature_image]" accept=".jpg,.jpeg,.png">
+                                            </div>
+                                        </div>
                                         </div>
                                        <div class="col-md-6">
                                         <div class="col-md-12">

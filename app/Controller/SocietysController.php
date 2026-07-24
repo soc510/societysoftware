@@ -1305,7 +1305,31 @@ class SocietysController extends AppController {
 
             }
 
-            
+            if(!empty($requestData['SocietyParameter']['signature_image']['name'])){
+
+                $signatureFileData = $requestData['SocietyParameter']['signature_image'];
+
+                $signatureFileType = $this->getFileType($signatureFileData['name']);
+
+                if(!in_array($signatureFileType,['jpg','jpeg','png'])){
+
+                    $this->Session->setFlash(__('Signature file format type is not valid.'), 'error');
+
+                    $this->redirect(array('controller' => 'societys', 'action' => 'society_parameter'));
+
+                }
+
+                else{
+
+                    $signatureFilePath = $this->uploadFile($signatureFileData,$societyLoginID,$societyName,'society_signature','signature');
+
+                    $this->request->data['SocietyParameter']['signature_image_path'] = $signatureFilePath;
+
+                }
+
+            }
+
+
 
             if ($this->SocietyParameter->save($this->request->data)) {
                 $id = isset($this->request->data['SocietyParameter']['id']) ? $this->request->data['SocietyParameter']['id'] : 0;
@@ -1349,7 +1373,15 @@ class SocietysController extends AppController {
 
                     $this->request->data['SocietyParameter']['scanner_image_path']=strchr($filepath,'payment_scanner');
 
-                }                
+                }
+
+                $signatureFilepath = isset($this->request->data['SocietyParameter']['signature_image_path']) ? $this->request->data['SocietyParameter']['signature_image_path'] : '';
+
+                if(!empty($signatureFilepath)){
+
+                    $this->request->data['SocietyParameter']['signature_image_path']=strchr($signatureFilepath,'society_signature');
+
+                }
 
             }
 
@@ -1371,15 +1403,15 @@ class SocietysController extends AppController {
 
     
 
-    public function uploadFile($fileData,$societyLoginID,$societyName){
+    public function uploadFile($fileData,$societyLoginID,$societyName,$uploadFolderName = 'payment_scanner',$fileNameSuffix = 'paymentscanner'){
 
-        $folderPath =  WWW_ROOT.'img/payment_scanner/'.$societyName."_".$societyLoginID."/";
+        $folderPath =  WWW_ROOT.'img/'.$uploadFolderName.'/'.$societyName."_".$societyLoginID."/";
 
-        
+
 
         if(!is_dir($folderPath)){
 
-            mkdir("$folderPath");
+            mkdir("$folderPath", 0755, true);
 
             chmod("$folderPath", 0755);
 
@@ -1397,7 +1429,7 @@ class SocietysController extends AppController {
 
             $type = $this->getFileType($fileName);
 
-            $newFileName = $folderPath.$societyName."_".$rand."_paymentscanner.$type";// $fileName;
+            $newFileName = $folderPath.$societyName."_".$rand."_".$fileNameSuffix.".$type";// $fileName;
 
 
 

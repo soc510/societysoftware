@@ -600,20 +600,28 @@ error_reporting(0);
                                     if ($resellerName !== '' && $resellerRole !== '') { $resellerName .= ' (' . $resellerRole . ')'; }
                                     elseif ($resellerRole !== '') { $resellerName = '(' . $resellerRole . ')'; }
                                 ?>
-                                <table style="width:100%; margin-top:15px; border:0;">
+                                <?php /* report-signature is what the PDF and Excel exporters look for, so the
+                                         signed-off block travels with them the way it does with print. */ ?>
+                                <table class="report-signature" style="width:100%; margin-top:15px; border:0;">
                                     <?php if ($resellerName !== '') { ?>
-                                    <tr><td colspan="4" style="text-align:left; border:0;"><?php echo h($resellerName); ?></td></tr>
+                                    <tr><td colspan="3" style="text-align:left; border:0;"><?php echo h($resellerName); ?></td></tr>
                                     <?php } ?>
                                     <tr>
-                                        <td colspan="4" style="text-align:center; border:0;"><?php echo isset($societyDetails['Society']['society_name']) ? h($societyDetails['Society']['society_name']) : ''; ?></td>
+                                        <td colspan="3" style="text-align:center; border:0;"><?php echo isset($societyDetails['Society']['society_name']) ? h($societyDetails['Society']['society_name']) : ''; ?></td>
                                     </tr>
-                                    <tr><td colspan="4" style="border:0;">&nbsp;</td></tr>
-                                    <tr><td colspan="4" style="border:0;">&nbsp;</td></tr>
+                                    <tr><td colspan="3" style="border:0;">&nbsp;</td></tr>
+                                    <tr><td colspan="3" style="border:0;">&nbsp;</td></tr>
                                     <tr>
-                                        <td style="text-align:left; border:0;">License No : <?php echo isset($resellerDetails['license_no']) ? h($resellerDetails['license_no']) : ''; ?></td>
-                                        <td style="text-align:center; border:0;">Chairman</td>
-                                        <td style="text-align:center; border:0;">Secretary</td>
-                                        <td style="text-align:right; border:0;">Treasurer</td>
+                                        <?php /* Chairman to the right of its third, Treasurer to the left of its
+                                                 own, Secretary centred between them - so the three sit as a group
+                                                 with an equal gap either side of Secretary instead of being
+                                                 stretched to the page edges. */ ?>
+                                        <?php /* The gap either side of Secretary is half the middle column, so
+                                                 the spacing is tuned by that width alone - keep the outer two
+                                                 equal and the group stays centred. */ ?>
+                                        <td style="text-align:right; border:0; width:42%;">Chairman</td>
+                                        <td style="text-align:center; border:0; width:16%;">Secretary</td>
+                                        <td style="text-align:left; border:0; width:42%;">Treasurer</td>
                                     </tr>
                                 </table>
                                 </div> 
