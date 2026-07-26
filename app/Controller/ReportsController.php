@@ -1351,17 +1351,17 @@ echo "<!--";
                         && isset($oldMemberNameById[$__mid]) && $oldMemberNameById[$__mid] !== '') {
                     $jvMemberDisplayName = $oldMemberNameById[$__mid];
                 }
-
-                if ($CreditFlag) {
-
-                    $journalVoucherData[$counter]['JournalVoucher']['creadit_title'] = $jvMemberDisplayName;
-
+                // Show the flat number with the name, as the dropdown does.
+                if ($jvMemberDisplayName !== '' && isset($flatNoList[$__mid]) && $flatNoList[$__mid] !== '') {
+                    $jvMemberDisplayName .= ' -- ' . $flatNoList[$__mid];
                 }
 
-                if($debitFlag){
+                if ($CreditFlag && !empty($jVData['JournalVoucher']['jv_credit_member_head_id'])) {
+                    $journalVoucherData[$counter]['JournalVoucher']['creadit_title'] = $jvMemberDisplayName;
+                }
 
+                if ($debitFlag && !empty($jVData['JournalVoucher']['jv_debit_member_head_id'])) {
                     $journalVoucherData[$counter]['JournalVoucher']['debit_title'] = $jvMemberDisplayName;
-
                 }
 
             }
