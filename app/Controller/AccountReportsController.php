@@ -10552,10 +10552,12 @@ $expIndex = 0;$incomeIdex = 0;
 				'fields' => array(
 					'MemberBillGenerate.member_id',
 					'MemberBillGenerate.month',
+					'MemberBillGenerate.financial_year_id',
+					'MemberBillGenerate.bill_type',
 					'SUM(MemberBillGenerate.amount) AS contri',
 					'SUM(MemberBillGenerate.tax_total) AS gst'
 				),
-				'group' => array('MemberBillGenerate.member_id', 'MemberBillGenerate.month'),
+				'group' => array('MemberBillGenerate.member_id', 'MemberBillGenerate.month', 'MemberBillGenerate.financial_year_id', 'MemberBillGenerate.bill_type'),
 				'recursive' => -1
 			));
 
@@ -10565,7 +10567,11 @@ $expIndex = 0;$incomeIdex = 0;
 
 				$totalsMonth = $billGenerateTotal['MemberBillGenerate']['month'];
 
-				$contributionByMemberMonth[$totalsMemberId][$totalsMonth] = array(
+				$totalsFy = $billGenerateTotal['MemberBillGenerate']['financial_year_id'];
+
+				$totalsBt = $billGenerateTotal['MemberBillGenerate']['bill_type'];
+
+				$contributionByMemberMonth[$totalsMemberId][$totalsMonth][$totalsFy][$totalsBt] = array(
 					'contri' => isset($billGenerateTotal[0]['contri']) ? $billGenerateTotal[0]['contri'] : 0,
 					'gst' => isset($billGenerateTotal[0]['gst']) ? $billGenerateTotal[0]['gst'] : 0
 				);
@@ -10586,6 +10592,10 @@ $expIndex = 0;$incomeIdex = 0;
 
 						$month = $billData['MemberBillSummary']['month'];
 
+						$billFy = $billData['MemberBillSummary']['financial_year_id'];
+
+						$billBt = $billData['MemberBillSummary']['bill_type'];
+
 						$billArray[$cnt]['bill_no'] = $billData['MemberBillSummary']['bill_no'];
 
 						$billArray[$cnt]['bill_month'] = $month;
@@ -10594,9 +10604,9 @@ $expIndex = 0;$incomeIdex = 0;
 
 						//member contri
 
-						$billArray[$cnt]['contri'] = isset($contributionByMemberMonth[$memberId][$month]['contri']) ? $contributionByMemberMonth[$memberId][$month]['contri'] : 0;
+						$billArray[$cnt]['contri'] = isset($contributionByMemberMonth[$memberId][$month][$billFy][$billBt]['contri']) ? $contributionByMemberMonth[$memberId][$month][$billFy][$billBt]['contri'] : 0;
 
-						$billArray[$cnt]['gst'] = isset($contributionByMemberMonth[$memberId][$month]['gst']) ? $contributionByMemberMonth[$memberId][$month]['gst'] : 0;
+						$billArray[$cnt]['gst'] = isset($contributionByMemberMonth[$memberId][$month][$billFy][$billBt]['gst']) ? $contributionByMemberMonth[$memberId][$month][$billFy][$billBt]['gst'] : 0;
 
 						$billArray[$cnt]['interest'] = $billData['MemberBillSummary']['interest_on_due_amount'];
 
