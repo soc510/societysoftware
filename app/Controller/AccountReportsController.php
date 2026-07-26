@@ -13633,7 +13633,70 @@ $accountMemberLedgerDetails[$memberId]['MemberBillSummary'][$paymentCounterr]['t
 
 
 
+			// A flat transfer renames the member in place, so the old owner and the
+			// new owner share one Member.id and every row came out under the current
+			// name. Each row stores the member_transfer it was saved with, so a row
+			// below the member's current transfer belongs to the previous owner:
+			// show the name recorded for them instead. Name only - the register's
+			// layout is untouched.
+			$oldMemberNameById = array();
+
+			$oldMemberFlatList = $this->SocietyBill->getSocietyOldMeberFlatList();
+
+			if (!empty($oldMemberFlatList)) {
+
+				foreach ($oldMemberFlatList as $oldMemberRow) {
+
+					$oldMemberId = isset($oldMemberRow['member_identifications']['member_id']) ? $oldMemberRow['member_identifications']['member_id'] : null;
+
+					if (!empty($oldMemberId) && isset($oldMemberRow['member_identifications']['third_member'])) {
+
+						$oldMemberNameById[$oldMemberId] = $oldMemberRow['member_identifications']['third_member'];
+
+					}
+
+				}
+
+			}
+
+			$memberNameList = array();
+
+			$memberTransferList = array();
+
+			$memberRowsForTitle = $this->Member->find('all', array('conditions' => array('Member.society_id' => $societyLoginID), 'fields' => array('Member.id', 'Member.member_name', 'Member.member_transfer'), 'recursive' => -1));
+
+			foreach ($memberRowsForTitle as $memberRowForTitle) {
+
+				$memberNameList[$memberRowForTitle['Member']['id']] = $memberRowForTitle['Member']['member_name'];
+
+				$memberTransferList[$memberRowForTitle['Member']['id']] = $memberRowForTitle['Member']['member_transfer'];
+
+			}
+
 			foreach ($journalVoucherData as $counter => $jVData) {
+
+				$jvTransfer = isset($jVData['JournalVoucher']['member_transfer']) ? $jVData['JournalVoucher']['member_transfer'] : null;
+
+				foreach (array('credit', 'debit') as $jvSide) {
+
+					$memberHeadId = !empty($jVData['JournalVoucher']['jv_' . $jvSide . '_member_head_id']) ? $jVData['JournalVoucher']['jv_' . $jvSide . '_member_head_id'] : null;
+
+					if ($memberHeadId === null) { continue; }
+
+					$memberTitle = isset($memberNameList[$memberHeadId]) ? $memberNameList[$memberHeadId] : '';
+
+					$currentTransfer = isset($memberTransferList[$memberHeadId]) ? $memberTransferList[$memberHeadId] : null;
+
+					if ($jvTransfer !== null && $currentTransfer !== null && $jvTransfer < $currentTransfer && !empty($oldMemberNameById[$memberHeadId])) {
+
+						$memberTitle = $oldMemberNameById[$memberHeadId];
+
+					}
+
+					$jVData['JournalVoucher'][$jvSide . '_member_title'] = $memberTitle;
+
+				}
+
 
 
 
