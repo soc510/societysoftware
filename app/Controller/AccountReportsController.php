@@ -9387,11 +9387,11 @@ $expIndex = 0;$incomeIdex = 0;
 
 
 
-		$tempConn = mysqli_connect('localhost', 'vedhtkjm_easylog', 'easyDatabase123');
-
-
-
-		//$tempConn = mysqli_connect('localhost','root','');
+		// Was a second, hand-rolled mysqli connection with hardcoded credentials,
+		// and every query through it was written with the arguments reversed
+		// (mysqli_query($sql, $conn) instead of ($conn, $sql)), so the lists it
+		// filled came back empty and the report rendered with only its Total row.
+		// Both lists now come from the models, on the app's own connection.
 
 
 
@@ -9423,28 +9423,12 @@ $expIndex = 0;$incomeIdex = 0;
 
 
 
-			$table = $currentdb . '.society_ledger_heads';
-
-			$query = mysqli_query("SELECT title,id,society_head_sub_category_id,opening_amount,is_rebate_applicable FROM $table WHERE society_id = " . $societyId . " and status='" . Configure::read('Active') . "' ORDER BY title asc", $tempConn);
-			$societyLedgerHeadList = array();
-
-
-
-			$i = 0;
-
-			while ($res = mysqli_fetch_assoc($query)) {
-
-
-
-				$societyLedgerHeadList[$i]['SocietyLedgerHeads'] = $res;
-
-
-
-				$i++;
-
-
-
-			}
+			$societyLedgerHeadList = $this->SocietyLedgerHeads->find('all', array(
+				'conditions' => array('SocietyLedgerHeads.society_id' => $societyId, 'SocietyLedgerHeads.status' => Configure::read('Active')),
+				'fields' => array('SocietyLedgerHeads.title', 'SocietyLedgerHeads.id', 'SocietyLedgerHeads.society_head_sub_category_id', 'SocietyLedgerHeads.opening_amount', 'SocietyLedgerHeads.is_rebate_applicable'),
+				'order' => array('SocietyLedgerHeads.title' => 'asc'),
+				'recursive' => -1
+			));
 
 
 
@@ -10513,40 +10497,11 @@ $expIndex = 0;$incomeIdex = 0;
 
 
 		} else {
-			$table = $currentdb . '.members';
-
-
-
-			$sql = "SELECT * FROM $table WHERE society_id = " . $societyId . " AND status = '" . Configure::read('Active') . "' ORDER BY id asc";
-
-
-
-			$query = mysqli_query($sql, $tempConn);
-
-
-
-			$memberDetails = array();
-
-
-
-			$i = 0;
-			while ($res = mysqli_fetch_assoc($query)) {
-
-
-
-				$memberDetails[$i]['Member'] = $res;
-
-
-
-				$i++;
-
-
-
-			}
-
-
-
-			mysqli_close();
+			$memberDetails = $this->Member->find('all', array(
+				'conditions' => array('Member.society_id' => $societyId, 'Member.status' => Configure::read('Active')),
+				'order' => array('Member.id' => 'asc'),
+				'recursive' => -1
+			));
 
 
 
