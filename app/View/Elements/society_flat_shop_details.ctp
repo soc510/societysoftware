@@ -227,7 +227,7 @@ $op = date('d/m/Y',strtotime($this->Session->read('Auth.year_start_date')));
                     <div class="row">
                         <div  class="tab-struct custom-tab-2">
                             <div class="account-report-form">
-                            <a type="button" data-toggle="tooltip" data-original-title="Print Friendly" class="btn btn-success btn-anim btns pull-right" href="javascript:void(0);" onclick="printFlatShopReports('print_individual_member_ledger','print_header_section');"><i class="fa fa-print"></i><span class="btn-text">Print Friendly</span></a>  
+                            <a type="button" data-toggle="tooltip" data-original-title="Print Friendly" class="btn btn-success btn-anim btns pull-right" href="javascript:void(0);" onclick="printActiveLedger();"><i class="fa fa-print"></i><span class="btn-text">Print Friendly</span></a>  
                             </div>
                             <ul role="tablist" class="nav nav-tabs" id="myTabs_15">
                                 <li class="tab-active-bg" role="presentation"><a aria-expanded="true" data-toggle="tab" role="tab" id="home_tab_15" href="#ledger">Occupant</a></li>
@@ -383,7 +383,7 @@ $op = date('d/m/Y',strtotime($this->Session->read('Auth.year_start_date')));
 
                                 <div id="old_ledger" class="tab-pane fade tab-body-bg" role="tabpanel">
     <div class="row"><div class="col-md-12 padding-2"><div style="padding: 8px;">
-        <div class="table-wrap">
+        <div class="table-wrap" id="print_old_member_ledger">
             <div class="report-bill" style="text-align:center;font-weight:bold;">Old Member Ledger <span id="old_ledger_name"></span></div>
             <div class="table-responsive">
                 <table class="table table-striped table-hover table-bordered padding-th-none padding-td-none">
@@ -466,6 +466,13 @@ $("#update_op").click(function(event) {
 <script type="text/javascript">
 // Old Member Bill tab: fetch the previous owner's ledger (same member id, one
 // transfer generation back) and render it, mirroring the Occupant renderer.
+function printActiveLedger() {
+    if (window.jQuery && jQuery('#old_ledger').hasClass('active')) {
+        printFlatShopReports('print_old_member_ledger', 'print_header_section');
+    } else {
+        printFlatShopReports('print_individual_member_ledger', 'print_header_section');
+    }
+}
 function loadOldMemberLedger() {
     if (!window.jQuery) { return; }
     var memberId = jQuery('#society_member_id').val();
