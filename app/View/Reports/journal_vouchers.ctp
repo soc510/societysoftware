@@ -1,4 +1,19 @@
 <?php error_reporting(0);ini_set("display_errors",0);?>
+<?php
+// Escape a value for a single-quoted JS string that then becomes HTML.
+// A member or ledger name with an apostrophe used to end the cloneDiv
+// string early - a SyntaxError that killed the whole script, so
+// add_component() never defined and Add More did nothing.
+$jsText = function ($s) {
+    return strtr((string) $s, array(
+        '\\' => '\\\\',
+        "'"  => "\\'",
+        "\r" => '',
+        "\n" => ' ',
+        '<'  => '\\x3C',
+    ));
+};
+?>
 <div class="container-fluid">
     <div class="row">
         <div class="col-sm-12">
@@ -347,9 +362,9 @@ var cloneDiv = '<div class="input-group component-input">'+
                                                                         foreach ($memberListForJournalVouchers as $societyMemberId => $societyMemberName){
                                                                             if (isset($postData['JournalVoucher']['jv_credit_member_head_id']) && $postData['JournalVoucher']['jv_credit_member_head_id'] == $societyMemberId) {
                                                                               ?>
-                                                                    '<option value="<?php echo $societyMemberId; ?>" selected=""><?php echo $societyMemberName." -- ".$flatNoList[$societyMemberId]; ?></option>'+
+                                                                    '<option value="<?php echo $societyMemberId; ?>" selected=""><?php echo $jsText($societyMemberName." -- ".$flatNoList[$societyMemberId]); ?></option>'+
                                                                                                 <?php } else { ?>
-                                                                    '<option value="member-<?php echo $societyMemberId; ?>"><?php echo $societyMemberName." -- ".$flatNoList[$societyMemberId]; ?></option>'+
+                                                                    '<option value="member-<?php echo $societyMemberId; ?>"><?php echo $jsText($societyMemberName." -- ".$flatNoList[$societyMemberId]); ?></option>'+
                                                                              <?php
                                                                                 $s++;
                                                                             }
@@ -363,7 +378,7 @@ var cloneDiv = '<div class="input-group component-input">'+
                                                                             $societyMemberName = $societyMembers['member_identifications']['third_member'];
                                                                             $flatNo = $societyMembers['member_identifications']['flat_no'];
                                                                               ?>
-                                                                    '<option value="<?php echo "member-$societyMemberId-old"; ?>"><?php echo $societyMemberName." -- ".$flatNo; ?></option>'+
+                                                                    '<option value="<?php echo "member-$societyMemberId-old"; ?>"><?php echo $jsText($societyMemberName." -- ".$flatNo); ?></option>'+
                                                                     <?php } ?>
                                                                 '</optgroup>'+                                                                                            
                                                                 '<option value="">Select Ledger</option>'+
@@ -374,9 +389,9 @@ var cloneDiv = '<div class="input-group component-input">'+
                                                                             foreach ($ledgerHeadForJournalVouchers as $ledgerId => $ledgerName){
                                                                                 if (isset($postData['JournalVoucher']['jv_credit_ledger_head_id']) && $postData['JournalVoucher']['jv_credit_ledger_head_id'] == $ledgerId) {
                                                                                   ?>
-                                                                        '<option value="<?php echo $ledgerId; ?>" selected=""><?php echo $ledgerName; ?></option>'+
+                                                                        '<option value="<?php echo $ledgerId; ?>" selected=""><?php echo $jsText($ledgerName); ?></option>'+
                                                                                                     <?php } else { ?>
-                                                                        '<option value="ledger-<?php echo $ledgerId; ?>"><?php echo "$ledgerName"; ?></option>'+
+                                                                        '<option value="ledger-<?php echo $ledgerId; ?>"><?php echo $jsText($ledgerName); ?></option>'+
                                                                                  <?php
                                                                                 $s++;
                                                                             }
