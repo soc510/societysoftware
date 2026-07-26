@@ -1573,6 +1573,11 @@ public function add_society_ledger_heads() {
                 //$paymentCounter = 0; //commented by shobha
 
                 foreach ($journalVoucherMemberPaymentData as $jvData){
+                    // Only this member-generation's JV rows belong in the current
+                    // occupant's ledger. An old owner (member_transfer < current) shares
+                    // the same member id, so without this filter the old owner's JV
+                    // entries leak in and the balance nets to zero.
+                    if (isset($jvData['JournalVoucher']['member_transfer']) && $jvData['JournalVoucher']['member_transfer'] != $member_transfer) { continue; }
 
                     if ($jvData['JournalVoucher']['jv_credit_member_head_id'] != '' && $jvData['JournalVoucher']['jv_credit_member_head_id'] == $societyMemberId) {
 
