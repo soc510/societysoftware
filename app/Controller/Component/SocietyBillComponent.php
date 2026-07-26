@@ -1770,6 +1770,9 @@ public function generalReceiptNumber(){
         
         $societyLoginID = $this->Session->read('Auth.User.id');
         
+        // Did the caller name a specific transfer generation? (before it is
+        // normalised to 0 below). Only then do we scope vouchers to it.
+        $filterByMemberTransfer = ($memberTransfer !== "" && $memberTransfer !== null);
         if($memberTransfer==''){
             $memberTransfer=0;
         }
@@ -1781,6 +1784,12 @@ public function generalReceiptNumber(){
         // $options['AND']['OR'][] = array('JournalVoucher.jv_credit_member_head_id' => $memberId);
         $financialYearId = $this->Util->getFinancialYear();
         $options = array('JournalVoucher.society_id' => $societyLoginID, 'JournalVoucher.financial_year_id' =>$financialYearId );
+        // A transferred member shares one id across owners; when a generation is
+        // named, return only that owner's vouchers so old and new member ledgers
+        // do not bleed into each other. Callers that pass none stay unfiltered.
+        if ($filterByMemberTransfer) {
+            $options['JournalVoucher.member_transfer'] = $memberTransfer;
+        }
         
         $journalVoucherMemberPaymentData = $journalVoucherObj->find('all', array('conditions' => $options,
         'order' => array('JournalVoucher.voucher_date' => 'asc'), 'recursive' => -1));
