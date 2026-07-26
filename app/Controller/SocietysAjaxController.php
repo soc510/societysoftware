@@ -1236,6 +1236,12 @@ public function add_society_ledger_heads() {
 
             $returnedCheckDetails = [];
             $member_transfer = isset($societyMemberDetails['Member']['member_transfer'])?$societyMemberDetails['Member']['member_transfer']:0;
+            // Optional override: the "Old Member Bill" tab asks for a previous
+            // owner's ledger by passing that owner's transfer number for the same
+            // member id. Absent -> the current occupant, unchanged.
+            if (isset($this->request->data['oldMember']) && $this->request->data['oldMember'] == '1' && $member_transfer >= 1) {
+                $member_transfer = $member_transfer - 1;
+            }
             
             $chequeRetCond = array('member_id'=> $societyMemberId,'society_id'=>$societyId,'financial_year_id'=>$financialyearId);    
             $condition = array('MemberBillSummary.society_id' => $this->Session->read('Auth.User.id'), 
@@ -1438,7 +1444,7 @@ public function add_society_ledger_heads() {
 
 //echo "MemberTR".$societyMemberDetails['Member']['member_transfer'];
 
-            $openingBalance = $this->SocietyBill->getMemberClosingBalanceData($societyMemberDetails['Member']['id'],$societyMemberDetails['Member']['member_transfer']);       
+            $openingBalance = $this->SocietyBill->getMemberClosingBalanceData($societyMemberDetails['Member']['id'],$member_transfer);       
        
             if(isset($openingBalance['reg'])){
                 $societyMemberDetails['Member']['op_principal'] = !empty($openingBalance['reg']['op_principal']) ?  $openingBalance['reg']['op_principal'] : 0.00;
@@ -1557,7 +1563,7 @@ public function add_society_ledger_heads() {
 
 
 
-        $journalVoucherMemberPaymentData = $this->SocietyBill->getJournalVoucherCreaditDebitDataByMemberId($societyMemberId,$societyMemberDetails['Member']['member_transfer']);
+        $journalVoucherMemberPaymentData = $this->SocietyBill->getJournalVoucherCreaditDebitDataByMemberId($societyMemberId,$member_transfer);
 
 
         if (!empty($journalVoucherMemberPaymentData)){

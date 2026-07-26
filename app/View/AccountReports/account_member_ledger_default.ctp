@@ -480,13 +480,17 @@ if($dueAmuntt[$MemberLedgerData['Member']['id']][$countt] ==0){
 
 //  3.3] JV Credited & Debited
 if (isset($MemberLedgerDetails['payment_date']) && $MemberLedgerDetails['payment_date'] != '' && $postData['MemberBillSummary']['report_type'] != 'sup' &&  $MemberLedgerDetails['types']=='JV') { 
+    // Reset both columns for every JV row, else the previous row's amount
+    // leaks into the other column (a debit row showing a credit and vice versa).
+    $debit = '0.00';
+    $credit = '0.00';
     if($MemberLedgerDetails['type'] == 'Credit') {
         $credit = $MemberLedgerDetails['amount_paid'];
-         $crAmunttsum[$MemberLedgerData['Member']['id']][$countt] = $credit; 
-    } 
+         $crAmunttsum[$MemberLedgerData['Member']['id']][$countt] = $credit;
+    }
     if ($MemberLedgerDetails['type'] == 'Debit') {
         $debit = $MemberLedgerDetails['amount_paid'];
-    }  
+    }
 ?>
     <tr>
         <td><?php echo isset($MemberLedgerDetails['payment_date']) ? $MemberLedgerDetails['payment_date'] : ''; ?></td>
