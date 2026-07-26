@@ -1241,6 +1241,12 @@ public function add_society_ledger_heads() {
             // member id. Absent -> the current occupant, unchanged.
             if (isset($this->request->data['oldMember']) && $this->request->data['oldMember'] == '1' && $member_transfer >= 1) {
                 $member_transfer = $member_transfer - 1;
+                // Show the previous owner's name, not the current occupant's.
+                $this->loadModel('MemberIdentification');
+                $__oldIdent = $this->MemberIdentification->find('first', array('conditions' => array('MemberIdentification.member_id' => $societyMemberId, 'MemberIdentification.society_id' => $this->Session->read('Auth.User.id')), 'order' => array('MemberIdentification.flat_no' => 'asc')));
+                if (!empty($__oldIdent['MemberIdentification']['third_member'])) {
+                    $societyMemberDetails['Member']['member_name'] = $__oldIdent['MemberIdentification']['third_member'];
+                }
             }
             
             $chequeRetCond = array('member_id'=> $societyMemberId,'society_id'=>$societyId,'financial_year_id'=>$financialyearId);    

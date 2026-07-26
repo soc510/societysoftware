@@ -384,7 +384,7 @@ $op = date('d/m/Y',strtotime($this->Session->read('Auth.year_start_date')));
                                 <div id="old_ledger" class="tab-pane fade tab-body-bg" role="tabpanel">
     <div class="row"><div class="col-md-12 padding-2"><div style="padding: 8px;">
         <div class="table-wrap">
-            <div class="report-bill" style="text-align:center;font-weight:bold;">Old Member Ledger</div>
+            <div class="report-bill" style="text-align:center;font-weight:bold;">Old Member Ledger <span id="old_ledger_name"></span></div>
             <div class="table-responsive">
                 <table class="table table-striped table-hover table-bordered padding-th-none padding-td-none">
                     <thead><tr><th>Date</th><th>Particular</th><th class="text-right">Dr.Amount</th><th class="text-right">Cr.Amount</th><th class="text-right">Balance</th></tr></thead>
@@ -484,6 +484,7 @@ function renderOldMemberLedger(resp) {
     var $ = jQuery, tb = $('#old_flat_details');
     tb.empty();
     if (!resp || !resp.Member) { tb.append('<tr><td colspan="5" class="text-center">No previous owner for this unit.</td></tr>'); return; }
+    $('#old_ledger_name').text(resp.Member.member_name ? '- ' + resp.Member.member_name : '');
     function np(v){ return (typeof checkNegativePositiveValue === 'function') ? checkNegativePositiveValue(v) : (v < 0 ? 'Cr' : 'Dr'); }
     function f(x){ x = parseFloat(x); return isNaN(x) ? 0 : x; }
     var opBal = f(resp.Member.op_principal) + f(resp.Member.op_interest) + f(resp.Member.op_tax)
