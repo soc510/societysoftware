@@ -230,7 +230,7 @@ $op = date('d/m/Y',strtotime($this->Session->read('Auth.year_start_date')));
                             <a type="button" data-toggle="tooltip" data-original-title="Print Friendly" class="btn btn-success btn-anim btns pull-right" href="javascript:void(0);" onclick="printActiveLedger();"><i class="fa fa-print"></i><span class="btn-text">Print Friendly</span></a>  
                             </div>
                             <ul role="tablist" class="nav nav-tabs" id="myTabs_15">
-                                <li class="tab-active-bg" role="presentation"><a aria-expanded="true" data-toggle="tab" role="tab" id="home_tab_15" href="#ledger">Occupant</a></li>
+                                <li class="tab-active-bg" role="presentation"><a aria-expanded="true" data-toggle="tab" role="tab" id="home_tab_15" href="#ledger">Current Member</a></li>
                                 <li  role="presentation"><a aria-expanded="true" data-toggle="tab" role="tab" id="home_tab_16" href="#old_ledger" onclick="loadOldMemberLedger();">Old Member Bill</a></li>
                                 <li role="presentation" class="tab-bg"><a data-toggle="tab" id="profile_tab_15" role="tab" href="#tariff" aria-expanded="false">Tariff</a></li>
                             </ul>
