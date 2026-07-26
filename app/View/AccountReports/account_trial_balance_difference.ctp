@@ -66,7 +66,7 @@
                                             
                                             <tr id="">
                                                 <?php if ($i==0){?>
-                                                <td ><?php echo $member['Member']['member_name'].' - '.$member['Member']['id'];?></td>
+                                                <td ><?php echo $member['Member']['member_name'].' - '.$member['Member']['id'].' - '.$member['Member']['flat_no'];?></td>
                                                 <?php }else{ ?>
                                                 <td></td>
                                                 <?php } ?>
