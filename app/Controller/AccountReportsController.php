@@ -10501,6 +10501,8 @@ $expIndex = 0;$incomeIdex = 0;
 			$filterMemberId = (isset($postData['member_id']) && $postData['member_id'] !== '') ? $postData['member_id'] : null;
 			$fromDate = (isset($postData['from_date']) && $postData['from_date'] !== '') ? $postData['from_date'] : null;
 			$toDate   = (isset($postData['to_date']) && $postData['to_date'] !== '') ? $postData['to_date'] : null;
+			$onlyDiff = (isset($postData['only_diff']) && $postData['only_diff'] == '1');
+			$memberHasDiff = array();
 			// full active-member list for the filter dropdown (independent of the member filter)
 			$memberDropdownList = $this->Member->find('list', array('conditions' => array('Member.society_id' => $societyId, 'Member.status' => Configure::read('Active')), 'fields' => array('Member.id', 'Member.member_name'), 'order' => array('Member.id' => 'asc'), 'recursive' => -1));
 			$__memberConds = array('Member.society_id' => $societyId, 'Member.status' => Configure::read('Active'));
@@ -10609,6 +10611,9 @@ $expIndex = 0;$incomeIdex = 0;
 						$billArray[$cnt]['gst'] = isset($contributionByMemberMonth[$memberId][$month][$billFy][$billBt]['gst']) ? $contributionByMemberMonth[$memberId][$month][$billFy][$billBt]['gst'] : 0;
 
 						$billArray[$cnt]['interest'] = $billData['MemberBillSummary']['interest_on_due_amount'];
+						// flag the member if this bill's components do not reconcile with its total
+						$__rowDiff = ($billArray[$cnt]['contri'] + $billArray[$cnt]['gst'] + $billArray[$cnt]['interest']) - $billArray[$cnt]['bill_amount'];
+						if (abs($__rowDiff) >= 1) { $memberHasDiff[$memberId] = true; }
 
 						$cnt++;
 
@@ -10620,7 +10625,7 @@ $expIndex = 0;$incomeIdex = 0;
 
 			}
 
-			$this->set(compact('billDetailArray', 'memberDetails', 'memberDropdownList', 'postData'));
+			$this->set(compact('billDetailArray', 'memberDetails', 'memberDropdownList', 'postData', 'memberHasDiff', 'onlyDiff'));
 
 
 

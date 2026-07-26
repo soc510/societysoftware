@@ -32,6 +32,11 @@
                                     <option value="<?php echo $__mId; ?>" <?php echo (isset($postData['member_id']) && $postData['member_id'] == $__mId) ? 'selected="selected"' : ''; ?>><?php echo $__mName; ?></option>
                                     <?php } } ?>
                                   </select></div>
+                                <div class="col-md-3"><label>Difference</label>
+                                  <select name="data[only_diff]" class="form-control">
+                                    <option value="">All</option>
+                                    <option value="1" <?php echo (isset($postData['only_diff']) && $postData['only_diff']=='1') ? 'selected="selected"' : ''; ?>>Only with Difference</option>
+                                  </select></div>
                                 <div class="col-md-2"><label>&nbsp;</label><br>
                                   <button type="submit" class="btn btn-success">Submit</button></div>
                               </div>
@@ -60,6 +65,7 @@
                                         <?php 
                                             $totalDiffR = 0; $totalDiffY=0; $totalCr=0;$totalDr=0;
                                             foreach($memberDetails as $member) { 
+                                                if (isset($onlyDiff) && $onlyDiff && empty($memberHasDiff[$member['Member']['id']])) { continue; }
                                                 $c = count($billDetailArray[$member['Member']['id']]);
                                                 $i=0;
                                                 $totBill = $totContri = $totGst = $totInt = $totDiff = $totCr = 0;
