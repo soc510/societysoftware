@@ -46,6 +46,7 @@
                                             <tr>
                                                 <th>Member</th>
                                                 <th>Bill No</th>
+                                                <th>Month</th>
                                                 <th>Bill Amount</th>
                                                 <th>Contribution</th>
                                                 <th>GST</th>
@@ -88,6 +89,7 @@
                                                 <td></td>
                                                 <?php } ?>
                                                 <td><?php echo $bill['bill_no'];?></td>
+                                                <td><?php echo (isset($bill['bill_month']) && $bill['bill_month'] >= 1 && $bill['bill_month'] <= 12) ? date('F', mktime(0,0,0,$bill['bill_month'],10)) : (isset($bill['bill_month']) ? $bill['bill_month'] : ''); ?></td>
                                                 <td><?php echo number_format($bill['bill_amount'],2);?></td>
                                                 <td><?php echo number_format($bill['contri'],2);?></td>
                                                 <td><?php echo number_format($bill['gst'],2);?></td>                                                        <td><?php echo number_format($bill['interest'],2);?></td>  
@@ -98,7 +100,7 @@
                                             </tr>    
                                             <?php $i++; } ?>
                                             <tr>
-                                                <td colspan="2">Total</td>
+                                                <td colspan="3">Total</td>
                                                 <td><?php echo number_format($totBill,2);?></td>
                                                 <td><?php echo number_format($totContri,2);?></td>
                                                 <td><?php echo number_format($totGst,2);?></td>
@@ -108,7 +110,7 @@
                                                 <td><?php echo number_format($totDiff,2);?></td>
                                             </tr>
                                             <?php } ?>         
-                                            <tr ><td colspan="6">Total</td><td><?php echo number_format($totalDr,2);?></td><td><?php echo number_format($totalCr,2);?></td><td><?php echo 'Total Diff (<1):'.$totalDiffY.'  Total Diff(>=1)'.$totalDiffR;  ?></td></tr>
+                                            <tr ><td colspan="7">Total</td><td><?php echo number_format($totalDr,2);?></td><td><?php echo number_format($totalCr,2);?></td><td><?php echo 'Total Diff (<1):'.$totalDiffY.'  Total Diff(>=1)'.$totalDiffR;  ?></td></tr>
                                         </tbody>   
                                     </table> 
                                 </div>

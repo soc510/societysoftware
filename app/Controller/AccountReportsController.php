@@ -10586,7 +10586,7 @@ $expIndex = 0;$incomeIdex = 0;
 
 						$month = $billData['MemberBillSummary']['month'];
 
-						$billArray[$cnt]['bill_no'] = $billData['MemberBillSummary']['id'];
+						$billArray[$cnt]['bill_no'] = $billData['MemberBillSummary']['bill_no'];
 
 						$billArray[$cnt]['bill_month'] = $month;
 
