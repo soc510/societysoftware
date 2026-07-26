@@ -11664,7 +11664,13 @@ $expIndex = 0;$incomeIdex = 0;
 						$member_transfer=0;
 					}
 
-					$options['AND']['MemberBillSummary.financial_year_id']= $financialYearId;
+					if ($postData['MemberBillSummary']['member_record'] == 'Old') {
+						// Old owner's bills are in the year(s) before the transfer, not the
+						// currently selected year, so do not constrain by financial year.
+						unset($options['AND']['MemberBillSummary.financial_year_id']);
+					} else {
+						$options['AND']['MemberBillSummary.financial_year_id'] = $financialYearId;
+					}
 					$options['AND']['MemberBillSummary.member_id'] = $memberId; //print_r($options);exit;
 					$options['AND']['MemberBillSummary.member_transfer'] = $member_transfer; //print_r($options);exit;
 
@@ -11679,7 +11685,7 @@ $expIndex = 0;$incomeIdex = 0;
 							if (isset($billData['MemberBillSummary'])) {
 								$this->loadModel('MemberBillSettlement');
 								$condition = array('MemberBillSettlement.bill_summary_id' => $billData['MemberBillSummary']['id'],
-								'MemberBillSettlement.member_id' => $memberId , 'MemberBillSettlement.financial_year_id'=> $financialYearId);
+								'MemberBillSettlement.member_id' => $memberId , 'MemberBillSettlement.financial_year_id'=> (($postData['MemberBillSummary']['member_record'] == 'Old') ? $billData['MemberBillSummary']['financial_year_id'] : $financialYearId));
 								$memberBillSettlement = $this->MemberBillSettlement->find('all', array('conditions' => $condition));
 
 								foreach ($memberBillSettlement as $settlementData) {
@@ -11744,8 +11750,12 @@ $expIndex = 0;$incomeIdex = 0;
 		}
 
 				$conditionPayment = array('MemberPayment.society_id' => $this->Session->read('Auth.User.id'), 
-				'MemberPayment.financial_year_id' => $financialYearId,
 				'MemberPayment.member_id' => $memberId, 'MemberPayment.member_transfer' => $member_transfer);
+				// Old owner's payments are in the year(s) before the transfer; only the
+				// current/new owner's ledger is constrained to the selected year.
+				if ($postData['MemberBillSummary']['member_record'] != 'Old') {
+					$conditionPayment['MemberPayment.financial_year_id'] = $financialYearId;
+				}
 				if (isset($this->request->data['MemberBillSummary']['report_type']) && $this->request->data['MemberBillSummary']['report_type'] != 'Default') {
 					$conditionPayment['MemberPayment.bill_type'] = $this->request->data['MemberBillSummary']['report_type'];
 				}              
