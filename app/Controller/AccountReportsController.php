@@ -10497,8 +10497,16 @@ $expIndex = 0;$incomeIdex = 0;
 
 
 		} else {
+			$postData = $this->request->data;
+			$filterMemberId = (isset($postData['member_id']) && $postData['member_id'] !== '') ? $postData['member_id'] : null;
+			$fromDate = (isset($postData['from_date']) && $postData['from_date'] !== '') ? $postData['from_date'] : null;
+			$toDate   = (isset($postData['to_date']) && $postData['to_date'] !== '') ? $postData['to_date'] : null;
+			// full active-member list for the filter dropdown (independent of the member filter)
+			$memberDropdownList = $this->Member->find('list', array('conditions' => array('Member.society_id' => $societyId, 'Member.status' => Configure::read('Active')), 'fields' => array('Member.id', 'Member.member_name'), 'order' => array('Member.id' => 'asc'), 'recursive' => -1));
+			$__memberConds = array('Member.society_id' => $societyId, 'Member.status' => Configure::read('Active'));
+			if ($filterMemberId) { $__memberConds['Member.id'] = $filterMemberId; }
 			$memberDetails = $this->Member->find('all', array(
-				'conditions' => array('Member.society_id' => $societyId, 'Member.status' => Configure::read('Active')),
+				'conditions' => $__memberConds,
 				'order' => array('Member.id' => 'asc'),
 				'recursive' => -1
 			));
@@ -10509,183 +10517,100 @@ $expIndex = 0;$incomeIdex = 0;
 
 
 
+			// This used to run two finds per member per bill - one for the member's
+			// bill summaries, then one MemberBillGenerate find for every single bill -
+			// so a society with 500 members and 12 bills each fired ~6500 queries and
+			// the page crawled. The same data now comes from two queries: every bill
+			// summary for the society, and the bill lines pre-aggregated per member
+			// and month. Conditions and grouping are unchanged (society + member +
+			// month, no financial-year or bill-type filter), so every figure the
+			// report prints stays exactly what it was.
 			$billDetailArray = array();
 
-
-
-			$cnt = 0;
-
-
-
-			//print_r($memberDetails);
-
-
-
-			foreach ($memberDetails as $member) {
-
-
-
-				$memberId = $member['Member']['id'];
-
-
-
-				$billArray = array();
-
-
-
-				$condition = array('MemberBillSummary.society_id' => $societyId, 'MemberBillSummary.member_id' => $memberId);
-
-
-
-				$memberBillSummary = $this->MemberBillSummary->find('all', array('conditions' => $condition));
-
-
-
-				//print_r($memberBillSummary);
-
-
-
-				if (isset($memberBillSummary) && count($memberBillSummary) > 0) {
-
-
-
-					foreach ($memberBillSummary as $billData) {
-
-
-
-						$billArray[$cnt]['bill_no'] = $billData['MemberBillSummary']['id'];
-
-
-
-						$billArray[$cnt]['bill_month'] = $month = $billData['MemberBillSummary']['month'];
-
-
-
-						$billArray[$cnt]['bill_amount'] = $billData['MemberBillSummary']['monthly_bill_amount'];
-
-
-
-
-
-
-
-						//member contri
-
-
-
-						$options['AND'] = array('MemberBillGenerate.society_id' => $societyId);
-
-
-
-						$options['AND']['Member.id'] = $memberId;
-
-
-
-						$options['AND']['MemberBillGenerate.month'] = $billData['MemberBillSummary']['month'];
-
-
-
-
-
-
-
-						$memberBillDetailsbyMonth = $this->MemberBillGenerate->find('all', array('conditions' => $options));
-
-
-
-
-
-
-
-						$contri = 0;
-
-
-
-						$gst = 0;
-
-
-
-
-
-
-
-						if (isset($memberBillDetailsbyMonth) && !empty($memberBillDetailsbyMonth)) {
-
-
-
-							foreach ($memberBillDetailsbyMonth as $tempKey => $tempDetails) {
-
-
-
-								$indMonthDetails = $tempDetails['MemberBillGenerate'];
-
-
-
-								$memberMonthlyContributionData[$indMonthDetails['ledger_head_id']][$month] += isset($indMonthDetails['amount']) ? $indMonthDetails['amount'] : 0.00;
-
-
-
-								$memberMonthlyTaxData[$month] += isset($indMonthDetails['tax_total']) ? $indMonthDetails['tax_total'] : 0.00;
-
-
-
-								$contri += isset($indMonthDetails['amount']) ? $indMonthDetails['amount'] : 0.00;
-
-
-
-								$gst += isset($indMonthDetails['tax_total']) ? $indMonthDetails['tax_total'] : 0.00;
-
-
-
-							}
-
-
-
-						}
-
-
-
-
-
-
-
-						$billArray[$cnt]['interest'] = $billData['MemberBillSummary']['interest_on_due_amount'];
-
-
-
-						$billArray[$cnt]['contri'] = $contri;
-
-
-
-						$billArray[$cnt]['gst'] = $gst;
-
-
-
-						$cnt++;
-
-
-
-					}
-
-
-
-				}
-
-
-
-				$billDetailArray[$memberId] = $billArray;
-
-
+			$summariesByMember = array();
+
+			$__billConds = array('MemberBillSummary.society_id' => $societyId);
+			if ($fromDate && $toDate) { $__billConds['MemberBillSummary.bill_generated_date BETWEEN ? and ?'] = array($fromDate, $toDate); }
+			else if ($fromDate) { $__billConds['MemberBillSummary.bill_generated_date >='] = $fromDate; }
+			else if ($toDate) { $__billConds['MemberBillSummary.bill_generated_date <='] = $toDate; }
+			$allBillSummaries = $this->MemberBillSummary->find('all', array(
+				'conditions' => $__billConds,
+				'order' => array('MemberBillSummary.id' => 'asc'),
+				'recursive' => -1
+			));
+
+			foreach ($allBillSummaries as $billData) {
+
+				$summariesByMember[$billData['MemberBillSummary']['member_id']][] = $billData;
 
 			}
 
+			$contributionByMemberMonth = array();
 
+			$billGenerateTotals = $this->MemberBillGenerate->find('all', array(
+				'conditions' => array('MemberBillGenerate.society_id' => $societyId),
+				'fields' => array(
+					'MemberBillGenerate.member_id',
+					'MemberBillGenerate.month',
+					'SUM(MemberBillGenerate.amount) AS contri',
+					'SUM(MemberBillGenerate.tax_total) AS gst'
+				),
+				'group' => array('MemberBillGenerate.member_id', 'MemberBillGenerate.month'),
+				'recursive' => -1
+			));
 
-			//echo '<pre>';print_r($billDetailArray);exit;
+			foreach ($billGenerateTotals as $billGenerateTotal) {
 
+				$totalsMemberId = $billGenerateTotal['MemberBillGenerate']['member_id'];
 
+				$totalsMonth = $billGenerateTotal['MemberBillGenerate']['month'];
 
-			$this->set(compact('billDetailArray', 'memberDetails'));
+				$contributionByMemberMonth[$totalsMemberId][$totalsMonth] = array(
+					'contri' => isset($billGenerateTotal[0]['contri']) ? $billGenerateTotal[0]['contri'] : 0,
+					'gst' => isset($billGenerateTotal[0]['gst']) ? $billGenerateTotal[0]['gst'] : 0
+				);
+
+			}
+
+			$cnt = 0;
+
+			foreach ($memberDetails as $member) {
+
+				$memberId = $member['Member']['id'];
+
+				$billArray = array();
+
+				if (!empty($summariesByMember[$memberId])) {
+
+					foreach ($summariesByMember[$memberId] as $billData) {
+
+						$month = $billData['MemberBillSummary']['month'];
+
+						$billArray[$cnt]['bill_no'] = $billData['MemberBillSummary']['id'];
+
+						$billArray[$cnt]['bill_month'] = $month;
+
+						$billArray[$cnt]['bill_amount'] = $billData['MemberBillSummary']['monthly_bill_amount'];
+
+						//member contri
+
+						$billArray[$cnt]['contri'] = isset($contributionByMemberMonth[$memberId][$month]['contri']) ? $contributionByMemberMonth[$memberId][$month]['contri'] : 0;
+
+						$billArray[$cnt]['gst'] = isset($contributionByMemberMonth[$memberId][$month]['gst']) ? $contributionByMemberMonth[$memberId][$month]['gst'] : 0;
+
+						$billArray[$cnt]['interest'] = $billData['MemberBillSummary']['interest_on_due_amount'];
+
+						$cnt++;
+
+					}
+
+				}
+
+				$billDetailArray[$memberId] = $billArray;
+
+			}
+
+			$this->set(compact('billDetailArray', 'memberDetails', 'memberDropdownList', 'postData'));
 
 
 

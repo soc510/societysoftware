@@ -19,6 +19,23 @@
                 <div class="panel-wrapper collapse in">
                     <div class="panel-body">
                         <div class="form-wrap">
+                            <form method="post" action="<?php echo $this->Html->url(array('controller'=>'account_reports','action'=>'account_trial_balance_difference')); ?>">
+                              <div class="row" style="padding:10px 15px;">
+                                <div class="col-md-2"><label>From Date</label>
+                                  <input type="date" name="data[from_date]" class="form-control" value="<?php echo isset($postData['from_date']) ? $postData['from_date'] : ''; ?>"></div>
+                                <div class="col-md-2"><label>To Date</label>
+                                  <input type="date" name="data[to_date]" class="form-control" value="<?php echo isset($postData['to_date']) ? $postData['to_date'] : ''; ?>"></div>
+                                <div class="col-md-4"><label>Member</label>
+                                  <select name="data[member_id]" class="form-control">
+                                    <option value="">All Members</option>
+                                    <?php if (isset($memberDropdownList)) { foreach ($memberDropdownList as $__mId => $__mName) { ?>
+                                    <option value="<?php echo $__mId; ?>" <?php echo (isset($postData['member_id']) && $postData['member_id'] == $__mId) ? 'selected="selected"' : ''; ?>><?php echo $__mName; ?></option>
+                                    <?php } } ?>
+                                  </select></div>
+                                <div class="col-md-2"><label>&nbsp;</label><br>
+                                  <button type="submit" class="btn btn-success">Submit</button></div>
+                              </div>
+                            </form>
                             <br><br>
                             <div id="print_member_monthly_cotribution">
                             <div class="print-member-monthly-cotribution">
