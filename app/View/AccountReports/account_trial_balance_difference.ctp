@@ -33,9 +33,10 @@
                                     <?php } } ?>
                                   </select></div>
                                 <div class="col-md-3"><label>Difference</label>
-                                  <select name="data[only_diff]" class="form-control">
+                                  <select name="data[diff_filter]" class="form-control">
                                     <option value="">All</option>
-                                    <option value="1" <?php echo (isset($postData['only_diff']) && $postData['only_diff']=='1') ? 'selected="selected"' : ''; ?>>Only with Difference</option>
+                                    <option value="diff" <?php echo (isset($postData['diff_filter']) && $postData['diff_filter']=='diff') ? 'selected="selected"' : ''; ?>>Only with Difference</option>
+                                    <option value="nodiff" <?php echo (isset($postData['diff_filter']) && $postData['diff_filter']=='nodiff') ? 'selected="selected"' : ''; ?>>No Difference</option>
                                   </select></div>
                                 <div class="col-md-2"><label>&nbsp;</label><br>
                                   <button type="submit" class="btn btn-success">Submit</button></div>
@@ -65,11 +66,20 @@
                                         <?php 
                                             $totalDiffR = 0; $totalDiffY=0; $totalCr=0;$totalDr=0;
                                             foreach($memberDetails as $member) { 
-                                                if (isset($onlyDiff) && $onlyDiff && empty($memberHasDiff[$member['Member']['id']])) { continue; }
-                                                $c = count($billDetailArray[$member['Member']['id']]);
+                                                $__allBills = $billDetailArray[$member['Member']['id']];
+                                                $__shownBills = array();
+                                                foreach ($__allBills as $__b) {
+                                                    $__d = ($__b['contri'] + $__b['gst'] + $__b['interest']) - $__b['bill_amount'];
+                                                    $__isDiff = abs($__d) >= 1;
+                                                    if (isset($diffFilter) && $diffFilter == 'diff' && !$__isDiff) { continue; }
+                                                    if (isset($diffFilter) && $diffFilter == 'nodiff' && $__isDiff) { continue; }
+                                                    $__shownBills[] = $__b;
+                                                }
+                                                if (empty($__shownBills)) { continue; }
+                                                $c = count($__shownBills);
                                                 $i=0;
                                                 $totBill = $totContri = $totGst = $totInt = $totDiff = $totCr = 0;
-                                                foreach ($billDetailArray[$member['Member']['id']] as $bill){
+                                                foreach ($__shownBills as $bill){
                                                     $totBill +=$bill['bill_amount'];
                                                     $totContri += $bill['contri'];
                                                     $totGst += $bill['gst'];
