@@ -487,6 +487,22 @@ function loadOldMemberLedger() {
         error: function () { jQuery('#old_flat_details').html('<tr><td colspan="5" class="text-center">Could not load old ledger.</td></tr>'); }
     });
 }
+// The Old Member Bill tab is filled on demand (tab click), so after << / >>
+// moves the modal to another unit it keeps showing the previous unit's ledger.
+// Clear it on every move and drop the user back on the Current Member tab, so
+// what is on screen always belongs to the unit now loaded.
+jQuery(function ($) {
+    function resetOldMemberTab() {
+        $('#old_ledger_name').text('');
+        $('#old_flat_details').html('<tr><td colspan="5" class="text-center">Loading...</td></tr>');
+        if ($('#old_ledger').hasClass('active')) {
+            $('#home_tab_15').tab('show');
+        }
+    }
+    $('#society_member_previous_button, #society_member_next_button').on('click', resetOldMemberTab);
+    // Same staleness when the unit is switched from the Unit No. dropdown.
+    $('#member_unit_no').on('change', resetOldMemberTab);
+});
 function renderOldMemberLedger(resp) {
     var $ = jQuery, tb = $('#old_flat_details');
     tb.empty();
