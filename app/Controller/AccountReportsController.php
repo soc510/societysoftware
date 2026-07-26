@@ -18372,6 +18372,7 @@ echo "<br>".$headDetails['society_head_sub_category_id'];
 			$options['AND']['MemberBillSummary.member_id in'] = $memberIdArray;
 			
 		$billType = $postData[MemberBillSummary][bill_type];
+		$memberRecordType = (isset($postData['MemberBillSummary']['member_record']) && $postData['MemberBillSummary']['member_record'] != '') ? $postData['MemberBillSummary']['member_record'] : 'Current';
 		$options['AND']['MemberBillSummary.bill_type'] = $billType;
 		
 		$billSummaryDetails = $this->MemberBillSummary->find('all', array('conditions' => $options, 'order' => array('MemberBillSummary.bill_generated_date' => 'asc', 'MemberBillSummary.bill_no' => 'asc')));
@@ -18408,6 +18409,12 @@ echo "<br>".$headDetails['society_head_sub_category_id'];
 
 
 				$memberBillDetails = $billDetails['MemberBillSummary'];
+				// Current vs Old owner: a transferred member shares one id across
+				// owners; keep only the generation being viewed (default Current).
+				$__brCurT  = isset($membersArray[$memberBillDetails['member_id']]['member_transfer']) ? $membersArray[$memberBillDetails['member_id']]['member_transfer'] : 0;
+				$__brBillT = isset($memberBillDetails['member_transfer']) ? $memberBillDetails['member_transfer'] : 0;
+				if ($memberRecordType == 'Old') { if (!($__brBillT < $__brCurT)) { continue; } }
+				else { if ($__brBillT != $__brCurT) { continue; } }
 
 
 
