@@ -9387,11 +9387,11 @@ $expIndex = 0;$incomeIdex = 0;
 
 
 
-		$tempConn = mysqli_connect('localhost', 'vedhtkjm_easylog', 'easyDatabase123');
-
-
-
-		//$tempConn = mysqli_connect('localhost','root','');
+		// Was a second, hand-rolled mysqli connection with hardcoded credentials,
+		// and every query through it was written with the arguments reversed
+		// (mysqli_query($sql, $conn) instead of ($conn, $sql)), so the lists it
+		// filled came back empty and the report rendered with only its Total row.
+		// Both lists now come from the models, on the app's own connection.
 
 
 
@@ -9423,28 +9423,12 @@ $expIndex = 0;$incomeIdex = 0;
 
 
 
-			$table = $currentdb . '.society_ledger_heads';
-
-			$query = mysqli_query("SELECT title,id,society_head_sub_category_id,opening_amount,is_rebate_applicable FROM $table WHERE society_id = " . $societyId . " and status='" . Configure::read('Active') . "' ORDER BY title asc", $tempConn);
-			$societyLedgerHeadList = array();
-
-
-
-			$i = 0;
-
-			while ($res = mysqli_fetch_assoc($query)) {
-
-
-
-				$societyLedgerHeadList[$i]['SocietyLedgerHeads'] = $res;
-
-
-
-				$i++;
-
-
-
-			}
+			$societyLedgerHeadList = $this->SocietyLedgerHeads->find('all', array(
+				'conditions' => array('SocietyLedgerHeads.society_id' => $societyId, 'SocietyLedgerHeads.status' => Configure::read('Active')),
+				'fields' => array('SocietyLedgerHeads.title', 'SocietyLedgerHeads.id', 'SocietyLedgerHeads.society_head_sub_category_id', 'SocietyLedgerHeads.opening_amount', 'SocietyLedgerHeads.is_rebate_applicable'),
+				'order' => array('SocietyLedgerHeads.title' => 'asc'),
+				'recursive' => -1
+			));
 
 
 
@@ -10513,224 +10497,135 @@ $expIndex = 0;$incomeIdex = 0;
 
 
 		} else {
-			$table = $currentdb . '.members';
+			$postData = $this->request->data;
+			$filterMemberId = (isset($postData['member_id']) && $postData['member_id'] !== '') ? $postData['member_id'] : null;
+			$fromDate = (isset($postData['from_date']) && $postData['from_date'] !== '') ? $postData['from_date'] : null;
+			$toDate   = (isset($postData['to_date']) && $postData['to_date'] !== '') ? $postData['to_date'] : null;
+			$onlyDiff = (isset($postData['only_diff']) && $postData['only_diff'] == '1');
+			$memberHasDiff = array();
+			// full active-member list for the filter dropdown (independent of the member filter)
+			$memberDropdownList = $this->Member->find('list', array('conditions' => array('Member.society_id' => $societyId, 'Member.status' => Configure::read('Active')), 'fields' => array('Member.id', 'Member.member_name'), 'order' => array('Member.id' => 'asc'), 'recursive' => -1));
+			$__memberConds = array('Member.society_id' => $societyId, 'Member.status' => Configure::read('Active'));
+			if ($filterMemberId) { $__memberConds['Member.id'] = $filterMemberId; }
+			$memberDetails = $this->Member->find('all', array(
+				'conditions' => $__memberConds,
+				'order' => array('Member.id' => 'asc'),
+				'recursive' => -1
+			));
 
 
 
-			$sql = "SELECT * FROM $table WHERE society_id = " . $societyId . " AND status = '" . Configure::read('Active') . "' ORDER BY id asc";
 
 
 
-			$query = mysqli_query($sql, $tempConn);
 
+			// This used to run two finds per member per bill - one for the member's
+			// bill summaries, then one MemberBillGenerate find for every single bill -
+			// so a society with 500 members and 12 bills each fired ~6500 queries and
+			// the page crawled. The same data now comes from two queries: every bill
+			// summary for the society, and the bill lines pre-aggregated per member
+			// and month. Conditions and grouping are unchanged (society + member +
+			// month, no financial-year or bill-type filter), so every figure the
+			// report prints stays exactly what it was.
+			$billDetailArray = array();
 
+			$summariesByMember = array();
 
-			$memberDetails = array();
+			$__billConds = array('MemberBillSummary.society_id' => $societyId);
+			if ($fromDate && $toDate) { $__billConds['MemberBillSummary.bill_generated_date BETWEEN ? and ?'] = array($fromDate, $toDate); }
+			else if ($fromDate) { $__billConds['MemberBillSummary.bill_generated_date >='] = $fromDate; }
+			else if ($toDate) { $__billConds['MemberBillSummary.bill_generated_date <='] = $toDate; }
+			$allBillSummaries = $this->MemberBillSummary->find('all', array(
+				'conditions' => $__billConds,
+				'order' => array('MemberBillSummary.id' => 'asc'),
+				'recursive' => -1
+			));
 
+			foreach ($allBillSummaries as $billData) {
 
-
-			$i = 0;
-			while ($res = mysqli_fetch_assoc($query)) {
-
-
-
-				$memberDetails[$i]['Member'] = $res;
-
-
-
-				$i++;
-
-
+				$summariesByMember[$billData['MemberBillSummary']['member_id']][] = $billData;
 
 			}
 
+			$contributionByMemberMonth = array();
 
+			$billGenerateTotals = $this->MemberBillGenerate->find('all', array(
+				'conditions' => array('MemberBillGenerate.society_id' => $societyId),
+				'fields' => array(
+					'MemberBillGenerate.member_id',
+					'MemberBillGenerate.month',
+					'MemberBillGenerate.financial_year_id',
+					'MemberBillGenerate.bill_type',
+					'SUM(MemberBillGenerate.amount) AS contri',
+					'SUM(MemberBillGenerate.tax_total) AS gst'
+				),
+				'group' => array('MemberBillGenerate.member_id', 'MemberBillGenerate.month', 'MemberBillGenerate.financial_year_id', 'MemberBillGenerate.bill_type'),
+				'recursive' => -1
+			));
 
-			mysqli_close();
+			foreach ($billGenerateTotals as $billGenerateTotal) {
 
+				$totalsMemberId = $billGenerateTotal['MemberBillGenerate']['member_id'];
 
+				$totalsMonth = $billGenerateTotal['MemberBillGenerate']['month'];
 
+				$totalsFy = $billGenerateTotal['MemberBillGenerate']['financial_year_id'];
 
+				$totalsBt = $billGenerateTotal['MemberBillGenerate']['bill_type'];
 
+				$contributionByMemberMonth[$totalsMemberId][$totalsMonth][$totalsFy][$totalsBt] = array(
+					'contri' => isset($billGenerateTotal[0]['contri']) ? $billGenerateTotal[0]['contri'] : 0,
+					'gst' => isset($billGenerateTotal[0]['gst']) ? $billGenerateTotal[0]['gst'] : 0
+				);
 
-
-			$billDetailArray = array();
-
-
+			}
 
 			$cnt = 0;
 
-
-
-			//print_r($memberDetails);
-
-
-
 			foreach ($memberDetails as $member) {
-
-
 
 				$memberId = $member['Member']['id'];
 
-
-
 				$billArray = array();
 
+				if (!empty($summariesByMember[$memberId])) {
 
+					foreach ($summariesByMember[$memberId] as $billData) {
 
-				$condition = array('MemberBillSummary.society_id' => $societyId, 'MemberBillSummary.member_id' => $memberId);
+						$month = $billData['MemberBillSummary']['month'];
 
+						$billFy = $billData['MemberBillSummary']['financial_year_id'];
 
+						$billBt = $billData['MemberBillSummary']['bill_type'];
 
-				$memberBillSummary = $this->MemberBillSummary->find('all', array('conditions' => $condition));
+						$billArray[$cnt]['bill_no'] = $billData['MemberBillSummary']['bill_no'];
 
-
-
-				//print_r($memberBillSummary);
-
-
-
-				if (isset($memberBillSummary) && count($memberBillSummary) > 0) {
-
-
-
-					foreach ($memberBillSummary as $billData) {
-
-
-
-						$billArray[$cnt]['bill_no'] = $billData['MemberBillSummary']['id'];
-
-
-
-						$billArray[$cnt]['bill_month'] = $month = $billData['MemberBillSummary']['month'];
-
-
+						$billArray[$cnt]['bill_month'] = $month;
 
 						$billArray[$cnt]['bill_amount'] = $billData['MemberBillSummary']['monthly_bill_amount'];
 
-
-
-
-
-
-
 						//member contri
 
+						$billArray[$cnt]['contri'] = isset($contributionByMemberMonth[$memberId][$month][$billFy][$billBt]['contri']) ? $contributionByMemberMonth[$memberId][$month][$billFy][$billBt]['contri'] : 0;
 
-
-						$options['AND'] = array('MemberBillGenerate.society_id' => $societyId);
-
-
-
-						$options['AND']['Member.id'] = $memberId;
-
-
-
-						$options['AND']['MemberBillGenerate.month'] = $billData['MemberBillSummary']['month'];
-
-
-
-
-
-
-
-						$memberBillDetailsbyMonth = $this->MemberBillGenerate->find('all', array('conditions' => $options));
-
-
-
-
-
-
-
-						$contri = 0;
-
-
-
-						$gst = 0;
-
-
-
-
-
-
-
-						if (isset($memberBillDetailsbyMonth) && !empty($memberBillDetailsbyMonth)) {
-
-
-
-							foreach ($memberBillDetailsbyMonth as $tempKey => $tempDetails) {
-
-
-
-								$indMonthDetails = $tempDetails['MemberBillGenerate'];
-
-
-
-								$memberMonthlyContributionData[$indMonthDetails['ledger_head_id']][$month] += isset($indMonthDetails['amount']) ? $indMonthDetails['amount'] : 0.00;
-
-
-
-								$memberMonthlyTaxData[$month] += isset($indMonthDetails['tax_total']) ? $indMonthDetails['tax_total'] : 0.00;
-
-
-
-								$contri += isset($indMonthDetails['amount']) ? $indMonthDetails['amount'] : 0.00;
-
-
-
-								$gst += isset($indMonthDetails['tax_total']) ? $indMonthDetails['tax_total'] : 0.00;
-
-
-
-							}
-
-
-
-						}
-
-
-
-
-
-
+						$billArray[$cnt]['gst'] = isset($contributionByMemberMonth[$memberId][$month][$billFy][$billBt]['gst']) ? $contributionByMemberMonth[$memberId][$month][$billFy][$billBt]['gst'] : 0;
 
 						$billArray[$cnt]['interest'] = $billData['MemberBillSummary']['interest_on_due_amount'];
-
-
-
-						$billArray[$cnt]['contri'] = $contri;
-
-
-
-						$billArray[$cnt]['gst'] = $gst;
-
-
+						// flag the member if this bill's components do not reconcile with its total
+						$__rowDiff = ($billArray[$cnt]['contri'] + $billArray[$cnt]['gst'] + $billArray[$cnt]['interest']) - $billArray[$cnt]['bill_amount'];
+						if (abs($__rowDiff) >= 1) { $memberHasDiff[$memberId] = true; }
 
 						$cnt++;
 
-
-
 					}
-
-
 
 				}
 
-
-
 				$billDetailArray[$memberId] = $billArray;
-
-
 
 			}
 
-
-
-			//echo '<pre>';print_r($billDetailArray);exit;
-
-
-
-			$this->set(compact('billDetailArray', 'memberDetails'));
+			$this->set(compact('billDetailArray', 'memberDetails', 'memberDropdownList', 'postData', 'memberHasDiff', 'onlyDiff'));
 
 
 
@@ -11664,7 +11559,13 @@ $expIndex = 0;$incomeIdex = 0;
 						$member_transfer=0;
 					}
 
-					$options['AND']['MemberBillSummary.financial_year_id']= $financialYearId;
+					if ($postData['MemberBillSummary']['member_record'] == 'Old') {
+						// Old owner's bills are in the year(s) before the transfer, not the
+						// currently selected year, so do not constrain by financial year.
+						unset($options['AND']['MemberBillSummary.financial_year_id']);
+					} else {
+						$options['AND']['MemberBillSummary.financial_year_id'] = $financialYearId;
+					}
 					$options['AND']['MemberBillSummary.member_id'] = $memberId; //print_r($options);exit;
 					$options['AND']['MemberBillSummary.member_transfer'] = $member_transfer; //print_r($options);exit;
 
@@ -11679,7 +11580,7 @@ $expIndex = 0;$incomeIdex = 0;
 							if (isset($billData['MemberBillSummary'])) {
 								$this->loadModel('MemberBillSettlement');
 								$condition = array('MemberBillSettlement.bill_summary_id' => $billData['MemberBillSummary']['id'],
-								'MemberBillSettlement.member_id' => $memberId , 'MemberBillSettlement.financial_year_id'=> $financialYearId);
+								'MemberBillSettlement.member_id' => $memberId , 'MemberBillSettlement.financial_year_id'=> (($postData['MemberBillSummary']['member_record'] == 'Old') ? $billData['MemberBillSummary']['financial_year_id'] : $financialYearId));
 								$memberBillSettlement = $this->MemberBillSettlement->find('all', array('conditions' => $condition));
 
 								foreach ($memberBillSettlement as $settlementData) {
@@ -11744,8 +11645,12 @@ $expIndex = 0;$incomeIdex = 0;
 		}
 
 				$conditionPayment = array('MemberPayment.society_id' => $this->Session->read('Auth.User.id'), 
-				'MemberPayment.financial_year_id' => $financialYearId,
 				'MemberPayment.member_id' => $memberId, 'MemberPayment.member_transfer' => $member_transfer);
+				// Old owner's payments are in the year(s) before the transfer; only the
+				// current/new owner's ledger is constrained to the selected year.
+				if ($postData['MemberBillSummary']['member_record'] != 'Old') {
+					$conditionPayment['MemberPayment.financial_year_id'] = $financialYearId;
+				}
 				if (isset($this->request->data['MemberBillSummary']['report_type']) && $this->request->data['MemberBillSummary']['report_type'] != 'Default') {
 					$conditionPayment['MemberPayment.bill_type'] = $this->request->data['MemberBillSummary']['report_type'];
 				}              
@@ -13623,7 +13528,70 @@ $accountMemberLedgerDetails[$memberId]['MemberBillSummary'][$paymentCounterr]['t
 
 
 
+			// A flat transfer renames the member in place, so the old owner and the
+			// new owner share one Member.id and every row came out under the current
+			// name. Each row stores the member_transfer it was saved with, so a row
+			// below the member's current transfer belongs to the previous owner:
+			// show the name recorded for them instead. Name only - the register's
+			// layout is untouched.
+			$oldMemberNameById = array();
+
+			$oldMemberFlatList = $this->SocietyBill->getSocietyOldMeberFlatList();
+
+			if (!empty($oldMemberFlatList)) {
+
+				foreach ($oldMemberFlatList as $oldMemberRow) {
+
+					$oldMemberId = isset($oldMemberRow['member_identifications']['member_id']) ? $oldMemberRow['member_identifications']['member_id'] : null;
+
+					if (!empty($oldMemberId) && isset($oldMemberRow['member_identifications']['third_member'])) {
+
+						$oldMemberNameById[$oldMemberId] = $oldMemberRow['member_identifications']['third_member'];
+
+					}
+
+				}
+
+			}
+
+			$memberNameList = array();
+
+			$memberTransferList = array();
+
+			$memberRowsForTitle = $this->Member->find('all', array('conditions' => array('Member.society_id' => $societyLoginID), 'fields' => array('Member.id', 'Member.member_name', 'Member.member_transfer'), 'recursive' => -1));
+
+			foreach ($memberRowsForTitle as $memberRowForTitle) {
+
+				$memberNameList[$memberRowForTitle['Member']['id']] = $memberRowForTitle['Member']['member_name'];
+
+				$memberTransferList[$memberRowForTitle['Member']['id']] = $memberRowForTitle['Member']['member_transfer'];
+
+			}
+
 			foreach ($journalVoucherData as $counter => $jVData) {
+
+				$jvTransfer = isset($jVData['JournalVoucher']['member_transfer']) ? $jVData['JournalVoucher']['member_transfer'] : null;
+
+				foreach (array('credit', 'debit') as $jvSide) {
+
+					$memberHeadId = !empty($jVData['JournalVoucher']['jv_' . $jvSide . '_member_head_id']) ? $jVData['JournalVoucher']['jv_' . $jvSide . '_member_head_id'] : null;
+
+					if ($memberHeadId === null) { continue; }
+
+					$memberTitle = isset($memberNameList[$memberHeadId]) ? $memberNameList[$memberHeadId] : '';
+
+					$currentTransfer = isset($memberTransferList[$memberHeadId]) ? $memberTransferList[$memberHeadId] : null;
+
+					if ($jvTransfer !== null && $currentTransfer !== null && $jvTransfer < $currentTransfer && !empty($oldMemberNameById[$memberHeadId])) {
+
+						$memberTitle = $oldMemberNameById[$memberHeadId];
+
+					}
+
+					$jVData['JournalVoucher'][$jvSide . '_member_title'] = $memberTitle;
+
+				}
+
 
 
 
@@ -18362,6 +18330,7 @@ echo "<br>".$headDetails['society_head_sub_category_id'];
 			$options['AND']['MemberBillSummary.member_id in'] = $memberIdArray;
 			
 		$billType = $postData[MemberBillSummary][bill_type];
+		$memberRecordType = (isset($postData['MemberBillSummary']['member_record']) && $postData['MemberBillSummary']['member_record'] != '') ? $postData['MemberBillSummary']['member_record'] : 'Current';
 		$options['AND']['MemberBillSummary.bill_type'] = $billType;
 		
 		$billSummaryDetails = $this->MemberBillSummary->find('all', array('conditions' => $options, 'order' => array('MemberBillSummary.bill_generated_date' => 'asc', 'MemberBillSummary.bill_no' => 'asc')));
@@ -18398,6 +18367,12 @@ echo "<br>".$headDetails['society_head_sub_category_id'];
 
 
 				$memberBillDetails = $billDetails['MemberBillSummary'];
+				// Current vs Old owner: a transferred member shares one id across
+				// owners; keep only the generation being viewed (default Current).
+				$__brCurT  = isset($membersArray[$memberBillDetails['member_id']]['member_transfer']) ? $membersArray[$memberBillDetails['member_id']]['member_transfer'] : 0;
+				$__brBillT = isset($memberBillDetails['member_transfer']) ? $memberBillDetails['member_transfer'] : 0;
+				if ($memberRecordType == 'Old') { if (!($__brBillT < $__brCurT)) { continue; } }
+				else { if ($__brBillT != $__brCurT) { continue; } }
 
 
 

@@ -227,11 +227,11 @@ $op = date('d/m/Y',strtotime($this->Session->read('Auth.year_start_date')));
                     <div class="row">
                         <div  class="tab-struct custom-tab-2">
                             <div class="account-report-form">
-                            <a type="button" data-toggle="tooltip" data-original-title="Print Friendly" class="btn btn-success btn-anim btns pull-right" href="javascript:void(0);" onclick="printFlatShopReports('print_individual_member_ledger','print_header_section');"><i class="fa fa-print"></i><span class="btn-text">Print Friendly</span></a>  
+                            <a type="button" data-toggle="tooltip" data-original-title="Print Friendly" class="btn btn-success btn-anim btns pull-right" href="javascript:void(0);" onclick="printActiveLedger();"><i class="fa fa-print"></i><span class="btn-text">Print Friendly</span></a>  
                             </div>
                             <ul role="tablist" class="nav nav-tabs" id="myTabs_15">
-                                <li class="tab-active-bg" role="presentation"><a aria-expanded="true" data-toggle="tab" role="tab" id="home_tab_15" href="#ledger">Occupant</a></li>
-                                <li  role="presentation"><a aria-expanded="true" data-toggle="tab" role="tab" id="home_tab_16" href="#old_ledger">Old Member Bill</a></li>
+                                <li class="tab-active-bg" role="presentation"><a aria-expanded="true" data-toggle="tab" role="tab" id="home_tab_15" href="#ledger">Current Member</a></li>
+                                <li  role="presentation"><a aria-expanded="true" data-toggle="tab" role="tab" id="home_tab_16" href="#old_ledger" onclick="loadOldMemberLedger();">Old Member Bill</a></li>
                                 <li role="presentation" class="tab-bg"><a data-toggle="tab" id="profile_tab_15" role="tab" href="#tariff" aria-expanded="false">Tariff</a></li>
                             </ul>
                             <div class="tab-content" id="myTabContent_15">
@@ -381,7 +381,20 @@ $op = date('d/m/Y',strtotime($this->Session->read('Auth.year_start_date')));
 
 
 
-                                <div id="tariff" class="tab-pane fade tab-body-bg" role="tabpanel">
+                                <div id="old_ledger" class="tab-pane fade tab-body-bg" role="tabpanel">
+    <div class="row"><div class="col-md-12 padding-2"><div style="padding: 8px;">
+        <div class="table-wrap" id="print_old_member_ledger">
+            <div class="report-bill" style="text-align:center;font-weight:bold;">Old Member Ledger <span id="old_ledger_name"></span></div>
+            <div class="table-responsive">
+                <table class="table table-striped table-hover table-bordered padding-th-none padding-td-none">
+                    <thead><tr><th>Date</th><th>Particular</th><th class="text-right">Dr.Amount</th><th class="text-right">Cr.Amount</th><th class="text-right">Balance</th></tr></thead>
+                    <tbody id="old_flat_details"><tr><td colspan="5" class="text-center">Loading...</td></tr></tbody>
+                </table>
+            </div>
+        </div>
+    </div></div></div>
+</div>
+<div id="tariff" class="tab-pane fade tab-body-bg" role="tabpanel">
                                     <p>Tariff Details Here</p>
                                 </div>
                             </div>
@@ -450,3 +463,70 @@ $("#update_op").click(function(event) {
 });
 </script>
 
+<script type="text/javascript">
+// Old Member Bill tab: fetch the previous owner's ledger (same member id, one
+// transfer generation back) and render it, mirroring the Occupant renderer.
+function printActiveLedger() {
+    if (window.jQuery && jQuery('#old_ledger').hasClass('active')) {
+        printFlatShopReports('print_old_member_ledger', 'print_header_section');
+    } else {
+        printFlatShopReports('print_individual_member_ledger', 'print_header_section');
+    }
+}
+function loadOldMemberLedger() {
+    if (!window.jQuery) { return; }
+    var memberId = jQuery('#society_member_id').val();
+    if (!memberId) { return; }
+    jQuery('#old_flat_details').html('<tr><td colspan="5" class="text-center">Loading...</td></tr>');
+    jQuery.ajax({
+        type: 'POST',
+        url: webrootUrl + 'societys_ajax/getSocietyMemberDetails',
+        data: 'societyMemberId=' + memberId + '&oldMember=1',
+        dataType: 'json',
+        success: function (resp) { renderOldMemberLedger(resp); },
+        error: function () { jQuery('#old_flat_details').html('<tr><td colspan="5" class="text-center">Could not load old ledger.</td></tr>'); }
+    });
+}
+// The Old Member Bill tab is filled on demand (tab click), so after << / >>
+// moves the modal to another unit it keeps showing the previous unit's ledger.
+// Clear it on every move and drop the user back on the Current Member tab, so
+// what is on screen always belongs to the unit now loaded.
+jQuery(function ($) {
+    function resetOldMemberTab() {
+        $('#old_ledger_name').text('');
+        $('#old_flat_details').html('<tr><td colspan="5" class="text-center">Loading...</td></tr>');
+        if ($('#old_ledger').hasClass('active')) {
+            $('#home_tab_15').tab('show');
+        }
+    }
+    $('#society_member_previous_button, #society_member_next_button').on('click', resetOldMemberTab);
+    // Same staleness when the unit is switched from the Unit No. dropdown.
+    $('#member_unit_no').on('change', resetOldMemberTab);
+});
+function renderOldMemberLedger(resp) {
+    var $ = jQuery, tb = $('#old_flat_details');
+    tb.empty();
+    if (!resp || !resp.Member) { tb.append('<tr><td colspan="5" class="text-center">No previous owner for this unit.</td></tr>'); return; }
+    $('#old_ledger_name').text(resp.Member.member_name ? '- ' + resp.Member.member_name : '');
+    function np(v){ return (typeof checkNegativePositiveValue === 'function') ? checkNegativePositiveValue(v) : (v < 0 ? 'Cr' : 'Dr'); }
+    function f(x){ x = parseFloat(x); return isNaN(x) ? 0 : x; }
+    var opBal = f(resp.Member.op_principal) + f(resp.Member.op_interest) + f(resp.Member.op_tax)
+              + f(resp.Member.supplementary_principal) + f(resp.Member.supplementary_penality)
+              + f(resp.Member.supplementary_interest) + f(resp.Member.supplementary_tax);
+    var openingCr = 0, openingDr = 0;
+    if (opBal < 0) { openingDr = Math.abs(opBal); } else { openingCr = Math.abs(opBal); }
+    var indBalance = opBal;
+    tb.append('<tr><td>' + (resp.openingdate || '') + '</td><td class="opening-bal">Opening Balance</td><td class="text-right old_dr">' + openingCr.toFixed(2) + '</td><td class="text-right old_cr">' + openingDr.toFixed(2) + '</td><td class="text-right">' + Math.abs(opBal).toFixed(2) + ' ' + np(opBal) + '</td></tr>');
+    if (resp.memberBillPayment && resp.memberBillPayment.length > 0) {
+        $.each(resp.memberBillPayment, function (i, d) {
+            indBalance = f(indBalance) + f(d.debit) - f(d.credit);
+            tb.append('<tr><td>' + (d.formattedDate || '') + '</td><td>' + (d.particular || '') + '</td><td class="text-right old_dr">' + d.debit + '</td><td class="text-right old_cr">' + d.credit + '</td><td class="text-right">' + Math.abs(indBalance).toFixed(2) + ' ' + np(indBalance) + '</td></tr>');
+        });
+    }
+    var td = 0, tc = 0;
+    tb.find('.old_dr').each(function () { td += f($(this).text()); });
+    tb.find('.old_cr').each(function () { tc += f($(this).text()); });
+    var totBal = td - tc;
+    tb.append('<tr style="font-weight:bold;"><td colspan="2" class="text-right">Total</td><td class="text-right">' + td.toFixed(2) + '</td><td class="text-right">' + tc.toFixed(2) + '</td><td class="text-right">' + Math.abs(totBal).toFixed(2) + ' ' + np(totBal) + '</td></tr>');
+}
+</script>

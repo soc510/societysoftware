@@ -1236,6 +1236,18 @@ public function add_society_ledger_heads() {
 
             $returnedCheckDetails = [];
             $member_transfer = isset($societyMemberDetails['Member']['member_transfer'])?$societyMemberDetails['Member']['member_transfer']:0;
+            // Optional override: the "Old Member Bill" tab asks for a previous
+            // owner's ledger by passing that owner's transfer number for the same
+            // member id. Absent -> the current occupant, unchanged.
+            if (isset($this->request->data['oldMember']) && $this->request->data['oldMember'] == '1' && $member_transfer >= 1) {
+                $member_transfer = $member_transfer - 1;
+                // Show the previous owner's name, not the current occupant's.
+                $this->loadModel('MemberIdentification');
+                $__oldIdent = $this->MemberIdentification->find('first', array('conditions' => array('MemberIdentification.member_id' => $societyMemberId, 'MemberIdentification.society_id' => $this->Session->read('Auth.User.id')), 'order' => array('MemberIdentification.flat_no' => 'asc')));
+                if (!empty($__oldIdent['MemberIdentification']['third_member'])) {
+                    $societyMemberDetails['Member']['member_name'] = $__oldIdent['MemberIdentification']['third_member'];
+                }
+            }
             
             $chequeRetCond = array('member_id'=> $societyMemberId,'society_id'=>$societyId,'financial_year_id'=>$financialyearId);    
             $condition = array('MemberBillSummary.society_id' => $this->Session->read('Auth.User.id'), 
@@ -1438,7 +1450,7 @@ public function add_society_ledger_heads() {
 
 //echo "MemberTR".$societyMemberDetails['Member']['member_transfer'];
 
-            $openingBalance = $this->SocietyBill->getMemberClosingBalanceData($societyMemberDetails['Member']['id'],$societyMemberDetails['Member']['member_transfer']);       
+            $openingBalance = $this->SocietyBill->getMemberClosingBalanceData($societyMemberDetails['Member']['id'],$member_transfer);       
        
             if(isset($openingBalance['reg'])){
                 $societyMemberDetails['Member']['op_principal'] = !empty($openingBalance['reg']['op_principal']) ?  $openingBalance['reg']['op_principal'] : 0.00;
@@ -1557,7 +1569,7 @@ public function add_society_ledger_heads() {
 
 
 
-        $journalVoucherMemberPaymentData = $this->SocietyBill->getJournalVoucherCreaditDebitDataByMemberId($societyMemberId,$societyMemberDetails['Member']['member_transfer']);
+        $journalVoucherMemberPaymentData = $this->SocietyBill->getJournalVoucherCreaditDebitDataByMemberId($societyMemberId,$member_transfer);
 
 
         if (!empty($journalVoucherMemberPaymentData)){
@@ -1573,6 +1585,11 @@ public function add_society_ledger_heads() {
                 //$paymentCounter = 0; //commented by shobha
 
                 foreach ($journalVoucherMemberPaymentData as $jvData){
+                    // Only this member-generation's JV rows belong in the current
+                    // occupant's ledger. An old owner (member_transfer < current) shares
+                    // the same member id, so without this filter the old owner's JV
+                    // entries leak in and the balance nets to zero.
+                    if (isset($jvData['JournalVoucher']['member_transfer']) && $jvData['JournalVoucher']['member_transfer'] != $member_transfer) { continue; }
 
                     if ($jvData['JournalVoucher']['jv_credit_member_head_id'] != '' && $jvData['JournalVoucher']['jv_credit_member_head_id'] == $societyMemberId) {
 

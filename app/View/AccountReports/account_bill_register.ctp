@@ -66,6 +66,14 @@
                                         </div>                                        
                                         <div class="col-md-3 no-padding-right"> 
                                             <div class="account-report-form-field-box">   
+                                                <select class="account-report-form-box-field-dropdown-80" id="" name="data[MemberBillSummary][member_record]">
+                                                    <option value="Current" <?php if (!isset($postData['MemberBillSummary']['member_record']) || $postData['MemberBillSummary']['member_record'] == 'Current') { echo 'selected="selected"'; } ?>>Current Member</option>
+                                                    <option value="Old" <?php if (isset($postData['MemberBillSummary']['member_record']) && $postData['MemberBillSummary']['member_record'] == 'Old') { echo 'selected="selected"'; } ?>>Old Member</option>
+                                                </select>
+                                            </div> 
+                                        </div>
+                                        <div class="col-md-3 no-padding-right"> 
+                                            <div class="account-report-form-field-box">   
                                                     <select class="account-report-form-box-field-dropdown-80" id="" name="data[MemberBillSummary][member_record_range]">
                                                         <option value="-1">Member Record Range</option>
                                                         <option value="1">1 to 100 Records</option>

@@ -1026,7 +1026,19 @@ echo "<!--";
         $journalVoucherDataArr = array();
 
         $memberListForJournalVouchers = $this->SocietyBill->getSocietyMemberList();
-        $OldmemberListForJournalVouchers = $this->SocietyBill->getSocietyOldMeberFlatList();        
+        $OldmemberListForJournalVouchers = $this->SocietyBill->getSocietyOldMeberFlatList();
+        // member id -> previous owner's recorded name, from the same source that
+        // fills the Old Members List dropdown. Used to label register rows that
+        // were saved against an earlier transfer number.
+        $oldMemberNameById = array();
+        if (!empty($OldmemberListForJournalVouchers)) {
+            foreach ($OldmemberListForJournalVouchers as $__om) {
+                $__mid = isset($__om['member_identifications']['member_id']) ? $__om['member_identifications']['member_id'] : null;
+                if (!empty($__mid) && isset($__om['member_identifications']['third_member'])) {
+                    $oldMemberNameById[$__mid] = $__om['member_identifications']['third_member'];
+                }
+            }
+        }        
 
         $flatNoList = $this->SocietyBill->getMemberFlatNoList();
 
@@ -1329,17 +1341,27 @@ echo "<!--";
                 }
 
                 $memberData = $this->Member->find('first', array('conditions' => $memberCondition, 'order' => array('Member.id' => 'asc'), 'recursive' => -1));
-
-                if ($CreditFlag) {
-
-                    $journalVoucherData[$counter]['JournalVoucher']['creadit_title'] = isset($memberData['Member']['member_name']) ? $memberData['Member']['member_name'] : "";
-
+                // A row saved with a lower transfer number belongs to the previous
+                // owner; transfer has since overwritten member_name, so show the old name.
+                $jvMemberDisplayName = isset($memberData['Member']['member_name']) ? $memberData['Member']['member_name'] : "";
+                $__mid  = isset($memberData['Member']['id']) ? $memberData['Member']['id'] : null;
+                $__jvT  = isset($jVData['JournalVoucher']['member_transfer']) ? $jVData['JournalVoucher']['member_transfer'] : null;
+                $__curT = isset($memberData['Member']['member_transfer']) ? $memberData['Member']['member_transfer'] : null;
+                if ($__mid !== null && $__jvT !== null && $__curT !== null && $__jvT < $__curT
+                        && isset($oldMemberNameById[$__mid]) && $oldMemberNameById[$__mid] !== '') {
+                    $jvMemberDisplayName = $oldMemberNameById[$__mid];
+                }
+                // Show the flat number with the name, as the dropdown does.
+                if ($jvMemberDisplayName !== '' && isset($flatNoList[$__mid]) && $flatNoList[$__mid] !== '') {
+                    $jvMemberDisplayName .= ' -- ' . $flatNoList[$__mid];
                 }
 
-                if($debitFlag){
+                if ($CreditFlag && !empty($jVData['JournalVoucher']['jv_credit_member_head_id'])) {
+                    $journalVoucherData[$counter]['JournalVoucher']['creadit_title'] = $jvMemberDisplayName;
+                }
 
-                    $journalVoucherData[$counter]['JournalVoucher']['debit_title'] = isset($memberData['Member']['member_name']) ? $memberData['Member']['member_name'] : "";
-
+                if ($debitFlag && !empty($jVData['JournalVoucher']['jv_debit_member_head_id'])) {
+                    $journalVoucherData[$counter]['JournalVoucher']['debit_title'] = $jvMemberDisplayName;
                 }
 
             }
