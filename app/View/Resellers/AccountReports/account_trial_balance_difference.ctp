@@ -60,7 +60,9 @@
                                                     
                                                     $f='';
                                                     
-                                                if (abs($diff) > 0 && abs($diff) < 1){ $f='style="background-color:yellow;"';$totalDiffY += $diff;}
+                                                // Half a paisa: below this the Difference cell prints 0.00 anyway, so
+                                                // flagging it only paints rows yellow over float noise.
+                                                if (abs($diff) >= 0.005 && abs($diff) < 1){ $f='style="background-color:yellow;"';$totalDiffY += $diff;}
                                                     elseif(abs($diff) >= 1){ $f='style="background-color:red;"'; $totalDiffR += $diff;}
                                         ?>
                                             
