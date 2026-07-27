@@ -18330,6 +18330,19 @@ echo "<br>".$headDetails['society_head_sub_category_id'];
 			
 		$billType = $postData[MemberBillSummary][bill_type];
 		$memberRecordType = (isset($postData['MemberBillSummary']['member_record']) && $postData['MemberBillSummary']['member_record'] != '') ? $postData['MemberBillSummary']['member_record'] : 'Current';
+		// Old owner view: show the previous owner's name (third_member) instead of
+		// the current member_name, to match the old-member bills being listed.
+		if ($memberRecordType == 'Old' && !empty($membersArray)) {
+			$this->loadModel('MemberIdentification');
+			$__oldIdents = $this->MemberIdentification->find('all', array('conditions' => array('MemberIdentification.society_id' => $societyLoginID, 'MemberIdentification.member_id' => array_keys($membersArray)), 'fields' => array('MemberIdentification.member_id', 'MemberIdentification.third_member'), 'recursive' => -1));
+			foreach ($__oldIdents as $__oi) {
+				$__mid = $__oi['MemberIdentification']['member_id'];
+				if (isset($membersArray[$__mid]) && !empty($__oi['MemberIdentification']['third_member'])) {
+					$membersArray[$__mid]['member_name'] = $__oi['MemberIdentification']['third_member'];
+					$membersArray[$__mid]['member_prefix'] = '';
+				}
+			}
+		}
 		$options['AND']['MemberBillSummary.bill_type'] = $billType;
 		
 		$billSummaryDetails = $this->MemberBillSummary->find('all', array('conditions' => $options, 'order' => array('MemberBillSummary.bill_generated_date' => 'asc', 'MemberBillSummary.bill_no' => 'asc')));
