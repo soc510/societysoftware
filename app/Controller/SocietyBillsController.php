@@ -6640,6 +6640,11 @@ if($billGeneratedMonths==4){
         $billNumberFrom = (isset($this->request->query['bill_from']) && !empty($this->request->query['bill_from'])) ? $this->request->query['bill_from'] : '';
         $billNumberTo = (isset($this->request->query['bill_to']) && !empty($this->request->query['bill_to'])) ? $this->request->query['bill_to'] : '';
         $billType = (isset($this->request->query['bill_type']) && !empty($this->request->query['bill_type'])) ? $this->request->query['bill_type'] : 'reg';
+        // Current / Old owner selection. A transferred unit keeps one member id, so the
+        // generation is carried on MemberBillSummary.member_transfer: the current owner's
+        // bills carry Member.member_transfer, every earlier owner a lower value.
+        $memberRecordType = (isset($this->request->query['member_record']) && $this->request->query['member_record'] != '') ? $this->request->query['member_record'] : 'Current';
+        $memberTransferList = $this->Member->find('list', array('conditions' => array('Member.society_id' => $societyId), 'fields' => array('Member.id', 'Member.member_transfer')));
 
 	    $banksList = $this->SocietyBill->getAllBankList();
 
@@ -6650,7 +6655,12 @@ if($billGeneratedMonths==4){
 
 
         $societyParameters = $this->SocietyBill->getSocietyParameters();
-        $optionsQuery[] = array('AND' => array('MemberBillSummary.society_id' => $societyId,'MemberBillSummary.financial_year_id' => $financialYearId,'MemberBillSummary.month' => $billMonth,'MemberBillSummary.bill_type'=>$billType));
+        $optionsQuery[] = array('AND' => array('MemberBillSummary.society_id' => $societyId,'MemberBillSummary.month' => $billMonth,'MemberBillSummary.bill_type'=>$billType));
+        // The old owner's bills sit in the year(s) before the transfer, which may not be
+        // the year currently selected, so only the Current view is scoped to it.
+        if ($memberRecordType != 'Old') {
+            $optionsQuery[0]['AND']['MemberBillSummary.financial_year_id'] = $financialYearId;
+        }
 
         /*Society bill taiffs*/
         $societyLedgerHeadTitleList = array();
@@ -6673,7 +6683,9 @@ if($billGeneratedMonths==4){
         } else if (isset($billNumberFrom) && !empty($billNumberFrom)) {
             $optionsQuery['AND']['MemberBillSummary.bill_no'] = $billNumberFrom;
         }
-		$optionsQuery['AND']['MemberBillSummary.financial_year_id'] = $financialYearId;
+		if ($memberRecordType != 'Old') {
+			$optionsQuery['AND']['MemberBillSummary.financial_year_id'] = $financialYearId;
+		}
         //Society ledger head list which are part of bill
         if ($this->SocietyTariffOrder->hasAny(array('SocietyTariffOrder.society_id' => $societyId))) {
             $societyLedgerHeadList = $this->SocietyTariffOrder->find('all', array('conditions' => array('SocietyLedgerHeads.status' => Configure::read('Active'), 'SocietyLedgerHeads.society_id' => $societyId), 'fields' => array('SocietyLedgerHeads.title', 'SocietyLedgerHeads.id'), 'order' => array('SocietyTariffOrder.id' => 'asc')));
@@ -6695,42 +6707,79 @@ if($billGeneratedMonths==4){
         
 
         if ($monthlyBills) {
-            foreach ($monthlyBills as $key => $bill) {
-                $printBillDetails[$bill['MemberBillSummary']['member_id']] = $bill;
-                $tariffDetails = $this->MemberBillGenerate->find('all', array('conditions' => array('MemberBillGenerate.society_id' => $societyId,'MemberBillGenerate.financial_year_id' => $financialYearId, 'MemberBillGenerate.month' => $billMonth, 'MemberBillGenerate.member_id' => $bill['MemberBillSummary']['member_id'],'MemberBillGenerate.bill_type'=>$billType)));
-                $printBillDetails[$bill['MemberBillSummary']['member_id']]['tariff'] = $tariffDetails;
-                $memberDetails = $this->Member->find('first', array('conditions' => array('Member.id' => $bill['MemberBillSummary']['member_id'])));
-                $printBillDetails[$bill['MemberBillSummary']['member_id']]['memberDetails'] = $memberDetails;
+            $oldOwnerNames = array();
+            if ($memberRecordType == 'Old') {
+                $this->loadModel('MemberIdentification');
+                // Ascending, so a unit transferred more than once keeps the most recent
+                // previous owner.
+                $identifications = $this->MemberIdentification->find('all', array('conditions' => array('MemberIdentification.society_id' => $societyId), 'fields' => array('MemberIdentification.member_id', 'MemberIdentification.third_member'), 'order' => array('MemberIdentification.id' => 'asc'), 'recursive' => -1));
+                foreach ($identifications as $identification) {
+                    if (!empty($identification['MemberIdentification']['third_member'])) {
+                        $oldOwnerNames[$identification['MemberIdentification']['member_id']] = $identification['MemberIdentification']['third_member'];
+                    }
+                }
+            }
 
+            foreach ($monthlyBills as $key => $bill) {
+                $billMemberId = $bill['MemberBillSummary']['member_id'];
+                $billTransfer = (int)$bill['MemberBillSummary']['member_transfer'];
+                $currentTransfer = isset($memberTransferList[$billMemberId]) ? (int)$memberTransferList[$billMemberId] : 0;
+                // The two views partition the unit's bills, so nothing becomes unreachable:
+                // the generation the member row still carries is the current owner's, every
+                // other generation belonged to someone before them.
+                if ($memberRecordType == 'Old') {
+                    if ($billTransfer == $currentTransfer) {
+                        continue;
+                    }
+                } else if ($billTransfer != $currentTransfer) {
+                    continue;
+                }
+
+                // Keyed by bill so an old owner with bills in more than one year keeps them all.
+                $billKey = $bill['MemberBillSummary']['id'];
+                $billFinancialYearId = $bill['MemberBillSummary']['financial_year_id'];
+                $printBillDetails[$billKey] = $bill;
+                $tariffDetails = $this->MemberBillGenerate->find('all', array('conditions' => array('MemberBillGenerate.society_id' => $societyId,'MemberBillGenerate.financial_year_id' => $billFinancialYearId, 'MemberBillGenerate.month' => $billMonth, 'MemberBillGenerate.member_id' => $billMemberId,'MemberBillGenerate.bill_type'=>$billType)));
+                $printBillDetails[$billKey]['tariff'] = $tariffDetails;
+                $memberDetails = $this->Member->find('first', array('conditions' => array('Member.id' => $billMemberId)));
+                $printBillDetails[$billKey]['memberDetails'] = $memberDetails;
+
+                // The member row always holds the current owner, so an old owner's bill has
+                // to be re-labelled with the previous owner recorded on the transfer.
+                if ($memberRecordType == 'Old' && isset($oldOwnerNames[$billMemberId])) {
+                    $printBillDetails[$billKey]['Member']['member_name'] = $oldOwnerNames[$billMemberId];
+                    $printBillDetails[$billKey]['Member']['member_prefix'] = '';
+                    $printBillDetails[$billKey]['Member']['joint_member_name'] = '';
+                }
 
                 // If April bill is printing then we need receipt after last bills generated dates
                 if($bill['MemberBillSummary']['month'] == 4) {
-                
+
                     // Get receipts from last years database
                     // $memberPaymentDetails = $this->getLastYearsMarchReceipts($societyId,$bill['MemberBillSummary']['member_id'],$billType);
                         $receiptFromDate = isset($this->request->query['receipt_from']) ? $this->request->query['receipt_from'] : date('Y').'-03-01';
                         $receiptToDate = isset($this->request->query['receipt_to']) ? $this->request->query['receipt_to'] : date('Y').'-03-31';
-                        
-//                        $memberPaymentDetails = $this->Member->MemberPayment->find('all', 
+
+//                        $memberPaymentDetails = $this->Member->MemberPayment->find('all',
 //                        array('conditions' => array('MemberPayment.member_id' => $bill['MemberBillSummary']['member_id'],'MemberPayment.bill_type'=>$billType
 //                        ,'MemberPayment.financial_year_id' => $financialYearId-1,'MemberPayment.payment_date >=' => $receiptFromDate,'MemberPayment.payment_date <=' => $receiptToDate),'order'=>array('MemberPayment.id'=>'desc')));
 
-                        $memberPaymentDetails = $this->Member->MemberPayment->find('all', 
-                        array('conditions' => array('MemberPayment.member_id' => $bill['MemberBillSummary']['member_id'],'MemberPayment.bill_type'=>$billType
+                        $memberPaymentDetails = $this->Member->MemberPayment->find('all',
+                        array('conditions' => array('MemberPayment.member_id' => $billMemberId,'MemberPayment.bill_type'=>$billType,'MemberPayment.member_transfer' => $billTransfer
                         ,'MemberPayment.payment_date >=' => $receiptFromDate,'MemberPayment.payment_date <=' => $receiptToDate),'order'=>array('MemberPayment.id'=>'desc')));
-                    
+
                 } else {
                     if (isset($this->request->query['receipt_from']) && !empty($this->request->query['receipt_from']) && isset($this->request->query['receipt_to']) && !empty($this->request->query['receipt_to'])) {
-                        $memberPaymentDetails = $this->Member->MemberPayment->find('all', array('conditions' => array('MemberPayment.member_id' => $bill['MemberBillSummary']['member_id'],'MemberPayment.financial_year_id' => $financialYearId,'MemberPayment.payment_date >=' => $this->request->query['receipt_from'],'MemberPayment.payment_date <=' => $this->request->query['receipt_to'],'MemberPayment.bill_type'=>$billType),'order'=>array('MemberPayment.id'=>'desc')));
+                        $memberPaymentDetails = $this->Member->MemberPayment->find('all', array('conditions' => array('MemberPayment.member_id' => $billMemberId,'MemberPayment.financial_year_id' => $billFinancialYearId,'MemberPayment.member_transfer' => $billTransfer,'MemberPayment.payment_date >=' => $this->request->query['receipt_from'],'MemberPayment.payment_date <=' => $this->request->query['receipt_to'],'MemberPayment.bill_type'=>$billType),'order'=>array('MemberPayment.id'=>'desc')));
                     } else {
-                        $memberPaymentDetails = $this->Member->MemberPayment->find('all', array('conditions' => array('MemberPayment.member_id' => $bill['MemberBillSummary']['member_id'],'MemberPayment.financial_year_id' => $financialYearId,'MemberPayment.bill_type'=>$billType),'order'=>array('MemberPayment.id'=>'desc')));
+                        $memberPaymentDetails = $this->Member->MemberPayment->find('all', array('conditions' => array('MemberPayment.member_id' => $billMemberId,'MemberPayment.financial_year_id' => $billFinancialYearId,'MemberPayment.member_transfer' => $billTransfer,'MemberPayment.bill_type'=>$billType),'order'=>array('MemberPayment.id'=>'desc')));
                     }
                 }
 
-                $printBillDetails[$bill['MemberBillSummary']['member_id']]['receipts'] = $memberPaymentDetails;
+                $printBillDetails[$billKey]['receipts'] = $memberPaymentDetails;
             }
         }
-        
+
         $receiptPeriod = array('From'=>$this->request->query['receipt_from'],'To'=>$this->request->query['receipt_to']);
         $wordsFunction  = ($this->request->query['words_type'] == "English")?"numberTowordsEnglish":"numberTowordsMarathi";
 
