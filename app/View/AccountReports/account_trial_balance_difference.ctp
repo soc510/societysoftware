@@ -22,14 +22,14 @@
                             <form method="post" action="<?php echo $this->Html->url(array('controller'=>'account_reports','action'=>'account_trial_balance_difference')); ?>">
                               <div class="row" style="padding:10px 15px;">
                                 <div class="col-md-2"><label>From Date</label>
-                                  <input type="date" name="data[from_date]" class="form-control" value="<?php echo isset($postData['from_date']) ? $postData['from_date'] : ''; ?>"></div>
+                                  <input type="date" name="data[from_date]" class="form-control" value="<?php echo isset($postData['from_date']) ? h($postData['from_date']) : ''; ?>"></div>
                                 <div class="col-md-2"><label>To Date</label>
-                                  <input type="date" name="data[to_date]" class="form-control" value="<?php echo isset($postData['to_date']) ? $postData['to_date'] : ''; ?>"></div>
+                                  <input type="date" name="data[to_date]" class="form-control" value="<?php echo isset($postData['to_date']) ? h($postData['to_date']) : ''; ?>"></div>
                                 <div class="col-md-4"><label>Member</label>
                                   <select name="data[member_id]" class="form-control">
                                     <option value="">All Members</option>
                                     <?php if (isset($memberDropdownList)) { foreach ($memberDropdownList as $__mId => $__mName) { ?>
-                                    <option value="<?php echo $__mId; ?>" <?php echo (isset($postData['member_id']) && $postData['member_id'] == $__mId) ? 'selected="selected"' : ''; ?>><?php echo $__mName; ?></option>
+                                    <option value="<?php echo h($__mId); ?>" <?php echo (isset($postData['member_id']) && $postData['member_id'] == $__mId) ? 'selected="selected"' : ''; ?>><?php echo h($__mName); ?></option>
                                     <?php } } ?>
                                   </select></div>
                                 <div class="col-md-3"><label>Difference</label>
@@ -94,7 +94,9 @@
                                                     
                                                     $f='';
                                                     
-                                                if (abs($diff) > 0 && abs($diff) < 1){ $f='style="background-color:yellow;"';$totalDiffY += $diff;}
+                                                // Half a paisa: below this the Difference cell prints 0.00 anyway, so
+                                                // flagging it only paints rows yellow over float noise.
+                                                if (abs($diff) >= 0.005 && abs($diff) < 1){ $f='style="background-color:yellow;"';$totalDiffY += $diff;}
                                                     elseif(abs($diff) >= 1){ $f='style="background-color:red;"'; $totalDiffR += $diff;}
                                         ?>
                                             

@@ -231,9 +231,15 @@ $drAmunttsum= array();
 $crAmunttsum= array();
 $opBalanceSum= array();
 
+// Counting $accountMemberLedgerDetails is not a test for "did anything render":
+// the controller's uasort() takes its array by reference, so PHP auto-creates a
+// stub entry for every member it looks at, bills or not. Only blocks that really
+// carry a Member are drawn, so count those.
+$renderedMemberBlocks = 0;
 if (isset($accountMemberLedgerDetails) && count($accountMemberLedgerDetails) > 0) {
     foreach ($accountMemberLedgerDetails as $MemberLedgerData) {
-    if (isset($MemberLedgerData['Member'])) { 
+    if (isset($MemberLedgerData['Member'])) {
+    $renderedMemberBlocks++;
 ?>
 
 
@@ -571,11 +577,12 @@ $countt++;
 <?php
 }
 }
-} else {
+}
+if ($renderedMemberBlocks === 0) {
     // Nothing matched. Say why instead of rendering an empty table: an "Old
     // Member" run only has rows for members that were actually transferred.
-    $emptyColspan = ($postData['MemberBillSummary']['report_type'] == 'Summary') ? 16 : 8;
-    $emptyMessage = ($postData['MemberBillSummary']['member_record'] == 'Old')
+    $emptyColspan = (isset($postData['MemberBillSummary']['report_type']) && $postData['MemberBillSummary']['report_type'] == 'Summary') ? 14 : 8;
+    $emptyMessage = (isset($postData['MemberBillSummary']['member_record']) && $postData['MemberBillSummary']['member_record'] == 'Old')
         ? 'No old member records found. A unit appears here only after its member has been transferred (Member Identification / Transfer).'
         : 'No records found for the selected criteria.';
 ?>

@@ -403,7 +403,9 @@ $check_div = empty($memberReceipts)? 'none':'block';
                                             </div>
                                             <div class="row">
                                            
-</div><div style="width:100%; text-align:right;">
+</div><?php /* Payment QR moved from the right to the left, opposite the
+             signature which stays on the right. */ ?>
+<div style="width:100%; text-align:left;">
 <?php
 if (!empty($societyParameters['SocietyParameter']['scanner_image_path'])) {
     echo $this->Html->image(

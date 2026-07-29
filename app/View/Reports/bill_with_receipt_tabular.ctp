@@ -155,6 +155,15 @@
                         </div>  
                         <div class="col-md-2 padding-1">
                             <div class="form-group">
+                                <label for="member_record" class="control-label">Member Record</label>
+                                <select name="member_record" id="member_record" class="form-control">
+                                    <option value="Current">Current Member</option>
+                                    <option value="Old">Old Member</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-2 padding-1">
+                            <div class="form-group">
                                 <label for="bill_type" class="control-label">Bill Format Type</label>
                                 <select name="bill_format_type" id="bill_format_type" class="form-control">
                                     <option value="-1">Select Bill Format Type</option>

@@ -9470,7 +9470,35 @@ $expIndex = 0;$incomeIdex = 0;
 
 			$bookData = array();
 
+			// The bill lines behind each receipt do not depend on the bank ledger, but
+			// this was re-read inside the loop below - once per bank - with the default
+			// recursive join pulling 71 columns per row. On a mid-sized society that is
+			// 46k rows and ~274 MB per pass, over the 256M memory_limit. Read once,
+			// only the five columns actually used, and key it up front.
+			$billCredits = array();
 
+			$billHeadCredits = $this->MemberBillGenerate->find('all', array(
+				'conditions' => array('MemberBillGenerate.society_id' => $societyId),
+				'fields' => array(
+					'MemberBillGenerate.bill_number',
+					'MemberBillGenerate.amount',
+					'SocietyLedgerHeads.title',
+					'Member.member_name',
+					'Member.id'
+				)
+			));
+
+			foreach ($billHeadCredits as $billCredit) {
+
+				$billCredits[$billCredit['MemberBillGenerate']['bill_number']][] = array(
+					'ledger_head' => $billCredit['SocietyLedgerHeads']['title'],
+					'particular' => $billCredit['Member']['member_name'] . '(' . $billCredit['Member']['id'] . ')',
+					'amount' => $billCredit['MemberBillGenerate']['amount']
+				);
+
+			}
+
+			unset($billHeadCredits);
 
 			foreach ($bankLedgers as $lid => $lname) {
 
@@ -9578,37 +9606,7 @@ $expIndex = 0;$incomeIdex = 0;
 
 				if (isset($memberBankBbookDetails) && !empty($memberBankBbookDetails)) {
 
-
-
-					$billHeadCredits = $this->MemberBillGenerate->find('all', array('conditions' => array('MemberBillGenerate.society_id' => $societyId)));
-
-
-
-					if (count($billHeadCredits)) {
-
-
-
-						$billCredits = array();
-
-
-
-						//$amt = 0;
-
-
-
-						foreach ($billHeadCredits as $billCredit) {
-
-
-
-							$billCredits[$billCredit['MemberBillGenerate']['bill_number']][] = array('ledger_head' => $billCredit['SocietyLedgerHeads']['title'], 'particular' => $billCredit['Member']['member_name'] . '(' . $billCredit['Member']['id'] . ')', 'amount' => $billCredit['MemberBillGenerate']['amount']);
-
-
-
-						}
-
-
-
-					}
+					// $billCredits is built once before this loop - see the note there.
 
 
 
@@ -9640,7 +9638,7 @@ $expIndex = 0;$incomeIdex = 0;
 
 
 
-						$bankBookData[$memberBankBbookData['MemberPayment']['payment_date']]['Receipt'][$mCounter]['withdrawal'] = $billCredits[$memberBankBbookData['MemberPayment']['bill_generated_id']];
+						$bankBookData[$memberBankBbookData['MemberPayment']['payment_date']]['Receipt'][$mCounter]['withdrawal'] = isset($billCredits[$memberBankBbookData['MemberPayment']['bill_generated_id']]) ? $billCredits[$memberBankBbookData['MemberPayment']['bill_generated_id']] : array();
 
 
 
@@ -10522,15 +10520,18 @@ $expIndex = 0;$incomeIdex = 0;
 			// bill summaries, then one MemberBillGenerate find for every single bill -
 			// so a society with 500 members and 12 bills each fired ~6500 queries and
 			// the page crawled. The same data now comes from two queries: every bill
-			// summary for the society, and the bill lines pre-aggregated per member
-			// and month. Conditions and grouping are unchanged (society + member +
-			// month, no financial-year or bill-type filter), so every figure the
-			// report prints stays exactly what it was.
+			// summary in scope, and the bill lines pre-aggregated per member, month,
+			// financial year and bill type. Every rupee figure the report prints is
+			// unchanged; only the row order within a member is now deterministic
+			// (bill id ascending), where before it was whatever MySQL returned.
+			// The member filter is applied in SQL as well as to the member list, so
+			// picking one member reads one member's rows instead of the society's.
 			$billDetailArray = array();
 
 			$summariesByMember = array();
 
 			$__billConds = array('MemberBillSummary.society_id' => $societyId);
+			if ($filterMemberId) { $__billConds['MemberBillSummary.member_id'] = $filterMemberId; }
 			if ($fromDate && $toDate) { $__billConds['MemberBillSummary.bill_generated_date BETWEEN ? and ?'] = array($fromDate, $toDate); }
 			else if ($fromDate) { $__billConds['MemberBillSummary.bill_generated_date >='] = $fromDate; }
 			else if ($toDate) { $__billConds['MemberBillSummary.bill_generated_date <='] = $toDate; }
@@ -10548,8 +10549,10 @@ $expIndex = 0;$incomeIdex = 0;
 
 			$contributionByMemberMonth = array();
 
+			$__generateConds = array('MemberBillGenerate.society_id' => $societyId);
+			if ($filterMemberId) { $__generateConds['MemberBillGenerate.member_id'] = $filterMemberId; }
 			$billGenerateTotals = $this->MemberBillGenerate->find('all', array(
-				'conditions' => array('MemberBillGenerate.society_id' => $societyId),
+				'conditions' => $__generateConds,
 				'fields' => array(
 					'MemberBillGenerate.member_id',
 					'MemberBillGenerate.month',
@@ -18327,6 +18330,19 @@ echo "<br>".$headDetails['society_head_sub_category_id'];
 			
 		$billType = $postData[MemberBillSummary][bill_type];
 		$memberRecordType = (isset($postData['MemberBillSummary']['member_record']) && $postData['MemberBillSummary']['member_record'] != '') ? $postData['MemberBillSummary']['member_record'] : 'Current';
+		// Old owner view: show the previous owner's name (third_member) instead of
+		// the current member_name, to match the old-member bills being listed.
+		if ($memberRecordType == 'Old' && !empty($membersArray)) {
+			$this->loadModel('MemberIdentification');
+			$__oldIdents = $this->MemberIdentification->find('all', array('conditions' => array('MemberIdentification.society_id' => $societyLoginID, 'MemberIdentification.member_id' => array_keys($membersArray)), 'fields' => array('MemberIdentification.member_id', 'MemberIdentification.third_member'), 'recursive' => -1));
+			foreach ($__oldIdents as $__oi) {
+				$__mid = $__oi['MemberIdentification']['member_id'];
+				if (isset($membersArray[$__mid]) && !empty($__oi['MemberIdentification']['third_member'])) {
+					$membersArray[$__mid]['member_name'] = $__oi['MemberIdentification']['third_member'];
+					$membersArray[$__mid]['member_prefix'] = '';
+				}
+			}
+		}
 		$options['AND']['MemberBillSummary.bill_type'] = $billType;
 		
 		$billSummaryDetails = $this->MemberBillSummary->find('all', array('conditions' => $options, 'order' => array('MemberBillSummary.bill_generated_date' => 'asc', 'MemberBillSummary.bill_no' => 'asc')));

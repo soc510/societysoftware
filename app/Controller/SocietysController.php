@@ -3181,9 +3181,11 @@ class SocietysController extends AppController {
             if($memberIdentificationDetails){ 
                 $second_member = $postData['second_member'];
                 $member_trasfer= $count+1;                // for new new status update to +1
-                $new_op_principal   =  isset($this->request->data['MemberIdentification']['op_principal']) ? $this->request->data['MemberIdentification']['op_principal'] : 0;
-                $new_op_interest    =  isset($this->request->data['MemberIdentification']['op_interest']) ? $this->request->data['MemberIdentification']['op_interest'] : 0;
-                $new_op_tax         =  isset($this->request->data['MemberIdentification']['op_tax']) ? $this->request->data['MemberIdentification']['op_tax'] : 0;
+                // Preserve the member's existing opening balance when the form leaves
+                // these blank (isset() was true for an empty field, wiping op_* to 0).
+                $new_op_principal   =  !empty($this->request->data['MemberIdentification']['op_principal']) ? $this->request->data['MemberIdentification']['op_principal'] : $old_op_principal;
+                $new_op_interest    =  !empty($this->request->data['MemberIdentification']['op_interest']) ? $this->request->data['MemberIdentification']['op_interest'] : $old_op_interest;
+                $new_op_tax         =  !empty($this->request->data['MemberIdentification']['op_tax']) ? $this->request->data['MemberIdentification']['op_tax'] : $old_op_tax;
                 $this->Member->updateAll(array('Member.member_name' =>"'$second_member'", 'Member.member_transfer' => "'$member_trasfer'", 'Member.op_principal' => "'$new_op_principal'", 'Member.op_interest' => "'$new_op_interest'", 'Member.op_tax' => "'$new_op_tax'"),array('Member.id'=>$memberId));
                 $this->Session->setFlash(__('Member Information Save Successfully'), 'success');
                 $this->redirect(array('controller' => 'societys', 'action' => 'member_identifications'));                
