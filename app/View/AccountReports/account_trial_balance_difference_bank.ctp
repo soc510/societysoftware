@@ -11,7 +11,9 @@
                     </div>
                     <div class="col-sm-6">
                         <div class="pull-right">
-                            <a href="#">Member Bill Difference</h6>
+                            <?php /* Same unclosed-anchor bug as the member-difference page: </h6>
+                                     for </a> left the link wrapping the filter form. */ ?>
+                            <a href="?t=0">Member Bill Difference</a>
                         </div>
                     </div>
                     <div class="clearfix"></div>
