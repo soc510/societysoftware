@@ -11,7 +11,10 @@
                     </div>
                     <div class="col-sm-6">
                         <div class="pull-right">
-                            <a href="?t=1">Bank/Cash Difference</h6>
+                            <?php /* Closed with </h6> instead of </a>, so the anchor stayed open and
+                                     wrapped the whole filter form - clicking any field, including the
+                                     date box, followed this link to ?t=1 and reloaded the page. */ ?>
+                            <a href="?t=1">Bank/Cash Difference</a>
                         </div>
                     </div>
                     <div class="clearfix"></div>
