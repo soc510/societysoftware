@@ -9635,7 +9635,12 @@ if($billGeneratedMonths==4){
                     $condtitionArr = array('MemberBillGenerate.society_id' => $societyLoginId, 'MemberBillGenerate.month' => $billMonth, 'MemberBillGenerate.ledger_head_id' => $societyLedgerHeadId, 'MemberBillGenerate.member_id' => $memberID,'MemberBillGenerate.financial_year_id' => $this->financialYearId);
                     
                     if ($this->MemberBillGenerate->hasAny($condtitionArr)) {
-                        $this->MemberBillGenerate->updateAll(array('MemberBillGenerate.amount' => "'$ledgerData[amount]'", 'MemberBillGenerate.igst_total' => "$igstTaxAmount", 'MemberBillGenerate.cgst_total' => "$cgstTaxAmount", 'MemberBillGenerate.sgst_total' => "$sgstTaxAmount", 'MemberBillGenerate.tax_total' => "$tax_total"), array('MemberBillGenerate.society_id' => $societyLoginId, 'MemberBillGenerate.month' => $billMonth, 'MemberBillGenerate.ledger_head_id' => $societyLedgerHeadId, 'MemberBillGenerate.member_id' => $memberID, 'MemberBillGenerate.bill_type' => $billType));
+                        // financial_year_id must be in the WHERE, not only in the hasAny
+                        // check above: without it this matched the same month in every
+                        // year, so editing one year's charge rewrote that charge on the
+                        // member's bill for every year. The summary updateAll below is
+                        // already scoped this way.
+                        $this->MemberBillGenerate->updateAll(array('MemberBillGenerate.amount' => "'$ledgerData[amount]'", 'MemberBillGenerate.igst_total' => "$igstTaxAmount", 'MemberBillGenerate.cgst_total' => "$cgstTaxAmount", 'MemberBillGenerate.sgst_total' => "$sgstTaxAmount", 'MemberBillGenerate.tax_total' => "$tax_total"), array('MemberBillGenerate.society_id' => $societyLoginId, 'MemberBillGenerate.month' => $billMonth, 'MemberBillGenerate.ledger_head_id' => $societyLedgerHeadId, 'MemberBillGenerate.member_id' => $memberID, 'MemberBillGenerate.bill_type' => $billType, 'MemberBillGenerate.financial_year_id' => $this->financialYearId));
                     } else {
                         $count++;
                         $billGenerateData[$count]['id'] = null;
