@@ -163,6 +163,39 @@
     </script>
     <?php echo $this->element('sql_dump'); ?>    
     
+    <script>
+    // The fixed top navbar grows taller when its menu or the (long) society name
+    // wrap onto extra lines - narrow windows, browser zoom, smaller laptops. The
+    // content's padding-top is a fixed 134px, so a wrapped navbar then hides the
+    // page's top action buttons behind it. Match the padding to the navbar's real
+    // height on load and on every resize so those buttons always clear it.
+    (function () {
+        function navBottom(nav) {
+            var b = nav.getBoundingClientRect().bottom;
+            var kids = nav.querySelectorAll('.dash-top-header, .dash-top-header-menu, .top-nav, .nav-header, .mobile-only-nav');
+            for (var i = 0; i < kids.length; i++) {
+                var kb = kids[i].getBoundingClientRect().bottom;
+                if (kb > b) { b = kb; }
+            }
+            return b;
+        }
+        function adjustTop() {
+            var nav = document.querySelector('.navbar-fixed-top');
+            var pw = document.querySelector('.page-wrapper');
+            if (!nav || !pw) { return; }
+            var top = Math.round(navBottom(nav)) + 6;
+            if (top < 66) { top = 66; }
+            pw.style.paddingTop = top + 'px';
+        }
+        if (document.readyState !== 'loading') { adjustTop(); }
+        else { document.addEventListener('DOMContentLoaded', adjustTop); }
+        window.addEventListener('load', adjustTop);
+        window.addEventListener('resize', adjustTop);
+        // The menu and fonts can reflow shortly after first paint.
+        setTimeout(adjustTop, 300);
+        setTimeout(adjustTop, 1000);
+    })();
+    </script>
 </body>
 <!-- Mirrored from hencework.com/theme/magilla/full-width-light/index.html by HTTrack Website Copier/3.x [XR&CO'2014], Sun, 24 Dec 2017 10:01:25 GMT -->
 </html>
