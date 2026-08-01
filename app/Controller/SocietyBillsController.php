@@ -12536,6 +12536,15 @@ if($billGeneratedMonths==4){
            $billType = ($parts[2] === 'sup') ? 'sup' : 'reg';
            if ($memberId <= 0 || $financialYearId <= 0) { continue; }
 
+           // The difference is a stale monthly_amount: a charge was edited on the
+           // bill after it was generated, so the summary still holds the old figure
+           // and Dr != Cr. The single bill's Update button clears this by re-running
+           // updateMemberTarrifDetails (which rewrites monthly_amount from the charge
+           // rows); the recalc-only path below skips that step, so reproduce just the
+           // sync first. The recalc then rebuilds monthly_bill_amount and the running
+           // balances from the corrected figures, exactly as the single Update does.
+           $this->syncSummaryAmountFromCharges($memberId, $societyLoginId, $billType, $financialYearId);
+
            $ok = $this->updateMemberBillSummaryById(true, $memberId, $societyLoginId, $billType, $financialYearId);
            if ($ok) { $done++; } else { $failed++; }
        }
@@ -12543,6 +12552,87 @@ if($billGeneratedMonths==4){
        $response['error'] = ($done > 0) ? 0 : 1;
        $response['message'] = $done . ' recalculated' . ($failed ? (', ' . $failed . ' failed') : '');
        return new CakeResponse(array('body' => json_encode($response), 'status' => 200));
+   }
+
+   /**
+    * Rewrite each of the member's bill summaries so monthly_amount and tax_total
+    * equal the sum of that month's charge rows (member_bill_generates) - the exact
+    * figures the difference report totals into Cr. This is the piece of the single
+    * bill's Update (updateMemberTarrifDetails) that the recalc-only path omits;
+    * without it a charge edited after bill generation leaves Dr != Cr for good.
+    * Only monthly_amount and tax_total are rewritten - interest, discount and the
+    * adjustments are left untouched - and the caller's recalc then rebuilds
+    * monthly_bill_amount and the running balances from these values, the same way
+    * clicking Update on the single bill does.
+    */
+   private function syncSummaryAmountFromCharges($memberId, $societyLoginId, $billType, $financialYearId) {
+       $this->loadModel('MemberBillSummary');
+       $this->loadModel('MemberBillGenerate');
+
+       // Scope to the same transfer number the recalc uses, so the old owner's rows
+       // of a transferred flat are not rewritten from the current owner's charges.
+       $latestTransferNo = $this->getLatestTranferredId($memberId);
+
+       $summaries = $this->MemberBillSummary->find('all', array(
+           'conditions' => array(
+               'MemberBillSummary.member_id' => $memberId,
+               'MemberBillSummary.society_id' => $societyLoginId,
+               'MemberBillSummary.bill_type' => $billType,
+               'MemberBillSummary.financial_year_id' => $financialYearId,
+               'MemberBillSummary.member_transfer' => $latestTransferNo
+           ),
+           'fields' => array('MemberBillSummary.id', 'MemberBillSummary.month', 'MemberBillSummary.monthly_amount', 'MemberBillSummary.tax_total'),
+           'recursive' => -1
+       ));
+       if (empty($summaries)) { return; }
+
+       // Charge totals per month, grouped exactly as the report groups Cr (member +
+       // month + financial year + bill type). Months with no charge rows do not
+       // appear here, so a bill without charges is left as-is rather than zeroed.
+       $chargeTotals = $this->MemberBillGenerate->find('all', array(
+           'conditions' => array(
+               'MemberBillGenerate.member_id' => $memberId,
+               'MemberBillGenerate.society_id' => $societyLoginId,
+               'MemberBillGenerate.bill_type' => $billType,
+               'MemberBillGenerate.financial_year_id' => $financialYearId
+           ),
+           'fields' => array(
+               'MemberBillGenerate.month',
+               'COALESCE(SUM(MemberBillGenerate.amount),0) AS contri',
+               'COALESCE(SUM(MemberBillGenerate.tax_total),0) AS gst'
+           ),
+           'group' => array('MemberBillGenerate.month'),
+           'recursive' => -1
+       ));
+       $byMonth = array();
+       foreach ($chargeTotals as $ct) {
+           $byMonth[(string)$ct['MemberBillGenerate']['month']] = array(
+               'contri' => (float)$ct[0]['contri'],
+               'gst' => (float)$ct[0]['gst']
+           );
+       }
+
+       foreach ($summaries as $s) {
+           $month = (string)$s['MemberBillSummary']['month'];
+           if (!isset($byMonth[$month])) { continue; }
+
+           $contri = $byMonth[$month]['contri'];
+           $gst    = $byMonth[$month]['gst'];
+           $curAmt = (float)$s['MemberBillSummary']['monthly_amount'];
+           $curTax = (float)$s['MemberBillSummary']['tax_total'];
+
+           // Already in sync within half a paisa (the report's own threshold) -
+           // nothing to write.
+           if (abs($contri - $curAmt) < 0.005 && abs($gst - $curTax) < 0.005) { continue; }
+
+           $this->MemberBillSummary->updateAll(
+               array(
+                   'MemberBillSummary.monthly_amount' => "'" . number_format($contri, 2, '.', '') . "'",
+                   'MemberBillSummary.tax_total' => "'" . number_format($gst, 2, '.', '') . "'"
+               ),
+               array('MemberBillSummary.id' => (int)$s['MemberBillSummary']['id'])
+           );
+       }
    }
 
    public function update_member_bills_future(){
