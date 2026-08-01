@@ -1687,7 +1687,10 @@ public function generalReceiptNumber(){
 
         $societyLedgerHeadsObj = new SocietyLedgerHeads();
 
-        $societyOtherIncomeHeadsLists = $societyLedgerHeadsObj->find('list', array('conditions' => array('SocietyLedgerHeads.status' => Configure::read('Active'), 'SocietyLedgerHeads.society_id' => $societyLoginID), 'fields' => array('SocietyLedgerHeads.title'), 'order' => array('SocietyLedgerHeads.title' => 'asc')));
+        // Feeds the "Select Ledger" dropdown on a general receipt. Expense heads
+        // (account_category_id 4) are excluded - a receipt (money coming in) is never
+        // credited to an expense head; income, asset and liability heads belong here.
+        $societyOtherIncomeHeadsLists = $societyLedgerHeadsObj->find('list', array('conditions' => array('SocietyLedgerHeads.status' => Configure::read('Active'), 'SocietyLedgerHeads.society_id' => $societyLoginID, 'SocietyLedgerHeads.account_category_id !=' => 4), 'fields' => array('SocietyLedgerHeads.title'), 'order' => array('SocietyLedgerHeads.title' => 'asc')));
 
         //$societyExpenseLedgerHeadsLists = $societyHeadSubCategoryObj->find('list',array('fields' => array('id','title'),'conditions' => array('SocietyHeadSubCategory.status' => Configure::read('Active'), 'SocietyHeadSubCategory.society_id' => $societyLoginID, 'SocietyHeadSubCategory.account_head_id' => 4),'recursive' => -1));
 
