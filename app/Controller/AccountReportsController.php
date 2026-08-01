@@ -10602,6 +10602,11 @@ $expIndex = 0;$incomeIdex = 0;
 
 						$billArray[$cnt]['bill_no'] = $billData['MemberBillSummary']['bill_no'];
 
+						// Carried to the view so a differing row can be recalculated in
+						// bulk: the recalc is scoped to member + financial year + bill type.
+						$billArray[$cnt]['financial_year_id'] = $billFy;
+						$billArray[$cnt]['bill_type'] = $billBt;
+
 						$billArray[$cnt]['bill_month'] = $month;
 
 						$billArray[$cnt]['bill_amount'] = $billData['MemberBillSummary']['monthly_bill_amount'];

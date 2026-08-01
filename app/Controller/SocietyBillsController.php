@@ -12497,6 +12497,51 @@ if($billGeneratedMonths==4){
 
 
 
+   /*
+    * Bulk version of the single bill's Update: the Member Bill Difference report
+    * posts the checked rows here, one per member+financial-year+bill-type, and
+    * each is run through the same recalculation the modal's Update button uses
+    * (updateMemberBillSummaryById in its recalc-only mode - it does not touch the
+    * charges, only recomputes the Dr/Cr balances that were out of step).
+    *
+    * Scoped to the logged-in society: the recalc's own conditions filter on
+    * society_id, so a member from another society cannot be reached from here.
+    */
+   public function bulk_recalculate_member_bills() {
+       $this->autoRender = false;
+       $this->layout = false;
+       $response = array('error' => 1, 'message' => 'No rows to update');
+
+       $rows = isset($this->request->data['rows']) ? $this->request->data['rows'] : '';
+       if (empty($rows)) {
+           return new CakeResponse(array('body' => json_encode($response), 'status' => 200));
+       }
+
+       $societyLoginId = $this->societyloginID;
+       $done = 0; $failed = 0; $seen = array();
+       foreach (explode(',', $rows) as $tuple) {
+           $tuple = trim($tuple);
+           if ($tuple === '' || isset($seen[$tuple])) { continue; }
+           $seen[$tuple] = true;
+
+           $parts = explode(':', $tuple);
+           if (count($parts) < 3) { continue; }
+           $memberId = (int)$parts[0];
+           $financialYearId = (int)$parts[1];
+           // Only the two real bill types; anything else is ignored rather than
+           // passed through to a query.
+           $billType = ($parts[2] === 'sup') ? 'sup' : 'reg';
+           if ($memberId <= 0 || $financialYearId <= 0) { continue; }
+
+           $ok = $this->updateMemberBillSummaryById(true, $memberId, $societyLoginId, $billType, $financialYearId);
+           if ($ok) { $done++; } else { $failed++; }
+       }
+
+       $response['error'] = ($done > 0) ? 0 : 1;
+       $response['message'] = $done . ' recalculated' . ($failed ? (', ' . $failed . ' failed') : '');
+       return new CakeResponse(array('body' => json_encode($response), 'status' => 200));
+   }
+
    public function update_member_bills_future(){
 
 
