@@ -13924,7 +13924,28 @@ $accountMemberLedgerDetails[$memberId]['MemberBillSummary'][$paymentCounterr]['t
         ini_set('max_execution_time',2700);
 		$societyId = $this->societyloginID;
         $openingBalance = $this->SocietyBill->getSocietyLedgerOpClosingBalSocietyWise($societyId);
-        
+
+        // Bank and cash ledger heads, so the trial balance can mark those rows -
+        // when the totals do not tie, the bank and cash ledgers are the usual place
+        // to look. Set once here; it carries to whichever branch renders the view.
+        $this->loadModel('SocietyBank');
+        $this->loadModel('SocietyLedgerHeads');
+        $bankLedgerHeadIds = array();
+        $bankRows = $this->SocietyBank->find('all', array('conditions' => array('SocietyBank.society_id' => $societyId), 'fields' => array('SocietyBank.bank_ledger_head_id'), 'recursive' => -1));
+        foreach ($bankRows as $br) {
+            if (!empty($br['SocietyBank']['bank_ledger_head_id'])) { $bankLedgerHeadIds[(int)$br['SocietyBank']['bank_ledger_head_id']] = true; }
+        }
+        $cashLedgerHeadIds = array();
+        $cashRows = $this->SocietyLedgerHeads->find('all', array(
+            'joins' => array(array('table' => 'society_head_sub_categories', 'alias' => 'CashSubCat', 'type' => 'LEFT', 'conditions' => array('CashSubCat.id = SocietyLedgerHeads.society_head_sub_category_id'))),
+            'conditions' => array('SocietyLedgerHeads.society_id' => $societyId, 'SocietyLedgerHeads.status' => Configure::read('Active'), 'OR' => array('SocietyLedgerHeads.title LIKE' => '%cash%', 'CashSubCat.title LIKE' => '%cash%')),
+            'fields' => array('SocietyLedgerHeads.id'),
+            'recursive' => -1));
+        foreach ($cashRows as $cr) {
+            if (!empty($cr['SocietyLedgerHeads']['id'])) { $cashLedgerHeadIds[(int)$cr['SocietyLedgerHeads']['id']] = true; }
+        }
+        $this->set(compact('bankLedgerHeadIds', 'cashLedgerHeadIds'));
+
 
 		$postData = $this->request->data;
 		

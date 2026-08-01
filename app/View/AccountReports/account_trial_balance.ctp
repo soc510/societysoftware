@@ -127,8 +127,20 @@ error_reporting(0);
                                                     $ledgerTotalArray['closing']['credit'] += $headDetails['closing']['credit'];
                                                     $ledgerTotalArray['closing']['debit'] += $headDetails['closing']['debit'];
                                                  ?>
-                                                <tr>
-                                                    <td><?php echo $headDetails['details']['title'];?></td>
+                                                <?php
+                                                // Mark the bank and cash ledger rows (light tint + a [Bank]/[Cash]
+                                                // tag) so, when the trial balance does not tie, it is easy to scan
+                                                // those rows - the usual source of a bank/cash difference.
+                                                $__lhId = isset($headDetails['details']['id']) ? (int)$headDetails['details']['id'] : 0;
+                                                $__isBank = !empty($bankLedgerHeadIds[$__lhId]);
+                                                $__isCash = (!$__isBank && !empty($cashLedgerHeadIds[$__lhId]));
+                                                $__rowStyle = $__isBank ? 'background-color:#e7f1ff;' : ($__isCash ? 'background-color:#e9f7ef;' : '');
+                                                ?>
+                                                <tr style="<?php echo $__rowStyle; ?>">
+                                                    <td><?php echo $headDetails['details']['title'];
+                                                        if ($__isBank) { echo ' <span style="color:#2e6da4;font-weight:bold;font-size:11px;">[Bank]</span>'; }
+                                                        elseif ($__isCash) { echo ' <span style="color:#1e7e34;font-weight:bold;font-size:11px;">[Cash]</span>'; }
+                                                    ?></td>
                                                     <td id="<?php echo $headCatDetails['category_id'];?>" class="text-center border-top-bottom-bold">
 
                                                     <!----------------Today Add------------------------>
