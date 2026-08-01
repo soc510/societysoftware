@@ -20856,9 +20856,18 @@ function account_balance_sheet() {
 				}
 
 				// Bank head payments
-				$bankHeadPayments = $this->SocietyPayment->find('first', array('conditions' => array('SocietyPayment.payment_by_ledger_id' => $ledgerHeadId, 'SocietyPayment.society_id' => $societyLoginID, 'SocietyPayment.payment_date >=' => $from_date,'SocietyPayment.financial_year_id' => $financialYearId, 'SocietyPayment.payment_date <=' => $to_date), 'fields' => array('sum(SocietyPayment.total_amount) as totalPaid')));
+				$bankHeadPayments = $this->SocietyPayment->find('first', array('conditions' => array('SocietyPayment.payment_by_ledger_id' => $ledgerHeadId, 'SocietyPayment.society_id' => $societyLoginID, 'SocietyPayment.payment_date >=' => $from_date,'SocietyPayment.financial_year_id' => $financialYearId, 'SocietyPayment.payment_date <=' => $to_date), 'fields' => array('sum(SocietyPayment.total_amount) as totalPaid', 'sum(SocietyPayment.tax_amount) as totalTds')));
 				if (!empty($bankHeadPayments[0]['totalPaid'])) {
-					$credit += $bankHeadPayments[0]['totalPaid'];
+					$credit += ($bankHeadPayments[0]['totalPaid'] - $bankHeadPayments[0]['totalTds']);
+				}
+
+				// TDS deducted on payments (tax_amount) is a liability the society owes,
+				// credited to the selected TDS account head (tds_account_id). The trial
+				// balance already counts this; the balance sheet did not, so a TDS
+				// Payable head showed a blank amount.
+				$tdsPayable = $this->SocietyPayment->find('first', array('conditions' => array('SocietyPayment.tds_account_id' => $ledgerHeadId, 'SocietyPayment.society_id' => $societyLoginID, 'SocietyPayment.financial_year_id' => $financialYearId, 'SocietyPayment.payment_date >=' => $from_date, 'SocietyPayment.payment_date <=' => $to_date), 'fields' => array('sum(SocietyPayment.tax_amount) as total_tds_amount_credited')));
+				if (!empty($tdsPayable[0]['total_tds_amount_credited'])) {
+					$credit += $tdsPayable[0]['total_tds_amount_credited'];
 				}
 
 
