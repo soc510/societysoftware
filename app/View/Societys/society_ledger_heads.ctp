@@ -39,8 +39,16 @@
                                             <td><?php echo isset($ledgerData['SocietyHeadSubCategory']['title']) ? $ledgerData['SocietyHeadSubCategory']['title'] :'' ; ?></td>
                                             <td><?php echo isset($ledgerData['SocietyLedgerHeads']['title']) ? $ledgerData['SocietyLedgerHeads']['title'] :'' ; ?></td>
                                             <td class="text-nowrap">
-                                            <?php echo $this->Html->link('<i class="fa fa-pencil text-inverse m-r-10"></i>', array('controller' => 'societys', 'action' => 'add_society_ledger_heads', $ledgerData['SocietyLedgerHeads']['id']), array('class' => 'mr-25', 'data-toggle' => 'tooltip', 'data-original-title' => 'Edit', 'escape' => false)); ?>    
+                                            <?php echo $this->Html->link('<i class="fa fa-pencil text-inverse m-r-10"></i>', array('controller' => 'societys', 'action' => 'add_society_ledger_heads', $ledgerData['SocietyLedgerHeads']['id']), array('class' => 'mr-25', 'data-toggle' => 'tooltip', 'data-original-title' => 'Edit', 'escape' => false)); ?>
+                                            <?php /* Delete is hidden once the head is used anywhere (bills, vouchers,
+                                                     payments, tariffs, bank, opening balances) - removing it would
+                                                     orphan those rows. A muted, non-clickable icon keeps the column
+                                                     aligned and shows why. */ ?>
+                                            <?php if (empty($usedLedgerHeadIds[$ledgerData['SocietyLedgerHeads']['id']])) { ?>
                                             <?php echo $this->Form->postLink('<i class="fa fa-close text-danger"></i>',array('action' => 'delete_society_ledger_heads', $ledgerData['SocietyLedgerHeads']['id']),array('class' => 'mr-25','data-toggle' => 'tooltip','data-original-title' => 'Delete', 'escape' => false), __('Are you sure you want to delete # %s?',$ledgerData['SocietyLedgerHeads']['id'])); ?>
+                                            <?php } else { ?>
+                                            <span class="mr-25 text-muted" data-toggle="tooltip" data-original-title="In use in bills or entries - cannot delete" style="cursor:not-allowed;"><i class="fa fa-close"></i></span>
+                                            <?php } ?>
                                             </td>
                                         </tr>
                              <?php $idCount++;}}?>

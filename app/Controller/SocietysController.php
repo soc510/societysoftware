@@ -1591,8 +1591,58 @@ class SocietysController extends AppController {
 
 	//print_r($societyLedgerHeadsLists); exit;
 
-        $this->set(compact('societyLedgerHeadsLists'));
+        // Ledger heads referenced by any bill, voucher, payment, tariff, bank or
+        // opening balance must not be deletable - the list hides the delete button
+        // for these, and the delete action itself refuses them.
+        $usedLedgerHeadIds = $this->getUsedLedgerHeadIds($societyLoginID);
 
+        $this->set(compact('societyLedgerHeadsLists', 'usedLedgerHeadIds'));
+
+    }
+
+    /**
+     * Returns [ledgerHeadId => true] for every ledger head of the society that is
+     * referenced somewhere it must not be orphaned from: generated bills, journal
+     * vouchers (debit or credit), society payments, other incomes, member tariffs,
+     * bank accounts, cash withdrawals, tariff orders, opening balances and
+     * supplementary tariffs. One UNION keeps it to a single round trip and each
+     * society-scoped leg uses the society_id index; supplementary_bill_tariffs has
+     * no society_id, but its ids only ever match this society's own rows.
+     */
+    private function getUsedLedgerHeadIds($societyLoginID) {
+        $this->loadModel('SocietyLedgerHeads');
+        $sid = (int)$societyLoginID;
+        $sql = "SELECT ledger_head_id AS lid FROM member_bill_generates WHERE society_id = $sid AND ledger_head_id > 0
+            UNION SELECT jv_debit_ledger_head_id FROM journal_vouchers WHERE society_id = $sid AND jv_debit_ledger_head_id > 0
+            UNION SELECT jv_credit_ledger_head_id FROM journal_vouchers WHERE society_id = $sid AND jv_credit_ledger_head_id > 0
+            UNION SELECT ledger_head_id FROM society_payments WHERE society_id = $sid AND ledger_head_id > 0
+            UNION SELECT ledger_head_id FROM society_other_incomes WHERE society_id = $sid AND ledger_head_id > 0
+            UNION SELECT ledger_head_id FROM member_tariffs WHERE society_id = $sid AND ledger_head_id > 0
+            UNION SELECT bank_ledger_head_id FROM society_banks WHERE society_id = $sid AND bank_ledger_head_id > 0
+            UNION SELECT bank_ledger_head_id FROM cash_withdraws WHERE society_id = $sid AND bank_ledger_head_id > 0
+            UNION SELECT bank_to_ledger_head_id FROM cash_withdraws WHERE society_id = $sid AND bank_to_ledger_head_id > 0
+            UNION SELECT ledger_head_id FROM society_tariff_orders WHERE society_id = $sid AND ledger_head_id > 0
+            UNION SELECT ledger_head_id FROM society_ledger_heads_opening_year_wise WHERE society_id = $sid AND ledger_head_id > 0 AND (COALESCE(op_credit,0) <> 0 OR COALESCE(op_debit,0) <> 0 OR COALESCE(balance_amount,0) <> 0)
+            UNION SELECT ledger_head_id FROM society_bank_head_opening_year_wise WHERE society_id = $sid AND ledger_head_id > 0
+            UNION SELECT ledger_head_id FROM supplementary_bill_tariffs WHERE ledger_head_id > 0";
+        $rows = $this->SocietyLedgerHeads->query($sql);
+        $used = array();
+        if (!empty($rows)) {
+            foreach ($rows as $r) {
+                // Aliased UNION column normally comes back under [0]['lid']; scan the
+                // other groups too so a different driver/result shape still works.
+                $val = isset($r[0]['lid']) ? $r[0]['lid'] : null;
+                if ($val === null && is_array($r)) {
+                    foreach ($r as $sub) {
+                        if (is_array($sub) && isset($sub['lid'])) { $val = $sub['lid']; break; }
+                    }
+                }
+                if ($val !== null && (int)$val > 0) {
+                    $used[(int)$val] = true;
+                }
+            }
+        }
+        return $used;
     }
 
 
@@ -2541,6 +2591,16 @@ class SocietysController extends AppController {
         }
 
         $this->request->allowMethod('post', 'delete');
+
+        // A ledger head used anywhere (bills, vouchers, payments, tariffs, bank,
+        // opening balances) must not be removed - deactivating it would orphan
+        // those rows. The list already hides the button for these; this refuses a
+        // direct post as well.
+        $usedLedgerHeadIds = $this->getUsedLedgerHeadIds($societyLoginID);
+        if (isset($usedLedgerHeadIds[(int)$societyHeadId])) {
+            $this->Session->setFlash(__('This ledger head is in use (bills or entries exist) and cannot be deleted.'), 'error');
+            return $this->redirect(array('action' => 'society_ledger_heads'));
+        }
 
         $this->SocietyLedgerHeads->id = $societyHeadId;
 
