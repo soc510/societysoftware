@@ -249,6 +249,17 @@ error_reporting(0);
                                 </div> 
                             </div>  
                             </div>  
+                            <?php /* Only a screen helper (outside the print block): when the balance
+                                     does not tie, tell the user how to narrow the date range down to
+                                     the entry that causes it. */ ?>
+                            <?php if (!empty($trMis) || !empty($clMis) || !empty($opMis)) { ?>
+                            <div style="margin-top:10px;padding:10px 14px;border:1px solid #f0c0c0;background:#fff6f6;color:#a94442;font-size:13px;line-height:1.6;">
+                                <b>Difference (<?php echo number_format(($trMis ? ($gtTrDr - $gtTrCr) : ($gtClDr - $gtClCr)), 2); ?>) kaise locate karein:</b><br>
+                                1. Upar <b>For the Period</b> aur <b>To</b> me ek-ek month ki dates daal kar Submit karein.<br>
+                                2. Jis month me Grand Total <span style="background:#ffdddd;padding:0 3px;">red</span> (Dr &ne; Cr) aaye, difference usi month ki kisi entry me hai.<br>
+                                3. Us month ke andar din-wise (ya bank/cash-wise, upar tagged rows) narrow karke us din ki <b>Payment Entry / Journal Voucher / Receipt</b> me ek-tarfa ya galat-amount wali entry theek karein &mdash; balance apne aap tie ho jayega.
+                            </div>
+                            <?php } ?>
                             <br>
                             <center>
                                 <button type="button" class="btn btn-success btn-icon left-icon" onclick="printAllReports('print_trial_balance');"><i class="fa fa-print"></i><span> Print</span></button>
