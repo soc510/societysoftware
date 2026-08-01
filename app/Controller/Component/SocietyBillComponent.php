@@ -904,7 +904,10 @@ class SocietyBillComponent extends Component {
 
         $societyLedgerHeadsObj = new SocietyLedgerHeads();
 
-        $societyExpenseLedgerHeadsLists = $societyLedgerHeadsObj->find('list', array('conditions' => array('SocietyLedgerHeads.status' => Configure::read('Active'), 'SocietyLedgerHeads.society_id' => $societyLoginID), 'fields' => array('SocietyLedgerHeads.title'), 'order' => array('SocietyLedgerHeads.title' => 'asc')));
+        // Feeds the "Debit To" dropdown on a society payment. Income heads
+        // (account_category_id 3) are excluded - money going out is never debited to
+        // an income head; only expense, asset and liability heads belong here.
+        $societyExpenseLedgerHeadsLists = $societyLedgerHeadsObj->find('list', array('conditions' => array('SocietyLedgerHeads.status' => Configure::read('Active'), 'SocietyLedgerHeads.society_id' => $societyLoginID, 'SocietyLedgerHeads.account_category_id !=' => 3), 'fields' => array('SocietyLedgerHeads.title'), 'order' => array('SocietyLedgerHeads.title' => 'asc')));
 
         //$societyExpenseLedgerHeadsLists = $societyHeadSubCategoryObj->find('list',array('fields' => array('id','title'),'conditions' => array('SocietyHeadSubCategory.status' => Configure::read('Active'), 'SocietyHeadSubCategory.society_id' => $societyLoginID, 'SocietyHeadSubCategory.account_head_id' => 4),'recursive' => -1));
 
