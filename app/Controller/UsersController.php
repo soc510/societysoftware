@@ -201,6 +201,43 @@ class UsersController extends AppController {
 
         $this->layout = 'home';
 
+        $this->set('glanceStats', $this->getGlanceStats());
+
+    }
+
+    /**
+     * Live "at a glance" counters for the public landing page.
+     * Uses the same logic as the admin dashboard (AdminController::dashboard)
+     * so the numbers stay in sync with what admins see. Cached for an hour
+     * so the public page never runs these COUNTs on every hit.
+     */
+    private function getGlanceStats() {
+
+        $stats = Cache::read('home_glance_stats');
+
+        if (is_array($stats)) {
+            return $stats;
+        }
+
+        $this->loadModel('Member');
+        $this->loadModel('Building');
+        $this->loadModel('Wing');
+        $this->loadModel('MemberBillGenerate');
+
+        $active = Configure::read('Active');
+
+        $stats = array(
+            'societies' => (int)$this->User->find('count', array('conditions' => array('User.access_level' => Configure::read('AccessLevel.society')), 'recursive' => -1)),
+            'members'   => (int)$this->Member->find('count', array('conditions' => array('Member.status' => $active), 'recursive' => -1)),
+            'bills'     => (int)$this->MemberBillGenerate->find('count', array('recursive' => -1)),
+            'resellers' => (int)$this->User->find('count', array('conditions' => array('User.access_level' => Configure::read('AccessLevel.reseller')), 'recursive' => -1)),
+            'buildings' => (int)$this->Building->find('count', array('recursive' => -1)),
+            'wings'     => (int)$this->Wing->find('count', array('recursive' => -1)),
+        );
+
+        Cache::write('home_glance_stats', $stats);
+
+        return $stats;
     }
 
     

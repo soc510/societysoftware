@@ -82,12 +82,12 @@ $flashHtml = $this->Session->flash();
         .topbar-social a:hover{background:var(--green);transform:translateY(-2px)}
 
         /* Nav */
-        header.nav{position:sticky;top:0;z-index:900;background:rgba(255,255,255,.9);
+        header.nav{position:sticky;top:0;z-index:900;background:rgba(255,255,255,.97);
             backdrop-filter:saturate(160%) blur(12px);border-bottom:1px solid var(--line);
-            transition:box-shadow .25s}
-        header.nav.scrolled{box-shadow:var(--shadow-sm)}
-        .nav .wrap{display:flex;align-items:center;justify-content:space-between;min-height:74px;gap:16px}
-        .nav-logo img{height:42px;width:auto}
+            transition:box-shadow .25s,background .25s}
+        header.nav.scrolled{background:#fff;box-shadow:var(--shadow-sm)}
+        .nav .wrap{display:flex;align-items:center;justify-content:space-between;min-height:82px;gap:16px}
+        .nav-logo img{height:58px;width:auto}
         .nav-links{display:flex;align-items:center;gap:30px;list-style:none}
         .nav-links a{font-family:'Poppins',sans-serif;font-weight:600;font-size:15px;color:var(--ink);
             position:relative;padding:6px 0;transition:color .18s}
@@ -133,13 +133,21 @@ $flashHtml = $this->Session->flash();
         .hero-wave{display:block;width:100%;height:auto;position:relative;margin-top:-1px}
 
         /* Stats */
-        .stats{background:var(--white);margin-top:-2px}
-        .stats .wrap{display:grid;grid-template-columns:repeat(4,1fr);gap:24px;
-            padding:0 24px;transform:translateY(-42px)}
-        .stat{background:#fff;border:1px solid var(--line);border-radius:var(--radius);
-            padding:24px 22px;text-align:center;box-shadow:var(--shadow-sm)}
-        .stat .num{font-family:'Poppins',sans-serif;font-weight:800;font-size:30px;color:var(--blue)}
-        .stat .lbl{font-size:14px;color:var(--slate);margin-top:4px}
+        /* At a glance */
+        .glance{background:linear-gradient(180deg,#eef4fc 0%,#e7eefb 100%)}
+        .glance .section-head{margin-bottom:40px}
+        .glance-row{display:grid;grid-template-columns:repeat(6,1fr);background:rgba(255,255,255,.75);
+            border:1px solid #dfe8f5;border-radius:22px;box-shadow:0 20px 50px -26px rgba(15,47,87,.35);
+            overflow:hidden;backdrop-filter:blur(4px)}
+        .glance-item{text-align:center;padding:34px 16px;border-right:1px solid #eaeff7;
+            transition:background .2s}
+        .glance-item:last-child{border-right:0}
+        .glance-item:hover{background:#fff}
+        .glance-emoji{font-size:34px;line-height:1;margin-bottom:14px}
+        .glance-num{font-family:'Poppins',sans-serif;font-weight:800;font-size:31px;line-height:1;
+            background:linear-gradient(135deg,#f6a01c,#ef7d17);-webkit-background-clip:text;
+            background-clip:text;-webkit-text-fill-color:transparent}
+        .glance-lbl{font-size:13.5px;color:var(--slate);margin-top:9px;line-height:1.4}
 
         /* Section base */
         section{padding:76px 0}
@@ -196,8 +204,8 @@ $flashHtml = $this->Session->flash();
         footer.site{background:var(--blue-deep);color:#c3d2e4;padding:60px 0 0}
         .foot-grid{display:grid;grid-template-columns:1.6fr 1fr 1fr 1.4fr;gap:36px;padding-bottom:40px}
         footer.site h4{color:#fff;font-size:16px;margin-bottom:18px;font-weight:600}
-        .foot-logo{background:#fff;padding:10px 14px;border-radius:12px;display:inline-block;margin-bottom:16px}
-        .foot-logo img{height:38px}
+        .foot-logo{background:#fff;padding:12px 18px;border-radius:14px;display:inline-block;margin-bottom:16px}
+        .foot-logo img{height:54px}
         footer.site p{font-size:14.5px;color:#a9bcd4}
         .foot-links{list-style:none;display:grid;gap:11px}
         .foot-links a{font-size:14.5px;color:#c3d2e4;transition:color .18s,padding .18s}
@@ -257,7 +265,9 @@ $flashHtml = $this->Session->flash();
             .hero h1{font-size:38px}
             .hero-badge{display:none}
             .hero p.lead,.hero h1{max-width:100%}
-            .stats .wrap{grid-template-columns:repeat(2,1fr)}
+            .glance-row{grid-template-columns:repeat(3,1fr)}
+            .glance-item:nth-child(3n){border-right:0}
+            .glance-item:nth-child(-n+3){border-bottom:1px solid #eaeff7}
             .feat-grid{grid-template-columns:repeat(2,1fr)}
             .detail .wrap{grid-template-columns:1fr;gap:32px}
             .detail.rev .detail-text{order:0}
@@ -268,11 +278,18 @@ $flashHtml = $this->Session->flash();
         @media(max-width:680px){
             .nav-links,.topbar-info span.sep{display:none}
             .nav-toggle{display:block}
+            .nav .wrap{min-height:66px}
+            .nav-logo img{height:46px}
             .nav-links.open{display:flex;position:absolute;top:74px;left:0;right:0;flex-direction:column;
                 background:#fff;padding:18px 24px;gap:16px;border-bottom:1px solid var(--line);
                 box-shadow:var(--shadow-sm)}
             .hero h1{font-size:31px}
             .hero p.lead{font-size:16px}
+            .glance-row{grid-template-columns:repeat(2,1fr)}
+            .glance-item{border-right:1px solid #eaeff7}
+            .glance-item:nth-child(2n){border-right:0}
+            .glance-item:nth-child(-n+4){border-bottom:1px solid #eaeff7}
+            .glance-num{font-size:27px}
             .feat-grid{grid-template-columns:1fr}
             .why-grid{grid-template-columns:1fr}
             .foot-grid{grid-template-columns:1fr}
@@ -307,7 +324,7 @@ $flashHtml = $this->Session->flash();
                         <li><a href="#features">Features</a></li>
                         <li><a href="#solutions">Solutions</a></li>
                         <li><a href="#why">Why Us</a></li>
-                        <li><a href="https://easylogicstechnology.com/about/about_us.php" target="_blank" rel="noopener">About</a></li>
+                        <li><a href="/about/about_us.php">About</a></li>
                         <li><a href="#contact">Contact</a></li>
                     </ul>
                 </nav>
@@ -349,15 +366,62 @@ $flashHtml = $this->Session->flash();
             </svg>
         </section>
 
-        <!-- Stats -->
-        <div class="stats">
+        <!-- At a glance : live figures, same source as the admin dashboard -->
+        <?php
+            // Marketing-friendly formatter: rounds DOWN to a clean figure and adds "+".
+            if (!function_exists('elGlanceNum')) {
+                function elGlanceNum($n) {
+                    $n = (int)$n;
+                    if ($n >= 10000000) { $c = floor($n / 1000000) / 10; return rtrim(rtrim(number_format($c, 1), '0'), '.') . ' Cr+'; }
+                    if ($n >= 100000)   { return floor($n / 100000) . ' Lakh+'; }
+                    if ($n >= 1000)     { return number_format(floor($n / 100) * 100) . '+'; }
+                    if ($n >= 100)      { return (floor($n / 10) * 10) . '+'; }
+                    return $n > 0 ? $n . '+' : '0';
+                }
+            }
+            $gs = isset($glanceStats) ? $glanceStats : array();
+            $gv = function ($k) use ($gs) { return isset($gs[$k]) ? $gs[$k] : 0; };
+        ?>
+        <section class="glance">
             <div class="wrap">
-                <div class="stat reveal"><div class="num">6-in-1</div><div class="lbl">Modules, one platform</div></div>
-                <div class="stat reveal"><div class="num">100%</div><div class="lbl">GST compliant</div></div>
-                <div class="stat reveal"><div class="num">Real-time</div><div class="lbl">Ledgers &amp; reports</div></div>
-                <div class="stat reveal"><div class="num">Anywhere</div><div class="lbl">Access, anytime</div></div>
+                <div class="section-head reveal">
+                    <span class="eyebrow">Trusted across India</span>
+                    <h2>Easy Logics <span class="accent">at a Glance</span></h2>
+                </div>
+                <div class="glance-row reveal">
+                    <div class="glance-item">
+                        <div class="glance-emoji">🧾</div>
+                        <div class="glance-num"><?php echo elGlanceNum($gv('bills')); ?></div>
+                        <div class="glance-lbl">Bills &amp; receipts<br>generated</div>
+                    </div>
+                    <div class="glance-item">
+                        <div class="glance-emoji">👥</div>
+                        <div class="glance-num"><?php echo elGlanceNum($gv('members')); ?></div>
+                        <div class="glance-lbl">Members on<br>the platform</div>
+                    </div>
+                    <div class="glance-item">
+                        <div class="glance-emoji">🏢</div>
+                        <div class="glance-num"><?php echo elGlanceNum($gv('societies')); ?></div>
+                        <div class="glance-lbl">Societies<br>onboarded</div>
+                    </div>
+                    <div class="glance-item">
+                        <div class="glance-emoji">🏬</div>
+                        <div class="glance-num"><?php echo elGlanceNum($gv('buildings')); ?></div>
+                        <div class="glance-lbl">Buildings<br>managed</div>
+                    </div>
+                    <div class="glance-item">
+                        <div class="glance-emoji">🏘️</div>
+                        <div class="glance-num"><?php echo elGlanceNum($gv('wings')); ?></div>
+                        <div class="glance-lbl">Wings<br>managed</div>
+                    </div>
+                    <div class="glance-item">
+                        <div class="glance-emoji">🤝</div>
+                        <div class="glance-num"><?php echo elGlanceNum($gv('resellers')); ?></div>
+                        <div class="glance-lbl">Channel partners<br>&amp; associates</div>
+                    </div>
+                </div>
             </div>
-        </div>
+        </section>
 
         <!-- Features -->
         <section class="features" id="features">
@@ -521,8 +585,8 @@ $flashHtml = $this->Session->flash();
                     <div>
                         <h4>Company</h4>
                         <ul class="foot-links">
-                            <li><a href="https://easylogicstechnology.com/about/about_us.php" target="_blank" rel="noopener">About Us</a></li>
-                            <li><a href="https://easylogicstechnology.com/terms/termandcondition" target="_blank" rel="noopener">Terms &amp; Conditions</a></li>
+                            <li><a href="/about/about_us.php">About Us</a></li>
+                            <li><a href="/terms/termandcondition">Terms &amp; Conditions</a></li>
                             <li><a href="privacy_policy">Privacy Policy</a></li>
                             <li><a href="#contact">Contact Us</a></li>
                         </ul>

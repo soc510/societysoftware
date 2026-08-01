@@ -53,11 +53,11 @@
         .topbar-social a:hover{background:var(--green);transform:translateY(-2px)}
 
         /* Nav */
-        header.nav{position:sticky;top:0;z-index:900;background:rgba(255,255,255,.9);
-            backdrop-filter:saturate(160%) blur(12px);border-bottom:1px solid var(--line);transition:box-shadow .25s}
-        header.nav.scrolled{box-shadow:var(--shadow-sm)}
-        .nav .wrap{display:flex;align-items:center;justify-content:space-between;min-height:74px;gap:16px}
-        .nav-logo img{height:42px;width:auto}
+        header.nav{position:sticky;top:0;z-index:900;background:rgba(255,255,255,.97);
+            backdrop-filter:saturate(160%) blur(12px);border-bottom:1px solid var(--line);transition:box-shadow .25s,background .25s}
+        header.nav.scrolled{background:#fff;box-shadow:var(--shadow-sm)}
+        .nav .wrap{display:flex;align-items:center;justify-content:space-between;min-height:82px;gap:16px}
+        .nav-logo img{height:58px;width:auto}
         .nav-links{display:flex;align-items:center;gap:30px;list-style:none}
         .nav-links a{font-family:'Poppins',sans-serif;font-weight:600;font-size:15px;color:var(--ink);
             position:relative;padding:6px 0;transition:color .18s}
@@ -149,8 +149,8 @@
         footer.site{background:var(--blue-deep);color:#c3d2e4;padding:58px 0 0}
         .foot-grid{display:grid;grid-template-columns:1.6fr 1fr 1fr 1.4fr;gap:36px;padding-bottom:40px}
         footer.site h4{color:#fff;font-size:16px;margin-bottom:18px;font-weight:600}
-        .foot-logo{background:#fff;padding:10px 14px;border-radius:12px;display:inline-block;margin-bottom:16px}
-        .foot-logo img{height:38px}
+        .foot-logo{background:#fff;padding:12px 18px;border-radius:14px;display:inline-block;margin-bottom:16px}
+        .foot-logo img{height:54px}
         footer.site p{font-size:14.5px;color:#a9bcd4}
         .foot-links{list-style:none;display:grid;gap:11px}
         .foot-links a{font-size:14.5px;color:#c3d2e4;transition:color .18s,padding .18s}
@@ -207,6 +207,8 @@
         @media(max-width:680px){
             .nav-links,.topbar-info span.sep{display:none}
             .nav-toggle{display:block}
+            .nav .wrap{min-height:66px}
+            .nav-logo img{height:46px}
             .nav-links.open{display:flex;position:absolute;top:74px;left:0;right:0;flex-direction:column;
                 background:#fff;padding:18px 24px;gap:16px;border-bottom:1px solid var(--line);box-shadow:var(--shadow-sm)}
             .phero h1{font-size:29px}
@@ -424,7 +426,7 @@
                         <h4>Company</h4>
                         <ul class="foot-links">
                             <li><a href="about_us.php">About Us</a></li>
-                            <li><a href="https://easylogicstechnology.com/terms/termandcondition" target="_blank" rel="noopener">Terms &amp; Conditions</a></li>
+                            <li><a href="/terms/termandcondition">Terms &amp; Conditions</a></li>
                             <li><a href="#contact">Contact Us</a></li>
                         </ul>
                     </div>
