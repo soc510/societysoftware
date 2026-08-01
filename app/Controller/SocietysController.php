@@ -1575,6 +1575,40 @@ class SocietysController extends AppController {
 
 
 
+    /**
+     * Switch the logged-in society's active financial year from the header
+     * dropdown. Only a year the society is actually assigned to (society_year_mapping)
+     * is accepted; the session is updated exactly as the reseller's "Proceed" does,
+     * then we return to the page the user was on.
+     */
+    public function change_financial_year($yearId = null) {
+        $societyId = $this->societyloginID;
+        $yearId = (int)$yearId;
+        if ($societyId && $yearId > 0) {
+            $this->loadModel('SocietyFinancialYearMapping');
+            $this->loadModel('FinancialYearMaster');
+            $assigned = $this->SocietyFinancialYearMapping->find('first', array('conditions' => array('SocietyFinancialYearMapping.society_id' => $societyId, 'SocietyFinancialYearMapping.year_id' => $yearId, 'SocietyFinancialYearMapping.is_active' => 1), 'recursive' => -1));
+            if (!empty($assigned)) {
+                $fy = $this->FinancialYearMaster->find('first', array('conditions' => array('FinancialYearMaster.id' => $yearId, 'FinancialYearMaster.is_active' => 1), 'recursive' => -1));
+                if (!empty($fy)) {
+                    $fromDate = $fy['FinancialYearMaster']['year_start_date'];
+                    $toDate = $fy['FinancialYearMaster']['year_end_date'];
+                    $this->Session->write('Auth.year_id', $fy['FinancialYearMaster']['id']);
+                    $this->Session->write('Auth.year_start_date', $fromDate);
+                    $this->Session->write('Auth.year_end_date', $toDate);
+                    $this->Session->write('Auth.formated_year_start_date', date('d/m/Y', strtotime($fromDate)));
+                    $this->Session->write('Auth.formated_year_end_date', date('d/m/Y', strtotime($toDate)));
+                    $this->Session->write('Auth.start_year', date('Y', strtotime($fromDate)));
+                    $this->Session->write('Auth.end_year', date('Y', strtotime($toDate)));
+                    $this->Session->write('Auth.financial_years_arr', array($fromDate, $toDate));
+                    $this->Session->setFlash(__('Financial year changed to %s.', $fy['FinancialYearMaster']['year']), 'success');
+                }
+            }
+        }
+        return $this->redirect($this->referer(array('controller' => 'societys', 'action' => 'dashboard')));
+    }
+
+
      public function society_ledger_heads() {
 
 	//$this->setDatabase('database201819');
