@@ -2439,8 +2439,10 @@ class SocietysController extends AppController {
         }
         $societyExpenseLedgerHeadsTdsLists = $this->SocietyLedgerHeads->find('list', [
         'fields' => ['id', 'title'],
-         'conditions' => ['tds_type'=> 1],
-        // Add any conditions, order, or other parameters as needed
+        // Scope to this society (and active heads) - without society_id the TDS Bank
+        // dropdown listed every society's TDS Payable head, so the same "TDS Payable"
+        // appeared many times and heads from other societies were selectable.
+         'conditions' => ['SocietyLedgerHeads.tds_type' => 1, 'SocietyLedgerHeads.society_id' => $this->societyloginID, 'SocietyLedgerHeads.status' => Configure::read('Active')],
     ]);
         $this->set(compact('societyExpenseLedgerHeadsLists', 'societyBankBalanceHeadsLists','societyExpenseLedgerHeadsTdsLists'));
 
