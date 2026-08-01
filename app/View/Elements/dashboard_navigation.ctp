@@ -127,7 +127,7 @@
            <?php } ?>
             <div class="dash-top-header pull-left">
             <?php if (count($__assignedYearOptions) > 1) { ?>
-                <select onchange="if(this.value){window.location.href='<?php echo $this->webroot; ?>societys/change_financial_year/'+this.value;}" title="Change financial year" style="background:transparent;color:#fff;border:1px solid rgba(255,255,255,0.5);border-radius:3px;padding:2px 4px;font-weight:bold;cursor:pointer;">
+                <select onchange="if(this.value){window.location.href='<?php echo $this->webroot; ?>societys/change_financial_year/'+this.value;}" title="Change financial year" style="background:#fff;color:#333;border:1px solid #bbb;border-radius:4px;padding:3px 8px;font-weight:bold;font-size:14px;cursor:pointer;">
                 <?php foreach ($__assignedYearOptions as $__yo) {
                     $__yid = $__yo['FinancialYearMaster']['id'];
                     $__ytext = $__yo['FinancialYearMaster']['year'];
