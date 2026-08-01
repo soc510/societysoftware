@@ -3511,7 +3511,12 @@ class SocietysController extends AppController {
 
                                 $postData['cheque_date'] = '';
 
-                                $postData['society_bank_id'] = 'null';
+                                // A cash receipt is still tied to a ledger - the "By" (Cash in Hand)
+                                // dropdown, posted as SocietyOtherIncomeHeader.society_bank_id. The cash
+                                // book, trial balance and balance sheet all match cash receipts by this
+                                // id, so forcing it to null here dropped every cash general receipt from
+                                // the cash figures. Keep the selected ledger, exactly as the Bank branch.
+                                $postData['society_bank_id'] = isset($this->request->data['SocietyOtherIncomeHeader']['society_bank_id']) && $this->request->data['SocietyOtherIncomeHeader']['society_bank_id'] !== '' ? $this->request->data['SocietyOtherIncomeHeader']['society_bank_id'] : 'null';
 
                             }
 
