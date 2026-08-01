@@ -202,24 +202,49 @@
             return;
         }
         btn.disabled = true;
-        statusEl.textContent = 'Updating...';
 
-        var xhr = new XMLHttpRequest();
-        xhr.open('POST', '<?php echo $this->webroot; ?>society_bills/bulk_recalculate_member_bills', true);
-        xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
-        xhr.onreadystatechange = function () {
-            if (xhr.readyState !== 4) { return; }
-            var ok = false, msg = '';
-            try { var r = JSON.parse(xhr.responseText); ok = (r.error === 0); msg = r.message || ''; } catch (err) {}
-            if (ok) {
-                statusEl.innerHTML = '<span style="color:#3c763d;">Done - ' + msg + '. Reloading...</span>';
-                setTimeout(function () { location.reload(); }, 800);
-            } else {
-                statusEl.innerHTML = '<span style="color:#a94442;">Update failed' + (msg ? ': ' + msg : '') + '</span>';
-                btn.disabled = false;
+        // Sent in small batches, one request at a time: each member's recalc is
+        // heavy, and 100+ in a single request ran past the server timeout and
+        // never returned - the progress just sat on "Updating...". Small batches
+        // each finish well within the limit, and the count shows real progress.
+        var BATCH = 5;
+        var url = '<?php echo $this->webroot; ?>society_bills/bulk_recalculate_member_bills';
+        var totalDone = 0, totalFailed = 0, idx = 0;
+
+        function sendBatch() {
+            if (idx >= tuples.length) {
+                statusEl.innerHTML = '<span style="color:#3c763d;">Done - ' + totalDone + ' recalculated' +
+                    (totalFailed ? (', ' + totalFailed + ' failed') : '') + '. Reloading...</span>';
+                setTimeout(function () { location.reload(); }, 900);
+                return;
             }
-        };
-        xhr.send('rows=' + encodeURIComponent(tuples.join(',')));
+            var batch = tuples.slice(idx, idx + BATCH);
+            statusEl.textContent = 'Updating ' + Math.min(idx + BATCH, tuples.length) + '/' + tuples.length + '...';
+
+            var xhr = new XMLHttpRequest();
+            xhr.open('POST', url, true);
+            xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+            xhr.onreadystatechange = function () {
+                if (xhr.readyState !== 4) { return; }
+                var parsed = false;
+                try {
+                    var r = JSON.parse(xhr.responseText);
+                    var m = /(\d+) recalculated(?:, (\d+) failed)?/.exec(r.message || '');
+                    if (m) { totalDone += parseInt(m[1], 10); totalFailed += m[2] ? parseInt(m[2], 10) : 0; }
+                    parsed = true;
+                } catch (err) {}
+                if (!parsed) {
+                    statusEl.innerHTML = '<span style="color:#a94442;">Stopped at ' + idx + '/' + tuples.length +
+                        ' - a batch did not respond. ' + totalDone + ' updated so far; press again to continue.</span>';
+                    btn.disabled = false;
+                    return;
+                }
+                idx += BATCH;
+                sendBatch();
+            };
+            xhr.send('rows=' + encodeURIComponent(batch.join(',')));
+        }
+        sendBatch();
     });
 })();
 </script>

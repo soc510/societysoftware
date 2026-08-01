@@ -12510,6 +12510,9 @@ if($billGeneratedMonths==4){
    public function bulk_recalculate_member_bills() {
        $this->autoRender = false;
        $this->layout = false;
+       // The report sends these in small batches, but each member's recalc is
+       // heavy; lift the default 30s cap so a slow batch is not cut off midway.
+       @set_time_limit(120);
        $response = array('error' => 1, 'message' => 'No rows to update');
 
        $rows = isset($this->request->data['rows']) ? $this->request->data['rows'] : '';
