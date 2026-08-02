@@ -9219,10 +9219,17 @@ if($billGeneratedMonths==4){
                 }
             }
             else {
-                $individualIds = array_keys($this->request->data['SupplementaryBillGenerate']['suplementary_amount']);
-                $idLabels = (count($individualIds)>1)?'Member.id IN':'Member.id';
-            if (isset($this->request->data['MemberBillGenerate']['bill_generated_date']) && !empty($this->request->data['MemberBillGenerate']['bill_generated_date']) && !empty($this->request->data['MemberBillGenerate']['bill_type'])) {
-                $societyMemberLists = $this->Member->find('all', array('fields' => array('Member.id', 'Member.building_id', 'Member.wing_id', 'Member.unit_type', 'Member.area', 'Member.flat_no', 'Member.op_principal', 'Member.op_interest', 'Member.supplementary_principal', 'Member.supplementary_penality', 'Member.supplementary_interest', 'Member.supplementary_tax'), 'conditions' => array('Member.society_id' => $societyId, 'Member.status' => Configure::read('Active')), 'recursive' => 0));
+                // Only members with an amount actually entered get a supplementary
+                // bill. Skipping the empty rows both matches what was filled in and
+                // stops the whole society being fetched, billed and processed - which
+                // was also why generation crawled.
+                $suppAmounts = isset($this->request->data['SupplementaryBillGenerate']['suplementary_amount']) ? $this->request->data['SupplementaryBillGenerate']['suplementary_amount'] : array();
+                $individualIds = array();
+                foreach ($suppAmounts as $__mId => $__amt) {
+                    if ($__amt !== '' && $__amt !== null && (float)$__amt > 0) { $individualIds[] = $__mId; }
+                }
+            if (!empty($individualIds) && isset($this->request->data['MemberBillGenerate']['bill_generated_date']) && !empty($this->request->data['MemberBillGenerate']['bill_generated_date']) && !empty($this->request->data['MemberBillGenerate']['bill_type'])) {
+                $societyMemberLists = $this->Member->find('all', array('fields' => array('Member.id', 'Member.building_id', 'Member.wing_id', 'Member.unit_type', 'Member.area', 'Member.flat_no', 'Member.op_principal', 'Member.op_interest', 'Member.supplementary_principal', 'Member.supplementary_penality', 'Member.supplementary_interest', 'Member.supplementary_tax'), 'conditions' => array('Member.society_id' => $societyId, 'Member.status' => Configure::read('Active'), 'Member.id' => $individualIds), 'recursive' => 0));
                 if (count($societyMemberLists) > 0) {
                     foreach ($societyMemberLists as $details) {
                         $billNo = $this->SocietyBill->memberBillsUniqueNumber();
