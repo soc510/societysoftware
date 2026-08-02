@@ -260,6 +260,24 @@ $flashHtml = $this->Session->flash();
         .reveal.in{opacity:1;transform:none}
 
         /* Responsive */
+        /* Powerful features : full brochure list */
+        .powerfeat{background:linear-gradient(180deg,#f7faff 0%,#eef4fc 100%)}
+        .pf-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;margin-top:8px}
+        .pf-col{background:#fff;border:1px solid var(--line);border-radius:var(--radius);padding:26px 24px;box-shadow:var(--shadow-sm)}
+        .pf-col h4{font-family:'Poppins',sans-serif;font-size:17px;font-weight:700;color:var(--blue);margin-bottom:16px;padding-bottom:12px;border-bottom:2px solid #eef2f7;display:flex;align-items:center;gap:10px}
+        .pf-col ul{list-style:none;display:grid;gap:11px}
+        .pf-col li{display:flex;gap:10px;align-items:flex-start;color:#3a4a60;font-size:15px;line-height:1.4}
+        .pf-col li::before{content:"\f058";font-family:FontAwesome;color:var(--green);font-size:15px;margin-top:1px;flex-shrink:0}
+        .pf-col li small{display:block;color:var(--slate);font-size:12.5px;margin-top:2px}
+        /* Trust strip : the six assurances */
+        .trust-strip{background:var(--blue-deep);color:#fff}
+        .trust-row{display:grid;grid-template-columns:repeat(6,1fr);gap:18px}
+        .trust-cell{text-align:center;padding:8px}
+        .trust-cell .tc-ic{width:60px;height:60px;border-radius:50%;margin:0 auto 12px;display:flex;align-items:center;justify-content:center;font-size:24px;background:rgba(255,255,255,.12);color:#a9dd6b}
+        .trust-cell h5{font-size:13.5px;font-weight:600;color:#fff;margin:0;letter-spacing:.3px}
+        @media(max-width:960px){ .pf-grid{grid-template-columns:1fr} .trust-row{grid-template-columns:repeat(3,1fr);gap:24px} }
+        @media(max-width:680px){ .trust-row{grid-template-columns:repeat(2,1fr)} }
+
         @media(max-width:960px){
             .hero .wrap{min-height:auto;padding:64px 24px 84px}
             .hero h1{font-size:38px}
@@ -339,7 +357,7 @@ $flashHtml = $this->Session->flash();
         <section class="hero">
             <div class="wrap">
                 <div class="hero-text">
-                    <span class="hero-eyebrow"><i class="fa fa-shield"></i> GST Compliant &bull; Audit Ready</span>
+                    <span class="hero-eyebrow"><i class="fa fa-shield"></i> GST Compliant &bull; Audit Ready &bull; Trusted Since 2018</span>
                     <h1>Society Accounting &amp; Management, <span class="accent">made effortless.</span></h1>
                     <p class="lead">A single, integrated platform for managing committees, property managers, accountants and auditors &mdash; from maintenance billing to ledgers, registers and statutory compliance.</p>
                     <div class="hero-actions">
@@ -462,6 +480,74 @@ $flashHtml = $this->Session->flash();
                         <h3>Manage Compliance</h3>
                         <p>Stay audit-ready with GST-compliant records, statutory reports and compliance tracking built into every module.</p>
                     </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Powerful Features : the complete brochure list -->
+        <section class="powerfeat" id="powerful">
+            <div class="wrap">
+                <div class="section-head reveal">
+                    <span class="eyebrow">Everything included</span>
+                    <h2>Our <span class="accent">Powerful Features</span></h2>
+                    <p>Every book, register, report and statutory form your society needs &mdash; all in one place.</p>
+                </div>
+                <div class="pf-grid reveal">
+                    <div class="pf-col">
+                        <h4><i class="fa fa-calculator"></i> Accounts &amp; Ledgers</h4>
+                        <ul>
+                            <li>Book of Accounts</li>
+                            <li>Bank Book</li>
+                            <li>Cash Book</li>
+                            <li>Balance Sheet</li>
+                            <li>Trial Balance</li>
+                            <li>Income &amp; Expenditure</li>
+                            <li>General Ledger</li>
+                            <li>Member Ledger</li>
+                            <li>Bank Reconciliation</li>
+                            <li>Receipts &amp; Payment</li>
+                            <li>GST Register</li>
+                        </ul>
+                    </div>
+                    <div class="pf-col">
+                        <h4><i class="fa fa-cogs"></i> Billing &amp; Communication</h4>
+                        <ul>
+                            <li>Multiple Bill Formats</li>
+                            <li>Multiple Languages</li>
+                            <li>Member Access</li>
+                            <li>Mail &amp; SMS</li>
+                            <li>Automatic Bill Generation<small>Monthly &bull; Quarterly &bull; Bi-monthly &bull; Half-yearly &bull; Yearly</small></li>
+                            <li>TDS &amp; GST</li>
+                            <li>Easy Access, anywhere</li>
+                        </ul>
+                    </div>
+                    <div class="pf-col">
+                        <h4><i class="fa fa-folder-open"></i> Registers, Forms &amp; Notices</h4>
+                        <ul>
+                            <li>Form I &amp; Form J</li>
+                            <li>Share Register</li>
+                            <li>FD Register</li>
+                            <li>Audit Form<small>Form 1, Form 28, Form 0</small></li>
+                            <li>By-Laws</li>
+                            <li>Complaint Register</li>
+                            <li>Letters &mdash; Outstanding Reminder &amp; General Notice (MC Act 101)</li>
+                            <li>Circular &amp; Notice</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Trust strip : six assurances -->
+        <section class="trust-strip">
+            <div class="wrap">
+                <div class="trust-row reveal">
+                    <div class="trust-cell"><div class="tc-ic"><i class="fa fa-shield"></i></div><h5>Secure Data</h5></div>
+                    <div class="trust-cell"><div class="tc-ic"><i class="fa fa-cloud"></i></div><h5>Cloud Based</h5></div>
+                    <div class="trust-cell"><div class="tc-ic"><i class="fa fa-mobile"></i></div><h5>Mobile App</h5></div>
+                    <div class="trust-cell"><div class="tc-ic"><i class="fa fa-headphones"></i></div><h5>24&times;7 Support</h5></div>
+                    <div class="trust-cell"><div class="tc-ic"><i class="fa fa-refresh"></i></div><h5>Auto Backup</h5></div>
+                    <div class="trust-cell"><div class="tc-ic"><i class="fa fa-users"></i></div><h5>Multi-User Access</h5></div>
                 </div>
             </div>
         </section>
@@ -596,6 +682,7 @@ $flashHtml = $this->Session->flash();
                         <ul class="foot-contact" style="list-style:none">
                             <li><i class="fa fa-phone"></i><span>+91 8108107496<br>+91 8208902649</span></li>
                             <li><i class="fa fa-envelope"></i><span>info@easylogicstechnology.com</span></li>
+                            <li><i class="fa fa-map-marker"></i><span>2nd Floor, Office No. 214, Gaury Commercial Complex, Nagar Road, Near Vasai Station (East)</span></li>
                         </ul>
                     </div>
                 </div>
