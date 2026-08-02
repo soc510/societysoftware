@@ -9182,6 +9182,13 @@ if($billGeneratedMonths==4){
 
     public function generateSupplementaryMemberBills(){
         $this->layout = false;
+        // This is an AJAX/JSON endpoint. A stray PHP notice or warning printed
+        // before the JSON breaks JSON.parse on the client - and because the caller
+        // has no error handler, the loader then spins forever with no bill shown.
+        // Keep the output pure JSON and give a heavy run time to finish.
+        @ini_set('display_errors', '0');
+        error_reporting(0);
+        @set_time_limit(600);
         $response = array();
         $response['error'] = 1;
         $this->financialYearId = $this->Util->getFinancialYear();
@@ -9190,6 +9197,7 @@ if($billGeneratedMonths==4){
         $societyId = $this->Session->read('Auth.User.id');
         if ($this->RequestHandler->isAjax()) {
             $this->autoRender = false;
+            try {
             $this->Member->Behaviors->attach('Containable');
 
             $memberListWithTransferStatus = $this->SocietyBill->memberTransferList($societyId);
@@ -9219,10 +9227,17 @@ if($billGeneratedMonths==4){
                 }
             }
             else {
-                $individualIds = array_keys($this->request->data['SupplementaryBillGenerate']['suplementary_amount']);
-                $idLabels = (count($individualIds)>1)?'Member.id IN':'Member.id';
-            if (isset($this->request->data['MemberBillGenerate']['bill_generated_date']) && !empty($this->request->data['MemberBillGenerate']['bill_generated_date']) && !empty($this->request->data['MemberBillGenerate']['bill_type'])) {
-                $societyMemberLists = $this->Member->find('all', array('fields' => array('Member.id', 'Member.building_id', 'Member.wing_id', 'Member.unit_type', 'Member.area', 'Member.flat_no', 'Member.op_principal', 'Member.op_interest', 'Member.supplementary_principal', 'Member.supplementary_penality', 'Member.supplementary_interest', 'Member.supplementary_tax'), 'conditions' => array('Member.society_id' => $societyId, 'Member.status' => Configure::read('Active')), 'recursive' => 0));
+                // Only members with an amount actually entered get a supplementary
+                // bill. Skipping the empty rows both matches what was filled in and
+                // stops the whole society being fetched, billed and processed - which
+                // was also why generation crawled.
+                $suppAmounts = isset($this->request->data['SupplementaryBillGenerate']['suplementary_amount']) ? $this->request->data['SupplementaryBillGenerate']['suplementary_amount'] : array();
+                $individualIds = array();
+                foreach ($suppAmounts as $__mId => $__amt) {
+                    if ($__amt !== '' && $__amt !== null && (float)$__amt > 0) { $individualIds[] = $__mId; }
+                }
+            if (!empty($individualIds) && isset($this->request->data['MemberBillGenerate']['bill_generated_date']) && !empty($this->request->data['MemberBillGenerate']['bill_generated_date']) && !empty($this->request->data['MemberBillGenerate']['bill_type'])) {
+                $societyMemberLists = $this->Member->find('all', array('fields' => array('Member.id', 'Member.building_id', 'Member.wing_id', 'Member.unit_type', 'Member.area', 'Member.flat_no', 'Member.op_principal', 'Member.op_interest', 'Member.supplementary_principal', 'Member.supplementary_penality', 'Member.supplementary_interest', 'Member.supplementary_tax', 'Member.member_transfer'), 'conditions' => array('Member.society_id' => $societyId, 'Member.status' => Configure::read('Active'), 'Member.id' => $individualIds), 'recursive' => 0));
                 if (count($societyMemberLists) > 0) {
                     foreach ($societyMemberLists as $details) {
                         $billNo = $this->SocietyBill->memberBillsUniqueNumber();
@@ -9248,6 +9263,13 @@ if($billGeneratedMonths==4){
             $this->loadModel('MemberBillAppliedParameter');
             $this->MemberBillAppliedParameter->saveAll($this->appliedParmaOnBill);
         }
+            } catch (\Throwable $__e) {
+                // Return the real failure as JSON instead of a 500 (which the client
+                // can only report as "failed or timed out"). \Throwable also catches
+                // fatal Errors on PHP 7+ - a null method call, a type error, etc. -
+                // deep in the supplementary calculation.
+                $response = array('error' => 1, 'error_message' => 'Generation error: ' . $__e->getMessage() . ' @ ' . basename($__e->getFile()) . ':' . $__e->getLine());
+            }
     }
         return new CakeResponse(array('body' => json_encode($response), 'status' => 200));
     }

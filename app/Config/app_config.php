@@ -14,5 +14,5 @@ $config = array('InterestType' => array('Compound' => 3, 'Simple' => 2, 'No' => 
 Configure::write('Active',1);
 Configure::write('InActive',0);
 Configure::write('CounterName','bill_counter');
-Configure::write('FileVersion',1.1);
+Configure::write('FileVersion',1.2);
 ?>

@@ -1921,6 +1921,11 @@ class SocietysController extends AppController {
 
                 'is_interest_free' => $this->request->data['SocietyLedgerHeads']['is_interest_free'],
 
+                // An unchecked checkbox is not posted, so default to 0. Without this
+                // is_supplementary_bill was missing from the update entirely, so
+                // unchecking "Is Supplementary Bill" never saved - the old value stayed.
+                'is_supplementary_bill' => isset($this->request->data['SocietyLedgerHeads']['is_supplementary_bill']) ? $this->request->data['SocietyLedgerHeads']['is_supplementary_bill'] : 0,
+
                 'udate' => $this->Util->getDateTime()
 
                 ];

@@ -2724,6 +2724,7 @@ function account_cash_book() {
 
 
 				$cashBookData[$societyBankBbookData['SocietyPayment']['payment_date']]['Payment'][$sCounter]['link'] = "/societys/add_society_payments/" . $societyBankBbookData['SocietyPayment']['id'];
+				$cashBookData[$societyBankBbookData['SocietyPayment']['payment_date']]['Payment'][$sCounter]['voucher_no'] = $societyBankBbookData['SocietyPayment']['bill_voucher_number'];
 
 
 
@@ -2784,6 +2785,7 @@ function account_cash_book() {
 
 
 				$cashBookData[$memberBankBbookData['MemberPayment']['payment_date']]['Receipt'][$mCounter]['link'] = "/societys_members/add_member_payment/" . $memberBankBbookData['MemberPayment']['id'];
+				$cashBookData[$memberBankBbookData['MemberPayment']['payment_date']]['Receipt'][$mCounter]['voucher_no'] = $memberBankBbookData['MemberPayment']['receipt_id'];
 
 
 
@@ -2964,6 +2966,7 @@ function account_cash_book() {
 
 
 				$cashBookData[$cashWithdrawData['CashWithdraw']['payment_date']][$flag][$cashCounter]['link'] = "/societys/add_cash_withdraws/" . $cashWithdrawData['CashWithdraw']['id'];
+				$cashBookData[$cashWithdrawData['CashWithdraw']['payment_date']][$flag][$cashCounter]['voucher_no'] = $cashWithdrawData['CashWithdraw']['id'];
 
 
 
@@ -3022,6 +3025,7 @@ function account_cash_book() {
 
 
 					$cashBookData[$otherIncomeData['SocietyOtherIncome']['payment_date']][$flag][$otherIncomeCounter]['link'] = "/societys/add_general_receipt/" . $otherIncomeData['SocietyOtherIncome']['id'];
+					$cashBookData[$otherIncomeData['SocietyOtherIncome']['payment_date']][$flag][$otherIncomeCounter]['voucher_no'] = $otherIncomeData['SocietyOtherIncome']['general_receipt_number'];
 
 
 
@@ -9384,6 +9388,7 @@ $expIndex = 0;$incomeIdex = 0;
 
 
 		$societyId = $this->societyloginID;
+		$financialYearId = $this->Util->getFinancialYear();
 
 
 
@@ -9444,23 +9449,23 @@ $expIndex = 0;$incomeIdex = 0;
 
 
 
-			$options['AND'] = array('MemberPayment.society_id' => $societyId);
+			$options['AND'] = array('MemberPayment.society_id' => $societyId, 'MemberPayment.financial_year_id' => $financialYearId);
 
 
 
-			$optionsSociety['AND'] = array('SocietyPayment.society_id' => $societyId);
+			$optionsSociety['AND'] = array('SocietyPayment.society_id' => $societyId, 'SocietyPayment.financial_year_id' => $financialYearId);
 
 
 
-			$optionsCashWithdraw['AND'] = array('CashWithdraw.society_id' => $societyId);
+			$optionsCashWithdraw['AND'] = array('CashWithdraw.society_id' => $societyId, 'CashWithdraw.financial_year_id' => $financialYearId);
 
 
 
-			$optionsContraReceived['AND'] = array('CashWithdraw.society_id' => $societyId);
+			$optionsContraReceived['AND'] = array('CashWithdraw.society_id' => $societyId, 'CashWithdraw.financial_year_id' => $financialYearId);
 
 
 
-			$optionsSocietyOtherIncome['AND'] = array('SocietyOtherIncome.society_id' => $societyId);
+			$optionsSocietyOtherIncome['AND'] = array('SocietyOtherIncome.society_id' => $societyId, 'SocietyOtherIncome.financial_year_id' => $financialYearId);
 
 
 
@@ -9582,11 +9587,12 @@ $expIndex = 0;$incomeIdex = 0;
 
 
 
-						$bankBookData[$societyBankBbookData['SocietyPayment']['payment_date']]['Payment'][$sCounter]['deposit'] = "0.00";
+						$bankBookData[$societyBankBbookData['SocietyPayment']['payment_date']]['Payment'][$sCounter]['deposit'] = $societyBankBbookData['SocietyPayment']['total_amount'];
 
 
 
 						$bankBookData[$societyBankBbookData['SocietyPayment']['payment_date']]['Payment'][$sCounter]['link'] = "/societys/add_society_payments/" . $societyBankBbookData['SocietyPayment']['id'];
+						$bankBookData[$societyBankBbookData['SocietyPayment']['payment_date']]['Payment'][$sCounter]['voucher_no'] = $societyBankBbookData['SocietyPayment']['bill_voucher_number'];
 						unset($societyBankBbookData);
 
 
@@ -9638,7 +9644,7 @@ $expIndex = 0;$incomeIdex = 0;
 
 
 
-						$bankBookData[$memberBankBbookData['MemberPayment']['payment_date']]['Receipt'][$mCounter]['withdrawal'] = isset($billCredits[$memberBankBbookData['MemberPayment']['bill_generated_id']]) ? $billCredits[$memberBankBbookData['MemberPayment']['bill_generated_id']] : array();
+						$bankBookData[$memberBankBbookData['MemberPayment']['payment_date']]['Receipt'][$mCounter]['withdrawal'] = (isset($billCredits[$memberBankBbookData['MemberPayment']['bill_generated_id']]) && !empty($billCredits[$memberBankBbookData['MemberPayment']['bill_generated_id']])) ? $billCredits[$memberBankBbookData['MemberPayment']['bill_generated_id']] : $memberBankBbookData['MemberPayment']['amount_paid'];
 
 
 
@@ -9651,6 +9657,7 @@ $expIndex = 0;$incomeIdex = 0;
 
 
 						$bankBookData[$memberBankBbookData['MemberPayment']['payment_date']]['Receipt'][$mCounter]['link'] = "/societys_members/add_member_payment/" . $memberBankBbookData['MemberPayment']['id'];
+						$bankBookData[$memberBankBbookData['MemberPayment']['payment_date']]['Receipt'][$mCounter]['voucher_no'] = $memberBankBbookData['MemberPayment']['receipt_id'];
 
 
 
@@ -9798,7 +9805,7 @@ $expIndex = 0;$incomeIdex = 0;
 
 
 
-							$bankBookData[$cashWithdrawData['CashWithdraw']['payment_date']][$flag][$cashCounter]['deposit'] = '0.00';
+							$bankBookData[$cashWithdrawData['CashWithdraw']['payment_date']][$flag][$cashCounter]['deposit'] = $cashWithdrawData['CashWithdraw']['amount'];
 
 
 
@@ -9806,7 +9813,7 @@ $expIndex = 0;$incomeIdex = 0;
 
 
 
-							$bankBookData[$cashWithdrawData['CashWithdraw']['payment_date']][$flag][$cashCounter]['withdrawal'] = '0.00';
+							$bankBookData[$cashWithdrawData['CashWithdraw']['payment_date']][$flag][$cashCounter]['withdrawal'] = $cashWithdrawData['CashWithdraw']['amount'];
 
 
 
@@ -9831,6 +9838,7 @@ $expIndex = 0;$incomeIdex = 0;
 
 
 						$bankBookData[$cashWithdrawData['CashWithdraw']['payment_date']][$flag][$cashCounter]['link'] = "/societys/add_cash_withdraws/" . $cashWithdrawData['CashWithdraw']['id'];
+						$bankBookData[$cashWithdrawData['CashWithdraw']['payment_date']][$flag][$cashCounter]['voucher_no'] = $cashWithdrawData['CashWithdraw']['id'];
 
 
 
@@ -9890,7 +9898,7 @@ $expIndex = 0;$incomeIdex = 0;
 
 
 
-						$bankBookData[$otherIncomeData['SocietyOtherIncome']['payment_date']][$flag][$otherIncomeCounter]['withdrawal'] = "0.00";
+						$bankBookData[$otherIncomeData['SocietyOtherIncome']['payment_date']][$flag][$otherIncomeCounter]['withdrawal'] = $otherIncomeData['SocietyOtherIncome']['amount_paid'];
 
 
 
@@ -9907,6 +9915,7 @@ $expIndex = 0;$incomeIdex = 0;
 
 
 						$bankBookData[$otherIncomeData['SocietyOtherIncome']['payment_date']][$flag][$otherIncomeCounter]['link'] = "/societys/add_general_receipt/" . $otherIncomeData['SocietyOtherIncome']['id'];
+						$bankBookData[$otherIncomeData['SocietyOtherIncome']['payment_date']][$flag][$otherIncomeCounter]['voucher_no'] = $otherIncomeData['SocietyOtherIncome']['general_receipt_number'];
 
 
 
@@ -10006,7 +10015,7 @@ $expIndex = 0;$incomeIdex = 0;
 
 
 
-						$bankBookData[$contraData['CashWithdraw']['payment_date']][$flag][$cashCounter]['withdrawal'] = '0.00';
+						$bankBookData[$contraData['CashWithdraw']['payment_date']][$flag][$cashCounter]['withdrawal'] = $contraData['CashWithdraw']['amount'];
 
 
 
@@ -10162,7 +10171,7 @@ $expIndex = 0;$incomeIdex = 0;
 
 
 
-						$cashBookData[$societyBankBbookData['SocietyPayment']['payment_date']]['Payment'][$sCounter]['deposit'] = "0.00";
+						$cashBookData[$societyBankBbookData['SocietyPayment']['payment_date']]['Payment'][$sCounter]['deposit'] = $societyBankBbookData['SocietyPayment']['amount'];
 
 
 
@@ -10218,7 +10227,7 @@ $expIndex = 0;$incomeIdex = 0;
 
 
 
-						$cashBookData[$memberBankBbookData['MemberPayment']['payment_date']]['Receipt'][$mCounter]['withdrawal'] = "0.00";
+						$cashBookData[$memberBankBbookData['MemberPayment']['payment_date']]['Receipt'][$mCounter]['withdrawal'] = $memberBankBbookData['MemberPayment']['amount_paid'];
 
 
 
@@ -10359,7 +10368,7 @@ $expIndex = 0;$incomeIdex = 0;
 
 
 
-							$cashBookData[$cashWithdrawData['CashWithdraw']['payment_date']][$flag][$cashCounter]['deposit'] = '0.00';
+							$cashBookData[$cashWithdrawData['CashWithdraw']['payment_date']][$flag][$cashCounter]['deposit'] = $cashWithdrawData['CashWithdraw']['amount'];
 
 
 
@@ -10367,7 +10376,7 @@ $expIndex = 0;$incomeIdex = 0;
 
 
 
-							$cashBookData[$cashWithdrawData['CashWithdraw']['payment_date']][$flag][$cashCounter]['withdrawal'] = '0.00';
+							$cashBookData[$cashWithdrawData['CashWithdraw']['payment_date']][$flag][$cashCounter]['withdrawal'] = $cashWithdrawData['CashWithdraw']['amount'];
 
 
 
@@ -10431,7 +10440,7 @@ $expIndex = 0;$incomeIdex = 0;
 
 
 
-							$cashBookData[$otherIncomeData['SocietyOtherIncome']['payment_date']][$flag][$otherIncomeCounter]['withdrawal'] = "0.00";
+							$cashBookData[$otherIncomeData['SocietyOtherIncome']['payment_date']][$flag][$otherIncomeCounter]['withdrawal'] = $otherIncomeData['SocietyOtherIncome']['amount_paid'];
 
 
 
