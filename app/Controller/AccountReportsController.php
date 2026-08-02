@@ -9384,6 +9384,7 @@ $expIndex = 0;$incomeIdex = 0;
 
 
 		$societyId = $this->societyloginID;
+		$financialYearId = $this->Util->getFinancialYear();
 
 
 
@@ -9444,23 +9445,23 @@ $expIndex = 0;$incomeIdex = 0;
 
 
 
-			$options['AND'] = array('MemberPayment.society_id' => $societyId);
+			$options['AND'] = array('MemberPayment.society_id' => $societyId, 'MemberPayment.financial_year_id' => $financialYearId);
 
 
 
-			$optionsSociety['AND'] = array('SocietyPayment.society_id' => $societyId);
+			$optionsSociety['AND'] = array('SocietyPayment.society_id' => $societyId, 'SocietyPayment.financial_year_id' => $financialYearId);
 
 
 
-			$optionsCashWithdraw['AND'] = array('CashWithdraw.society_id' => $societyId);
+			$optionsCashWithdraw['AND'] = array('CashWithdraw.society_id' => $societyId, 'CashWithdraw.financial_year_id' => $financialYearId);
 
 
 
-			$optionsContraReceived['AND'] = array('CashWithdraw.society_id' => $societyId);
+			$optionsContraReceived['AND'] = array('CashWithdraw.society_id' => $societyId, 'CashWithdraw.financial_year_id' => $financialYearId);
 
 
 
-			$optionsSocietyOtherIncome['AND'] = array('SocietyOtherIncome.society_id' => $societyId);
+			$optionsSocietyOtherIncome['AND'] = array('SocietyOtherIncome.society_id' => $societyId, 'SocietyOtherIncome.financial_year_id' => $financialYearId);
 
 
 
