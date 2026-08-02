@@ -9237,7 +9237,7 @@ if($billGeneratedMonths==4){
                     if ($__amt !== '' && $__amt !== null && (float)$__amt > 0) { $individualIds[] = $__mId; }
                 }
             if (!empty($individualIds) && isset($this->request->data['MemberBillGenerate']['bill_generated_date']) && !empty($this->request->data['MemberBillGenerate']['bill_generated_date']) && !empty($this->request->data['MemberBillGenerate']['bill_type'])) {
-                $societyMemberLists = $this->Member->find('all', array('fields' => array('Member.id', 'Member.building_id', 'Member.wing_id', 'Member.unit_type', 'Member.area', 'Member.flat_no', 'Member.op_principal', 'Member.op_interest', 'Member.supplementary_principal', 'Member.supplementary_penality', 'Member.supplementary_interest', 'Member.supplementary_tax'), 'conditions' => array('Member.society_id' => $societyId, 'Member.status' => Configure::read('Active'), 'Member.id' => $individualIds), 'recursive' => 0));
+                $societyMemberLists = $this->Member->find('all', array('fields' => array('Member.id', 'Member.building_id', 'Member.wing_id', 'Member.unit_type', 'Member.area', 'Member.flat_no', 'Member.op_principal', 'Member.op_interest', 'Member.supplementary_principal', 'Member.supplementary_penality', 'Member.supplementary_interest', 'Member.supplementary_tax', 'Member.member_transfer'), 'conditions' => array('Member.society_id' => $societyId, 'Member.status' => Configure::read('Active'), 'Member.id' => $individualIds), 'recursive' => 0));
                 if (count($societyMemberLists) > 0) {
                     foreach ($societyMemberLists as $details) {
                         $billNo = $this->SocietyBill->memberBillsUniqueNumber();
