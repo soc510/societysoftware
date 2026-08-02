@@ -9182,6 +9182,13 @@ if($billGeneratedMonths==4){
 
     public function generateSupplementaryMemberBills(){
         $this->layout = false;
+        // This is an AJAX/JSON endpoint. A stray PHP notice or warning printed
+        // before the JSON breaks JSON.parse on the client - and because the caller
+        // has no error handler, the loader then spins forever with no bill shown.
+        // Keep the output pure JSON and give a heavy run time to finish.
+        @ini_set('display_errors', '0');
+        error_reporting(0);
+        @set_time_limit(600);
         $response = array();
         $response['error'] = 1;
         $this->financialYearId = $this->Util->getFinancialYear();
