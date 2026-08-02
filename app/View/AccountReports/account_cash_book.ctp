@@ -213,7 +213,7 @@
                                                             ?>
                                                             <td><?php echo isset($finalData['payment_date']) ? $utilObj->getFormatDate($finalData['payment_date'],'d/m/Y') : '';  ?></td>
                                                             <td class="text-center"><?php echo isset($finalData['payment_flag']) ? $finalData['payment_flag'] :'';  ?></td>
-                                                            <td class="text-center"><?php echo $idCount;  ?></td>
+                                                            <td class="text-center"><?php echo (isset($finalData['voucher_no']) && $finalData['voucher_no'] !== '' && $finalData['voucher_no'] !== null) ? $finalData['voucher_no'] : $idCount;  ?></td>
 
                                                             <td class="db-part-link" data-href="<?= "https://easylogicstechnology.com".$finalData['link'] ?>"><?= $title ?> <br> <?= $linkParticular ?></td>
                                                             <td class="text-right"><?php echo isset($finalData['deposit']) ? $finalData['deposit'] :0;  ?></td>

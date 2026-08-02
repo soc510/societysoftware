@@ -2724,6 +2724,7 @@ function account_cash_book() {
 
 
 				$cashBookData[$societyBankBbookData['SocietyPayment']['payment_date']]['Payment'][$sCounter]['link'] = "/societys/add_society_payments/" . $societyBankBbookData['SocietyPayment']['id'];
+				$cashBookData[$societyBankBbookData['SocietyPayment']['payment_date']]['Payment'][$sCounter]['voucher_no'] = $societyBankBbookData['SocietyPayment']['bill_voucher_number'];
 
 
 
@@ -2784,6 +2785,7 @@ function account_cash_book() {
 
 
 				$cashBookData[$memberBankBbookData['MemberPayment']['payment_date']]['Receipt'][$mCounter]['link'] = "/societys_members/add_member_payment/" . $memberBankBbookData['MemberPayment']['id'];
+				$cashBookData[$memberBankBbookData['MemberPayment']['payment_date']]['Receipt'][$mCounter]['voucher_no'] = $memberBankBbookData['MemberPayment']['receipt_id'];
 
 
 
@@ -2964,6 +2966,7 @@ function account_cash_book() {
 
 
 				$cashBookData[$cashWithdrawData['CashWithdraw']['payment_date']][$flag][$cashCounter]['link'] = "/societys/add_cash_withdraws/" . $cashWithdrawData['CashWithdraw']['id'];
+				$cashBookData[$cashWithdrawData['CashWithdraw']['payment_date']][$flag][$cashCounter]['voucher_no'] = $cashWithdrawData['CashWithdraw']['id'];
 
 
 
@@ -3022,6 +3025,7 @@ function account_cash_book() {
 
 
 					$cashBookData[$otherIncomeData['SocietyOtherIncome']['payment_date']][$flag][$otherIncomeCounter]['link'] = "/societys/add_general_receipt/" . $otherIncomeData['SocietyOtherIncome']['id'];
+					$cashBookData[$otherIncomeData['SocietyOtherIncome']['payment_date']][$flag][$otherIncomeCounter]['voucher_no'] = $otherIncomeData['SocietyOtherIncome']['general_receipt_number'];
 
 
 
@@ -9911,7 +9915,7 @@ $expIndex = 0;$incomeIdex = 0;
 
 
 						$bankBookData[$otherIncomeData['SocietyOtherIncome']['payment_date']][$flag][$otherIncomeCounter]['link'] = "/societys/add_general_receipt/" . $otherIncomeData['SocietyOtherIncome']['id'];
-						$bankBookData[$otherIncomeData['SocietyOtherIncome']['payment_date']][$flag][$otherIncomeCounter]['voucher_no'] = $otherIncomeData['SocietyOtherIncome']['id'];
+						$bankBookData[$otherIncomeData['SocietyOtherIncome']['payment_date']][$flag][$otherIncomeCounter]['voucher_no'] = $otherIncomeData['SocietyOtherIncome']['general_receipt_number'];
 
 
 
