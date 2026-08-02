@@ -9898,7 +9898,7 @@ $expIndex = 0;$incomeIdex = 0;
 
 
 
-						$bankBookData[$otherIncomeData['SocietyOtherIncome']['payment_date']][$flag][$otherIncomeCounter]['withdrawal'] = "0.00";
+						$bankBookData[$otherIncomeData['SocietyOtherIncome']['payment_date']][$flag][$otherIncomeCounter]['withdrawal'] = $otherIncomeData['SocietyOtherIncome']['amount_paid'];
 
 
 
@@ -10171,7 +10171,7 @@ $expIndex = 0;$incomeIdex = 0;
 
 
 
-						$cashBookData[$societyBankBbookData['SocietyPayment']['payment_date']]['Payment'][$sCounter]['deposit'] = "0.00";
+						$cashBookData[$societyBankBbookData['SocietyPayment']['payment_date']]['Payment'][$sCounter]['deposit'] = $societyBankBbookData['SocietyPayment']['amount'];
 
 
 
@@ -10227,7 +10227,7 @@ $expIndex = 0;$incomeIdex = 0;
 
 
 
-						$cashBookData[$memberBankBbookData['MemberPayment']['payment_date']]['Receipt'][$mCounter]['withdrawal'] = "0.00";
+						$cashBookData[$memberBankBbookData['MemberPayment']['payment_date']]['Receipt'][$mCounter]['withdrawal'] = $memberBankBbookData['MemberPayment']['amount_paid'];
 
 
 
@@ -10368,7 +10368,7 @@ $expIndex = 0;$incomeIdex = 0;
 
 
 
-							$cashBookData[$cashWithdrawData['CashWithdraw']['payment_date']][$flag][$cashCounter]['deposit'] = '0.00';
+							$cashBookData[$cashWithdrawData['CashWithdraw']['payment_date']][$flag][$cashCounter]['deposit'] = $cashWithdrawData['CashWithdraw']['amount'];
 
 
 
@@ -10376,7 +10376,7 @@ $expIndex = 0;$incomeIdex = 0;
 
 
 
-							$cashBookData[$cashWithdrawData['CashWithdraw']['payment_date']][$flag][$cashCounter]['withdrawal'] = '0.00';
+							$cashBookData[$cashWithdrawData['CashWithdraw']['payment_date']][$flag][$cashCounter]['withdrawal'] = $cashWithdrawData['CashWithdraw']['amount'];
 
 
 
@@ -10440,7 +10440,7 @@ $expIndex = 0;$incomeIdex = 0;
 
 
 
-							$cashBookData[$otherIncomeData['SocietyOtherIncome']['payment_date']][$flag][$otherIncomeCounter]['withdrawal'] = "0.00";
+							$cashBookData[$otherIncomeData['SocietyOtherIncome']['payment_date']][$flag][$otherIncomeCounter]['withdrawal'] = $otherIncomeData['SocietyOtherIncome']['amount_paid'];
 
 
 
