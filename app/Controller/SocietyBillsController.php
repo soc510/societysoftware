@@ -9197,6 +9197,7 @@ if($billGeneratedMonths==4){
         $societyId = $this->Session->read('Auth.User.id');
         if ($this->RequestHandler->isAjax()) {
             $this->autoRender = false;
+            try {
             $this->Member->Behaviors->attach('Containable');
 
             $memberListWithTransferStatus = $this->SocietyBill->memberTransferList($societyId);
@@ -9262,6 +9263,13 @@ if($billGeneratedMonths==4){
             $this->loadModel('MemberBillAppliedParameter');
             $this->MemberBillAppliedParameter->saveAll($this->appliedParmaOnBill);
         }
+            } catch (\Throwable $__e) {
+                // Return the real failure as JSON instead of a 500 (which the client
+                // can only report as "failed or timed out"). \Throwable also catches
+                // fatal Errors on PHP 7+ - a null method call, a type error, etc. -
+                // deep in the supplementary calculation.
+                $response = array('error' => 1, 'error_message' => 'Generation error: ' . $__e->getMessage() . ' @ ' . basename($__e->getFile()) . ':' . $__e->getLine());
+            }
     }
         return new CakeResponse(array('body' => json_encode($response), 'status' => 200));
     }
