@@ -9805,7 +9805,7 @@ $expIndex = 0;$incomeIdex = 0;
 
 
 
-							$bankBookData[$cashWithdrawData['CashWithdraw']['payment_date']][$flag][$cashCounter]['deposit'] = '0.00';
+							$bankBookData[$cashWithdrawData['CashWithdraw']['payment_date']][$flag][$cashCounter]['deposit'] = $cashWithdrawData['CashWithdraw']['amount'];
 
 
 
@@ -9813,7 +9813,7 @@ $expIndex = 0;$incomeIdex = 0;
 
 
 
-							$bankBookData[$cashWithdrawData['CashWithdraw']['payment_date']][$flag][$cashCounter]['withdrawal'] = '0.00';
+							$bankBookData[$cashWithdrawData['CashWithdraw']['payment_date']][$flag][$cashCounter]['withdrawal'] = $cashWithdrawData['CashWithdraw']['amount'];
 
 
 
@@ -10015,7 +10015,7 @@ $expIndex = 0;$incomeIdex = 0;
 
 
 
-						$bankBookData[$contraData['CashWithdraw']['payment_date']][$flag][$cashCounter]['withdrawal'] = '0.00';
+						$bankBookData[$contraData['CashWithdraw']['payment_date']][$flag][$cashCounter]['withdrawal'] = $contraData['CashWithdraw']['amount'];
 
 
 
