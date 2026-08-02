@@ -10,7 +10,7 @@
 	6=>array("4" => "April-March"),	
   );
 ?>
-<div class="modal fade" id="" role="dialog">
+<div class="modal fade" id="print_bill_modal" role="dialog">
     <div class="modal-dialog modal-lg" style="width:20% !important">
         <div class="modal-content">
             <div class="modal-header modal-header-bg">
