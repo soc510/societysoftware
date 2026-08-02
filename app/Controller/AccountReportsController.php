@@ -9582,13 +9582,7 @@ $expIndex = 0;$incomeIdex = 0;
 
 
 
-						$bankBookData[$societyBankBbookData['SocietyPayment']['payment_date']]['Payment'][$sCounter]['deposit'] = array(
-							array(
-								'ledger_head' => $societyBankBbookData['SocietyLedgerHeads']['title'],
-								'particular'  => $societyBankBbookData['SocietyPayment']['particulars'],
-								'amount'      => $societyBankBbookData['SocietyPayment']['total_amount'],
-							)
-						);
+						$bankBookData[$societyBankBbookData['SocietyPayment']['payment_date']]['Payment'][$sCounter]['deposit'] = $societyBankBbookData['SocietyPayment']['total_amount'];
 
 
 
