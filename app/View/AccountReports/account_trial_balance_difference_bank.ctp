@@ -90,7 +90,7 @@
                                                             <td class="text-center"><?php echo $lname;  ?></td>
                                                             <td><?php echo isset($finalData['payment_date']) ? $utilObj->getFormatDate($finalData['payment_date'],'d/m/Y') : '';  ?></td>
                                                             
-                                                            <td class="text-center"><?php echo $idCount;  ?></td>
+                                                            <td class="text-center"><?php echo (isset($finalData['voucher_no']) && $finalData['voucher_no'] !== '' && $finalData['voucher_no'] !== null) ? $finalData['voucher_no'] : $idCount;  ?></td>
                                                             <td><?php echo $linkParticular;  ?></td>
                                                             <td class="text-right"><?php  if (!is_array($finalData['deposit'])){  echo $finalData['deposit']; $dramt = $finalData['deposit'];}else { $dramt =0; ?>
                                                                 <table class="table table-bordered padding-td-none padding-th-none">

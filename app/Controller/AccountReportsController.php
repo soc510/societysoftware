@@ -9588,6 +9588,7 @@ $expIndex = 0;$incomeIdex = 0;
 
 
 						$bankBookData[$societyBankBbookData['SocietyPayment']['payment_date']]['Payment'][$sCounter]['link'] = "/societys/add_society_payments/" . $societyBankBbookData['SocietyPayment']['id'];
+						$bankBookData[$societyBankBbookData['SocietyPayment']['payment_date']]['Payment'][$sCounter]['voucher_no'] = $societyBankBbookData['SocietyPayment']['bill_voucher_number'];
 						unset($societyBankBbookData);
 
 
@@ -9639,7 +9640,7 @@ $expIndex = 0;$incomeIdex = 0;
 
 
 
-						$bankBookData[$memberBankBbookData['MemberPayment']['payment_date']]['Receipt'][$mCounter]['withdrawal'] = isset($billCredits[$memberBankBbookData['MemberPayment']['bill_generated_id']]) ? $billCredits[$memberBankBbookData['MemberPayment']['bill_generated_id']] : array();
+						$bankBookData[$memberBankBbookData['MemberPayment']['payment_date']]['Receipt'][$mCounter]['withdrawal'] = (isset($billCredits[$memberBankBbookData['MemberPayment']['bill_generated_id']]) && !empty($billCredits[$memberBankBbookData['MemberPayment']['bill_generated_id']])) ? $billCredits[$memberBankBbookData['MemberPayment']['bill_generated_id']] : $memberBankBbookData['MemberPayment']['amount_paid'];
 
 
 
@@ -9652,6 +9653,7 @@ $expIndex = 0;$incomeIdex = 0;
 
 
 						$bankBookData[$memberBankBbookData['MemberPayment']['payment_date']]['Receipt'][$mCounter]['link'] = "/societys_members/add_member_payment/" . $memberBankBbookData['MemberPayment']['id'];
+						$bankBookData[$memberBankBbookData['MemberPayment']['payment_date']]['Receipt'][$mCounter]['voucher_no'] = $memberBankBbookData['MemberPayment']['receipt_id'];
 
 
 
@@ -9832,6 +9834,7 @@ $expIndex = 0;$incomeIdex = 0;
 
 
 						$bankBookData[$cashWithdrawData['CashWithdraw']['payment_date']][$flag][$cashCounter]['link'] = "/societys/add_cash_withdraws/" . $cashWithdrawData['CashWithdraw']['id'];
+						$bankBookData[$cashWithdrawData['CashWithdraw']['payment_date']][$flag][$cashCounter]['voucher_no'] = $cashWithdrawData['CashWithdraw']['id'];
 
 
 
@@ -9908,6 +9911,7 @@ $expIndex = 0;$incomeIdex = 0;
 
 
 						$bankBookData[$otherIncomeData['SocietyOtherIncome']['payment_date']][$flag][$otherIncomeCounter]['link'] = "/societys/add_general_receipt/" . $otherIncomeData['SocietyOtherIncome']['id'];
+						$bankBookData[$otherIncomeData['SocietyOtherIncome']['payment_date']][$flag][$otherIncomeCounter]['voucher_no'] = $otherIncomeData['SocietyOtherIncome']['id'];
 
 
 
