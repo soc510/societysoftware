@@ -32,3 +32,7 @@
 # drop in the public webroot. Neither belongs in the repo.
 /app/archive.zip
 /app/webroot/phptest-*
+
+# Windows junk / installers dropped into the working tree
+*.winmd
+*.exe
