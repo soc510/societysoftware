@@ -36,7 +36,7 @@ class SocietysController extends AppController {
 
      */
 
-    public $components = array('Paginator', 'Session', 'RequestHandler', 'Util', 'SocietyBill');
+    public $components = array('Paginator', 'Session', 'RequestHandler', 'Util', 'SocietyBill', 'PhpExcel');
 
     public $helpers = array('Js');
 
@@ -82,7 +82,9 @@ class SocietysController extends AppController {
         $this->loadModel('MemberPayment');
         $this->loadModel('SocietyPayment');
 
-        $this->loadAllNavigationModals();
+        if (!$this->RequestHandler->isAjax()) {
+            $this->loadAllNavigationModals();
+        }
 
 
 
@@ -2487,7 +2489,386 @@ class SocietysController extends AppController {
 
     }
 
+    public function add_society_payment_from_xls() {
+        set_time_limit(0);
+        $societyLoginID = $this->societyloginID;
+        $financialYearId = $this->Util->getFinancialYear();
 
+        $societyBankLists = $this->SocietyBill->societyBankBalanceHeadsLists();
+        $societyCashLists = $this->SocietyBill->societyCashBalanceHeadsLists();
+        $societyExpenseLedgerHeadsLists = $this->SocietyBill->societyAllLedgerHeadsLists();
+
+        if (!empty($this->request->data['data']['file']['name'])) {
+            $fileName = preg_replace('/[^A-Za-z0-9_\-\.]/', '_', $this->request->data['data']['file']['name']);
+            $uploadPath = sys_get_temp_dir() . '/';
+            $uploadFile = $uploadPath . $fileName;
+            move_uploaded_file($this->request->data['data']['file']['tmp_name'], $uploadFile);
+
+            $data = $this->PhpExcel->loadWorksheet($uploadFile);
+            $sheetData = $data->getActiveSheet()->toArray(null, true, true, true);
+
+            $headers = $sheetData[1];
+
+            $mapping = array(
+                'DebitTo'       => 'ledger_head_title',
+                'PaymentDate'   => 'payment_date',
+                'PaymentType'   => 'payment_type',
+                'PaymentBy'     => 'payment_by_name',
+                'Amount'        => 'amount',
+                'TaxAmount'     => 'tax_amount',
+                'Particulars'   => 'particulars',
+                'ChequeNo'      => 'cheque_reference_number',
+                'ChequeDate'    => 'cheque_date',
+                'VoucherNo'     => 'bill_voucher_number',
+                'Notes'         => 'notes'
+            );
+
+            foreach ($headers as $key => $value) {
+                $trimmed = trim($value);
+                if (!empty($mapping[$trimmed]))
+                    $headers[$key] = $mapping[$trimmed];
+                else
+                    unset($headers[$key]);
+            }
+            unset($sheetData[1]);
+
+            $ledgerHeadsByTitle = array_flip($societyExpenseLedgerHeadsLists);
+
+            $bankByTitle = array();
+            if (!empty($societyBankLists)) {
+                $bankByTitle = array_flip($societyBankLists);
+            }
+            $cashByTitle = array();
+            if (!empty($societyCashLists)) {
+                $cashByTitle = array_flip($societyCashLists);
+            }
+            $allByTitle = $bankByTitle + $cashByTitle;
+
+            $this->loadModel('SocietyParameter');
+            $checkSocietyParameters = $this->SocietyParameter->find('first', array(
+                'conditions' => array('SocietyParameter.society_id' => $societyLoginID)
+            ));
+
+            if (empty($checkSocietyParameters['SocietyParameter'])) {
+                $this->Session->setFlash(__('Society parameters not configured. Cannot save payments.'), 'error');
+                $this->set(compact('societyBankLists', 'societyCashLists', 'societyExpenseLedgerHeadsLists'));
+                return;
+            }
+
+            $addedPayment = 0;
+            $failedCnt = 0;
+            $billVoucherNumber = $this->SocietyBill->billVoucherNumber();
+
+            if (!empty($sheetData)) {
+                foreach ($sheetData as $index => $row) {
+                    if (empty($row))
+                        continue;
+
+                    $aData = array();
+                    foreach ($row as $column => $value) {
+                        if (!empty($headers[$column]))
+                            $aData[$headers[$column]] = $value;
+                    }
+
+                    if (empty($aData['ledger_head_title']) || empty($aData['amount']) || empty($aData['payment_date'])) {
+                        $failedCnt++;
+                        continue;
+                    }
+
+                    $ledgerTitle = trim($aData['ledger_head_title']);
+                    if (!isset($ledgerHeadsByTitle[$ledgerTitle])) {
+                        $failedCnt++;
+                        continue;
+                    }
+
+                    $paymentType = isset($aData['payment_type']) ? trim($aData['payment_type']) : 'Bank';
+                    if (!in_array($paymentType, array('Bank', 'Cash'))) {
+                        $paymentType = 'Bank';
+                    }
+
+                    $paymentByLedgerId = 0;
+                    if (!empty($aData['payment_by_name'])) {
+                        $byName = trim($aData['payment_by_name']);
+                        if ($paymentType == 'Bank' && isset($bankByTitle[$byName])) {
+                            $paymentByLedgerId = $bankByTitle[$byName];
+                        } elseif ($paymentType == 'Cash' && isset($cashByTitle[$byName])) {
+                            $paymentByLedgerId = $cashByTitle[$byName];
+                        } elseif (isset($allByTitle[$byName])) {
+                            $paymentByLedgerId = $allByTitle[$byName];
+                        }
+                    }
+                    if (empty($paymentByLedgerId)) {
+                        if ($paymentType == 'Bank' && !empty($bankByTitle)) {
+                            $paymentByLedgerId = reset($bankByTitle);
+                        } elseif ($paymentType == 'Cash' && !empty($cashByTitle)) {
+                            $paymentByLedgerId = reset($cashByTitle);
+                        }
+                    }
+
+                    $paymentDate = $aData['payment_date'];
+                    if (strstr($paymentDate, '/')) {
+                        list($dd, $mm, $yy) = explode('/', $paymentDate);
+                        if (strlen($yy) != 4) {
+                            $dt = DateTime::createFromFormat('y', $yy);
+                            $yy = $dt->format('Y');
+                        }
+                        $paymentDate = $yy . '-' . $mm . '-' . $dd;
+                    } elseif (strstr($paymentDate, '-') && strlen($paymentDate) != 10) {
+                        list($dd, $mm, $yy) = explode('-', $paymentDate);
+                        if (strlen($yy) != 4) {
+                            $dt = DateTime::createFromFormat('y', $yy);
+                            $yy = $dt->format('Y');
+                        }
+                        $paymentDate = $yy . '-' . $mm . '-' . $dd;
+                    }
+
+                    if (!$this->Util->isDateInCurrentFinancialYear($paymentDate)) {
+                        $failedCnt++;
+                        continue;
+                    }
+
+                    $chequeDate = '';
+                    if (!empty($aData['cheque_date'])) {
+                        $chequeDate = $aData['cheque_date'];
+                        if (strstr($chequeDate, '/')) {
+                            list($dd, $mm, $yy) = explode('/', $chequeDate);
+                            if (strlen($yy) != 4) {
+                                $dt = DateTime::createFromFormat('y', $yy);
+                                $yy = $dt->format('Y');
+                            }
+                            $chequeDate = $yy . '-' . $mm . '-' . $dd;
+                        } elseif (strstr($chequeDate, '-') && strlen($chequeDate) != 10) {
+                            list($dd, $mm, $yy) = explode('-', $chequeDate);
+                            if (strlen($yy) != 4) {
+                                $dt = DateTime::createFromFormat('y', $yy);
+                                $yy = $dt->format('Y');
+                            }
+                            $chequeDate = $yy . '-' . $mm . '-' . $dd;
+                        }
+                    }
+
+                    $paymentAmount = floatval($aData['amount']);
+                    $taxAmount = isset($aData['tax_amount']) ? floatval($aData['tax_amount']) : 0.00;
+                    $totalAmount = $paymentAmount - $taxAmount;
+
+                    $saveData = array('SocietyPayment' => array(
+                        'ledger_head_id'           => $ledgerHeadsByTitle[$ledgerTitle],
+                        'payment_date'             => $paymentDate,
+                        'payment_type'             => $paymentType,
+                        'payment_by_ledger_id'     => $paymentByLedgerId,
+                        'amount'                   => $paymentAmount,
+                        'tax_amount'               => $taxAmount,
+                        'total_amount'             => $totalAmount,
+                        'cheque_reference_number'  => isset($aData['cheque_reference_number']) ? $aData['cheque_reference_number'] : '',
+                        'cheque_date'              => $chequeDate,
+                        'bill_voucher_number'      => !empty($aData['bill_voucher_number']) ? $aData['bill_voucher_number'] : $billVoucherNumber,
+                        'particulars'              => isset($aData['particulars']) ? $aData['particulars'] : '',
+                        'notes'                    => isset($aData['notes']) ? $aData['notes'] : '',
+                        'society_id'               => $societyLoginID,
+                        'financial_year_id'        => $financialYearId,
+                        'cdate'                    => date('Y-m-d H:i:s'),
+                        'udate'                    => date('Y-m-d H:i:s')
+                    ));
+
+                    $this->SocietyPayment->create();
+                    if ($this->SocietyPayment->save($saveData)) {
+                        $addedPayment++;
+                        $billVoucherNumber++;
+                    } else {
+                        $failedCnt++;
+                    }
+                }
+            }
+
+            if (empty($failedCnt) && $addedPayment > 0) {
+                $this->Session->setFlash(__($addedPayment . ' payment(s) imported successfully.'), 'success');
+                $this->redirect(array('action' => 'society_payments'));
+            } elseif (!empty($failedCnt) && !empty($addedPayment)) {
+                $this->Session->setFlash(__($addedPayment . ' payment(s) saved, ' . $failedCnt . ' record(s) failed. Please check your data and try again.'), 'error');
+                $this->redirect(array('action' => 'society_payments'));
+            } elseif (!empty($failedCnt) && empty($addedPayment)) {
+                $this->Session->setFlash(__('No payments could be saved. Please check your Excel data and try again.'), 'error');
+                $this->redirect(array('action' => 'add_society_payment_from_xls'));
+            }
+
+            @unlink($uploadFile);
+        } else {
+            $this->set(compact('societyBankLists', 'societyCashLists', 'societyExpenseLedgerHeadsLists'));
+        }
+    }
+
+    public function downloadSampleFileForSocietyPayment() {
+        $societyLoginID = $this->societyloginID;
+        $societyExpenseLedgerHeadsLists = $this->SocietyBill->societyAllLedgerHeadsLists();
+        $societyBankLists = $this->SocietyBill->societyBankBalanceHeadsLists();
+        $societyCashLists = $this->SocietyBill->societyCashBalanceHeadsLists();
+
+        $allByNames = array();
+        if (!empty($societyBankLists)) {
+            foreach ($societyBankLists as $title) {
+                $allByNames[] = $title;
+            }
+        }
+        if (!empty($societyCashLists)) {
+            foreach ($societyCashLists as $title) {
+                if (!in_array($title, $allByNames)) {
+                    $allByNames[] = $title;
+                }
+            }
+        }
+
+        $this->PhpExcel->createWorksheet()->setDefaultFont('Arial', 9);
+        $this->PhpExcel->createSheet(0);
+        $this->PhpExcel->getDefaultStyle()
+            ->getNumberFormat()
+            ->setFormatCode(PHPExcel_Style_NumberFormat::FORMAT_TEXT);
+        $this->PhpExcel->setActiveSheetIndex(0);
+        $this->PhpExcel->getDefaultStyle()->getAlignment()->setHorizontal(PHPExcel_Style_Alignment::HORIZONTAL_LEFT);
+        $this->PhpExcel->getDefaultStyle()->getAlignment()->setVertical(PHPExcel_Style_Alignment::VERTICAL_CENTER);
+        $this->PhpExcel->getActiveSheet()->freezePane('A2');
+        $this->PhpExcel->getActiveSheet()->setTitle('Society Payment');
+        $this->PhpExcel->getActiveSheet()->getSheetView()->setZoomScale(100);
+
+        $headerRow = array(
+            'DebitTo', 'PaymentDate', 'PaymentType', 'PaymentBy', 'Amount', 'TaxAmount',
+            'Particulars', 'ChequeNo', 'ChequeDate', 'VoucherNo', 'Notes'
+        );
+
+        $this->PhpExcel->setRow(1);
+        $this->PhpExcel->addTableRow($headerRow, array('name' => 'Arial', 'bold' => true, 'size' => 12));
+
+        $lastRow = count($societyExpenseLedgerHeadsLists) + 1;
+        $rowNum = 2;
+        if (!empty($societyExpenseLedgerHeadsLists)) {
+            foreach ($societyExpenseLedgerHeadsLists as $id => $title) {
+                $this->PhpExcel->setActiveSheetIndex(0)->setCellValue('A' . $rowNum, $title);
+                $rowNum++;
+            }
+        }
+
+        $sheet = $this->PhpExcel->getActiveSheet();
+
+        // PaymentDate - date format + validation (Column B)
+        $sheet->getStyle('B2:B' . $lastRow)
+            ->getNumberFormat()
+            ->setFormatCode('DD/MM/YYYY');
+        $dateValidation = $sheet->getCell('B2')->getDataValidation();
+        $dateValidation->setType(PHPExcel_Cell_DataValidation::TYPE_DATE);
+        $dateValidation->setErrorStyle(PHPExcel_Cell_DataValidation::STYLE_STOP);
+        $dateValidation->setAllowBlank(true);
+        $dateValidation->setShowErrorMessage(true);
+        $dateValidation->setErrorTitle('Invalid Date');
+        $dateValidation->setError('Please enter a valid date (DD/MM/YYYY).');
+        $dateValidation->setShowInputMessage(true);
+        $dateValidation->setPromptTitle('Payment Date');
+        $dateValidation->setPrompt('Enter payment date in DD/MM/YYYY format.');
+        for ($r = 3; $r <= $lastRow; $r++) {
+            $sheet->getCell('B' . $r)->setDataValidation(clone $dateValidation);
+        }
+
+        // PaymentType - dropdown Bank/Cash (Column C)
+        $paymentTypeValidation = $sheet->getCell('C2')->getDataValidation();
+        $paymentTypeValidation->setType(PHPExcel_Cell_DataValidation::TYPE_LIST);
+        $paymentTypeValidation->setErrorStyle(PHPExcel_Cell_DataValidation::STYLE_STOP);
+        $paymentTypeValidation->setAllowBlank(true);
+        $paymentTypeValidation->setShowDropDown(true);
+        $paymentTypeValidation->setShowErrorMessage(true);
+        $paymentTypeValidation->setErrorTitle('Invalid Payment Type');
+        $paymentTypeValidation->setError('Please select Bank or Cash.');
+        $paymentTypeValidation->setFormula1('"Bank,Cash"');
+        for ($r = 3; $r <= $lastRow; $r++) {
+            $sheet->getCell('C' . $r)->setDataValidation(clone $paymentTypeValidation);
+        }
+
+        // PaymentBy - dropdown of bank + cash names (Column D)
+        $byNamesStr = implode(',', $allByNames);
+        $paymentByValidation = $sheet->getCell('D2')->getDataValidation();
+        $paymentByValidation->setType(PHPExcel_Cell_DataValidation::TYPE_LIST);
+        $paymentByValidation->setErrorStyle(PHPExcel_Cell_DataValidation::STYLE_STOP);
+        $paymentByValidation->setAllowBlank(true);
+        $paymentByValidation->setShowDropDown(true);
+        $paymentByValidation->setShowErrorMessage(true);
+        $paymentByValidation->setErrorTitle('Invalid Bank/Cash Name');
+        $paymentByValidation->setError('Please select a valid Bank or Cash account name.');
+        $paymentByValidation->setShowInputMessage(true);
+        $paymentByValidation->setPromptTitle('Payment By');
+        $paymentByValidation->setPrompt('Select the Bank or Cash account.');
+        $paymentByValidation->setFormula1('"' . $byNamesStr . '"');
+        for ($r = 3; $r <= $lastRow; $r++) {
+            $sheet->getCell('D' . $r)->setDataValidation(clone $paymentByValidation);
+        }
+
+        // ChequeDate - date format + validation (Column I now)
+        $sheet->getStyle('I2:I' . $lastRow)
+            ->getNumberFormat()
+            ->setFormatCode('DD/MM/YYYY');
+        $chequeDateValidation = $sheet->getCell('I2')->getDataValidation();
+        $chequeDateValidation->setType(PHPExcel_Cell_DataValidation::TYPE_DATE);
+        $chequeDateValidation->setErrorStyle(PHPExcel_Cell_DataValidation::STYLE_STOP);
+        $chequeDateValidation->setAllowBlank(true);
+        $chequeDateValidation->setShowErrorMessage(true);
+        $chequeDateValidation->setErrorTitle('Invalid Date');
+        $chequeDateValidation->setError('Please enter a valid date (DD/MM/YYYY).');
+        $chequeDateValidation->setShowInputMessage(true);
+        $chequeDateValidation->setPromptTitle('Cheque Date');
+        $chequeDateValidation->setPrompt('Enter cheque date in DD/MM/YYYY format.');
+        for ($r = 3; $r <= $lastRow; $r++) {
+            $sheet->getCell('I' . $r)->setDataValidation(clone $chequeDateValidation);
+        }
+
+        $sheet->getColumnDimension('A')->setWidth(30);
+        $sheet->getColumnDimension('B')->setWidth(15);
+        $sheet->getColumnDimension('C')->setWidth(15);
+        $sheet->getColumnDimension('D')->setWidth(20);
+        $sheet->getColumnDimension('E')->setWidth(12);
+        $sheet->getColumnDimension('F')->setWidth(12);
+        $sheet->getColumnDimension('G')->setWidth(20);
+        $sheet->getColumnDimension('H')->setWidth(15);
+        $sheet->getColumnDimension('I')->setWidth(15);
+        $sheet->getColumnDimension('J')->setWidth(12);
+        $sheet->getColumnDimension('K')->setWidth(20);
+
+        // Reference sheet with ledger heads and bank/cash names
+        $this->PhpExcel->createSheet(1);
+        $this->PhpExcel->setActiveSheetIndex(1);
+        $this->PhpExcel->getActiveSheet()->setTitle('Reference');
+        $this->PhpExcel->setActiveSheetIndex(1)->setCellValue('A1', 'Ledger Head Name');
+        $this->PhpExcel->setActiveSheetIndex(1)->setCellValue('B1', 'Bank Accounts');
+        $this->PhpExcel->setActiveSheetIndex(1)->setCellValue('C1', 'Cash Accounts');
+        $this->PhpExcel->getActiveSheet()->getStyle('A1:C1')->getFont()->setBold(true)->setSize(12);
+        $this->PhpExcel->getActiveSheet()->getColumnDimension('A')->setWidth(30);
+        $this->PhpExcel->getActiveSheet()->getColumnDimension('B')->setWidth(25);
+        $this->PhpExcel->getActiveSheet()->getColumnDimension('C')->setWidth(25);
+
+        $refRow = 2;
+        if (!empty($societyExpenseLedgerHeadsLists)) {
+            foreach ($societyExpenseLedgerHeadsLists as $id => $title) {
+                $this->PhpExcel->setActiveSheetIndex(1)->setCellValue('A' . $refRow, $title);
+                $refRow++;
+            }
+        }
+        $refRow = 2;
+        if (!empty($societyBankLists)) {
+            foreach ($societyBankLists as $id => $title) {
+                $this->PhpExcel->setActiveSheetIndex(1)->setCellValue('B' . $refRow, $title);
+                $refRow++;
+            }
+        }
+        $refRow = 2;
+        if (!empty($societyCashLists)) {
+            foreach ($societyCashLists as $id => $title) {
+                $this->PhpExcel->setActiveSheetIndex(1)->setCellValue('C' . $refRow, $title);
+                $refRow++;
+            }
+        }
+
+        $this->PhpExcel->setActiveSheetIndex(0);
+
+        date_default_timezone_set("Asia/Kolkata");
+        $filename = "SampleImportSocietyPayment";
+        $this->PhpExcel->output($filename . ".xlsx");
+        $this->PhpExcel->exit();
+    }
 
     public function cash_withdraws($cashWithdrawId = null) {
         $financialYearId = $this->Util->getFinancialYear();

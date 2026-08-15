@@ -198,7 +198,7 @@ class MenuComponent extends Component {
                             Router::url(array('controller' => 'societys', 'action' => 'tenant_member_identitys'), true) => 'Tenant Member Identity',
                             Router::url(array('controller' => 'societys_members', 'action' => 'member_payments'), true) => 'Member Payments',
 			                Router::url(array('controller' => 'societys_members', 'action' => 'add_member_payment_from_xls'), true) => 'Import Member Payments',
-                            Router::url(array('controller' => 'societys_society', 'action' => 'add_society_payment_from_xls'), true) => 'Import Society Payments',
+                            Router::url(array('controller' => 'societys', 'action' => 'add_society_payment_from_xls'), true) => 'Import Society Payments',
                             Router::url(array('controller' => 'society_bills', 'action' => 'society_generated_bills'), true) => 'All Generated Bills',
                             Router::url(array('controller' => 'societys_members', 'action' => 'member_logins'), true) => 'Create Member Logins',
                             Router::url(array('controller' => 'societys', 'action' => 'update_opening_balance'), true) => 'Update Opening Balance'
@@ -285,7 +285,7 @@ class MenuComponent extends Component {
                             Router::url(array('controller' => 'societys', 'action' => 'tenant_member_identitys'), true) => 'Tenant Member Identity',
                             Router::url(array('controller' => 'societys_members', 'action' => 'member_payments'), true) => 'Member Payments',
 			                Router::url(array('controller' => 'societys_members', 'action' => 'add_member_payment_from_xls'), true) => 'Import Member Payments',
-                            Router::url(array('controller' => 'societys_society', 'action' => 'add_society_payment_from_xls'), true) => 'Import Society Payments',
+                            Router::url(array('controller' => 'societys', 'action' => 'add_society_payment_from_xls'), true) => 'Import Society Payments',
                             Router::url(array('controller' => 'society_bills', 'action' => 'society_generated_bills'), true) => 'All Generated Bills',
                             Router::url(array('controller' => 'societys_members', 'action' => 'member_logins'), true) => 'Create Member Logins',
                            Router::url(array('controller' => 'societys', 'action' => 'update_opening_balance'), true) => 'Update Opening Balance'

@@ -1229,8 +1229,8 @@ public function add_society_ledger_heads() {
 
             $societyMemberId = isset($this->request->data['societyMemberId']) ? $this->request->data['societyMemberId'] : 0;
 
-            $societyMemberDetails = $this->Member->find('first', array('conditions' => array('Member.id' => $societyMemberId, 
-            'Member.society_id' => $societyId, 'Member.status' => Configure::read('Active'))));
+            $societyMemberDetails = $this->Member->find('first', array('conditions' => array('Member.id' => $societyMemberId,
+            'Member.society_id' => $societyId, 'Member.status' => Configure::read('Active')), 'recursive' => 0));
 ;
             $this->loadModel('ChequeReturnData');
 
@@ -1259,22 +1259,34 @@ public function add_society_ledger_heads() {
             
 
 
-            $returnedCheckDetails = $this->ChequeReturnData->find('all',array('conditions' =>$chequeRetCond ));
+            $returnedCheckDetails = $this->ChequeReturnData->find('all',array('conditions' =>$chequeRetCond, 'recursive' => -1));
 
-            $memberTransfered = (new SocietyBillsController)->checkMemberTransferred($societyMemberId); 
+            $memberTransfered = $this->MemberIdentification->hasAny(array('MemberIdentification.member_id' => $societyMemberId)); 
 
             $societyMemberBillPaymentData = array();
 
-            $memberBillSummary = $this->Member->MemberBillSummary->find('all', array('conditions' => $condition,'order' => array('MemberBillSummary.id' => 'asc')));
+            $memberBillSummary = $this->Member->MemberBillSummary->find('all', array('conditions' => $condition,'order' => array('MemberBillSummary.id' => 'asc'), 'recursive' => -1));
 
             $noPaymentIdsArr = [];
 
-            if (isset($memberBillSummary) && count($memberBillSummary) > 0) {        
+            $allMemberPayments = $this->Member->MemberPayment->find('all', array('conditions' => $conditionPayment, 'recursive' => -1));
+
+            $this->loadModel('MemberBillSettlement');
+            $billSummaryIds = array_map(function($b) { return $b['MemberBillSummary']['id']; }, $memberBillSummary);
+            $allSettlements = array();
+            $paymentIdsArr = array();
+            if (!empty($billSummaryIds)) {
+                $allSettlementsRaw = $this->MemberBillSettlement->find('all', array('conditions' => array('MemberBillSettlement.bill_summary_id' => $billSummaryIds, 'MemberBillSettlement.member_id' => $societyMemberId), 'recursive' => -1));
+                foreach ($allSettlementsRaw as $s) {
+                    $allSettlements[] = $s['MemberBillSettlement'];
+                    $paymentIdsArr[] = $s['MemberBillSettlement']['payment_id'];
+                }
+            }
+
+            if (isset($memberBillSummary) && count($memberBillSummary) > 0) {
                 $summaryCounter = 0;
 
-                $settlementArray = array();
-
-                $paymentIdsArr = array();
+                $settlementArray = $allSettlements;
 
                 $noPaymentIdsArr = array();
 
@@ -1282,17 +1294,8 @@ public function add_society_ledger_heads() {
 
                     if (isset($billData['MemberBillSummary'])) {
 
-                        $this->loadModel('MemberBillSettlement');
-                        $condition = array('MemberBillSettlement.bill_summary_id' => $billData['MemberBillSummary']['id'], 'MemberBillSettlement.member_id' => $societyMemberId);
-                        $memberBillSettlement = $this->MemberBillSettlement->find('all', array('conditions' => $condition));
-
-                        foreach($memberBillSettlement as $settlementData) {
-                            $settlementArray[] = $settlementData['MemberBillSettlement'];
-                            $paymentIdsArr[] = $settlementData['MemberBillSettlement']['payment_id'];
-                        }
-
                         $societyMemberBillPaymentData[$summaryCounter]['MemberBillSummary'] = $billData['MemberBillSummary'];
-                        
+
                         //Change date format
                         $societyMemberBillPaymentData[$summaryCounter]['MemberBillSummary']['bill_generated_date'] = date('d/m/Y',strtotime($societyMemberBillPaymentData[$summaryCounter]['MemberBillSummary']['bill_generated_date']));
                         $monthName = date("F", mktime(0, 0, 0, $societyMemberBillPaymentData[$summaryCounter]['MemberBillSummary']['month'], 10));
@@ -1312,18 +1315,18 @@ public function add_society_ledger_heads() {
 
 
 
-                        $paymentMadeBillNo = isset($billData['MemberBillSummary']['bill_no']) ? $billData['MemberBillSummary']['bill_no'] : '';                        
+                        $paymentMadeBillNo = isset($billData['MemberBillSummary']['bill_no']) ? $billData['MemberBillSummary']['bill_no'] : '';
                         $membersChqueNo = [];
 
-                        if ($this->Member->MemberPayment->hasAny($conditionPayment)) {
+                        if (!empty($allMemberPayments)) {
 
-                            $memberPaymentDetails = $this->Member->MemberPayment->find('all', array('conditions' => $conditionPayment));
+                            $memberPaymentDetails = $allMemberPayments;
 
                             if (isset($memberPaymentDetails) && count($memberPaymentDetails) > 0) {
 
                                 $paymentCounter = 0;
 
-                                foreach ($memberPaymentDetails as $paymentData) {    
+                                foreach ($memberPaymentDetails as $paymentData) {
                                     $billType = $paymentData['MemberPayment']['bill_type'] == 'sup' ? ' - supplementary' :  '';
                                     if(in_array($paymentData['MemberPayment']['id'],$noPaymentIdsArr)) continue;
                                     $formattedDate = date('d/m/Y',strtotime($paymentData['MemberPayment']['payment_date']));
@@ -1370,7 +1373,7 @@ public function add_society_ledger_heads() {
 
                                     }
 
-                                }                                 
+                                }
 
 
 
@@ -1404,11 +1407,11 @@ public function add_society_ledger_heads() {
 
 
 
-            $societyMemberNextId = $this->Member->find('first', array('fields' => array('Member.id'), 'conditions' => array('Member.id >' => $societyMemberDetails['Member']['id'], 'Member.society_id' => $this->Session->read('Auth.User.id'), 'Member.status' => Configure::read('Active')), 'order' => array('Member.id' => 'asc')));
+            $societyMemberNextId = $this->Member->find('first', array('fields' => array('Member.id'), 'conditions' => array('Member.id >' => $societyMemberDetails['Member']['id'], 'Member.society_id' => $this->Session->read('Auth.User.id'), 'Member.status' => Configure::read('Active')), 'order' => array('Member.id' => 'asc'), 'recursive' => -1));
 
 
 
-            $societyMemberPreviousId = $this->Member->find('first', array('fields' => array('Member.id'),'conditions' => array('Member.id <' => $societyMemberDetails['Member']['id'], 'Member.society_id' => $this->Session->read('Auth.User.id'), 'Member.status' => Configure::read('Active')), 'order' => array('Member.id' => 'desc')));
+            $societyMemberPreviousId = $this->Member->find('first', array('fields' => array('Member.id'),'conditions' => array('Member.id <' => $societyMemberDetails['Member']['id'], 'Member.society_id' => $this->Session->read('Auth.User.id'), 'Member.status' => Configure::read('Active')), 'order' => array('Member.id' => 'desc'), 'recursive' => -1));
 
 
 
@@ -1473,15 +1476,12 @@ public function add_society_ledger_heads() {
 
             $filteredIdsArr = array_diff($paymentIdsArr, $noPaymentIdsArr);
 
-            $conditionMembPayment = array('MemberPayment.society_id' => $this->Session->read('Auth.User.id'), 'MemberPayment.member_id' => $societyMemberId, 
-            'MemberPayment.id' => $filteredIdsArr, 'MemberPayment.member_transfer' => $member_transfer,'MemberPayment.financial_year_id' => $financialyearId);                 
+            $conditionMembPayment = array('MemberPayment.society_id' => $this->Session->read('Auth.User.id'), 'MemberPayment.member_id' => $societyMemberId,
+            'MemberPayment.id' => $filteredIdsArr, 'MemberPayment.member_transfer' => $member_transfer,'MemberPayment.financial_year_id' => $financialyearId);
 
+            $memberPaymentArr = $this->Member->MemberPayment->find('all', array('conditions' => $conditionMembPayment, 'recursive' => -1));
 
-            
-            
-            if ($this->Member->MemberPayment->hasAny($conditionMembPayment)) {
-
-                    $memberPaymentArr = $this->Member->MemberPayment->find('all', array('conditions' => $conditionMembPayment));//print_r($memberPaymentArr);
+            if (!empty($memberPaymentArr)) {
 
                     if (isset($memberPaymentArr) && count($memberPaymentArr) > 0) {
 
