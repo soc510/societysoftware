@@ -50,6 +50,7 @@
 
 
             <div class="pull-right">
+                         <a href="<?php echo $this->Html->url(array('controller' => 'society_bills', 'action' => 'bill_audit_logs')); ?>" class="btn btn-info" data-toggle="tooltip" data-original-title="View bill edit/delete history" style="margin-right:10px;"><i class="fa fa-history" style="color:#fff;"></i> Audit Log</a>
                          <form action="/society_bills/delete_all_bills_payments" name="post_5f548edc8582f929887250" id="post_5f548edc8582f929887250" style="display:none;" method="post"><input name="_method" value="POST" type="hidden"><?php /* The date inputs above belong to the listing form, so this form used to post nothing at all and the controller fell back to whatever period was last listed - that is the "only deletes the last period" report. Carry the selected range explicitly. */ ?><input type="hidden" name="data[MemberBillSummary][from_date]" value="<?php echo isset($from_date) ? $from_date : ''; ?>"><input type="hidden" name="data[MemberBillSummary][to_date]" value="<?php echo isset($to_date) ? $to_date : ''; ?>"></form><a href="#" class="btn btn-danger" data-toggle="tooltip" data-original-title="Delete all payments and bills" style="margin-right:10px;" onclick="if (confirm(&quot;Delete ALL bills, receipts and journal entries from <?php echo isset($from_date) ? $from_date : '(no date)'; ?> to <?php echo isset($to_date) ? $to_date : '(no date)'; ?>?\n\nThis cannot be undone.&quot;)) { document.post_5f548edc8582f929887250.submit(); } event.returnValue = false; return false;"><i class="fa fa-trash-o" style="color:#fff;font-size:18px;"></i> Delete all bills and payments</a>
                                              </div>
                     <div class="clearfix"></div>
@@ -111,8 +112,15 @@
                                             <td><?php echo isset($BillSummaryData['interest_balance']) ? $BillSummaryData['interest_balance'] :'' ; ?></td>
                                             <td><?php echo isset($BillSummaryData['balance_amount']) ? $BillSummaryData['balance_amount'] :'' ; ?></td>
                                             <td class="text-nowrap">
-                                            <?php echo $this->Html->link('<i class="fa fa-pencil text-inverse m-r-10"></i>', array('controller' => 'society_bills', 'action' => 'upadate_last_member_bill', $BillSummaryData['id']), array('class' => 'mr-25', 'data-toggle' => 'tooltip', 'data-original-title' => 'Edit', 'escape' => false)); ?>    
-                                            <?php  //echo $this->Form->postLink('<i class="fa fa-close text-danger"></i>',array('action' => 'delete_generated_bills', $BillSummaryData['id']),array('class' => 'mr-25','data-toggle' => 'tooltip','data-original-title' => 'Delete', 'escape' => false), __('Are you sure you want to delete # %s?',$BillSummaryData['id'])); ?>
+                                            <?php
+                                                $isLastBill = isset($lastBillIds[$BillSummaryData['id']]);
+                                                $canEdit = $isLastBill || (isset($allowEditAll) && $allowEditAll);
+                                            ?>
+                                            <?php if ($canEdit) { ?>
+                                                <?php echo $this->Html->link('<i class="fa fa-pencil text-inverse m-r-10"></i>', array('controller' => 'society_bills', 'action' => 'upadate_last_member_bill', $BillSummaryData['id']), array('class' => 'mr-25', 'data-toggle' => 'tooltip', 'data-original-title' => 'Edit', 'escape' => false)); ?>
+                                            <?php } else { ?>
+                                                <span class="mr-25 text-muted" data-toggle="tooltip" data-original-title="Bill is locked - Enable 'Allow Edit All Bills' in Society Parameter" style="cursor:not-allowed;"><i class="fa fa-lock"></i></span>
+                                            <?php } ?>
                                             </td>
                                         </tr>
                                          <?php $idCount++;}}?>
