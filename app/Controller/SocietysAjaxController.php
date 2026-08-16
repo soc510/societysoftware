@@ -3073,9 +3073,18 @@ public function getAllMemberTariffDetails(){
 
                     $ledgerHeadDetails = $this->SocietyLedgerHeads->find('first', array('conditions' => array('SocietyLedgerHeads.id' => $this->request->data['society_bank_id'], 'SocietyLedgerHeads.society_id' => $societyLoginID)));
 
-                    $openingBalance = $ledgerHeadDetails['SocietyLedgerHeads']['opening_amount'];
-
                     $bankName = $ledgerHeadDetails['SocietyLedgerHeads']['title'];
+
+                    $financialYearId = $this->Util->getFinancialYear();
+                    $bankId = $this->request->data['society_bank_id'];
+                    $yearWiseResult = $this->SocietyLedgerHeads->query("SELECT balance_amount FROM society_ledger_heads_opening_year_wise WHERE society_id = $societyLoginID AND ledger_head_id = $bankId AND financial_year_id = $financialYearId LIMIT 1");
+                    if (!empty($yearWiseResult) && !empty($yearWiseResult[0]['society_ledger_heads_opening_year_wise']['balance_amount'])) {
+                        $openingBalance = $yearWiseResult[0]['society_ledger_heads_opening_year_wise']['balance_amount'];
+                    } elseif (!empty($yearWiseResult) && isset($yearWiseResult[0][0]['balance_amount']) && $yearWiseResult[0][0]['balance_amount'] !== null) {
+                        $openingBalance = $yearWiseResult[0][0]['balance_amount'];
+                    } else {
+                        $openingBalance = isset($ledgerHeadDetails['SocietyLedgerHeads']['opening_amount']) ? $ledgerHeadDetails['SocietyLedgerHeads']['opening_amount'] : 0;
+                    }
 
                 }
 
