@@ -2489,6 +2489,53 @@ class SocietysController extends AppController {
 
     }
 
+    private function _parseExcelDate($dateValue) {
+        if (empty($dateValue)) return '';
+        $dateValue = trim($dateValue);
+
+        if (is_numeric($dateValue) && $dateValue > 25000) {
+            $unixDate = PHPExcel_Shared_Date::ExcelToPHP($dateValue);
+            return date('Y-m-d', $unixDate);
+        }
+
+        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $dateValue)) {
+            return $dateValue;
+        }
+
+        if (strstr($dateValue, '/')) {
+            $parts = explode('/', $dateValue);
+            if (count($parts) == 3) {
+                list($dd, $mm, $yy) = $parts;
+                if (strlen($yy) != 4) {
+                    $dt = DateTime::createFromFormat('y', $yy);
+                    $yy = $dt ? $dt->format('Y') : '20' . $yy;
+                }
+                if ($mm > 12) { $tmp = $dd; $dd = $mm; $mm = $tmp; }
+                return $yy . '-' . str_pad($mm, 2, '0', STR_PAD_LEFT) . '-' . str_pad($dd, 2, '0', STR_PAD_LEFT);
+            }
+        }
+
+        if (strstr($dateValue, '-')) {
+            $parts = explode('-', $dateValue);
+            if (count($parts) == 3) {
+                list($dd, $mm, $yy) = $parts;
+                if (strlen($yy) != 4) {
+                    $dt = DateTime::createFromFormat('y', $yy);
+                    $yy = $dt ? $dt->format('Y') : '20' . $yy;
+                }
+                if ($mm > 12) { $tmp = $dd; $dd = $mm; $mm = $tmp; }
+                return $yy . '-' . str_pad($mm, 2, '0', STR_PAD_LEFT) . '-' . str_pad($dd, 2, '0', STR_PAD_LEFT);
+            }
+        }
+
+        $ts = strtotime($dateValue);
+        if ($ts !== false) {
+            return date('Y-m-d', $ts);
+        }
+
+        return '';
+    }
+
     public function add_society_payment_from_xls() {
         set_time_limit(0);
         $societyLoginID = $this->societyloginID;
@@ -2524,6 +2571,7 @@ class SocietysController extends AppController {
             );
 
             foreach ($headers as $key => $value) {
+                if ($value === null) { unset($headers[$key]); continue; }
                 $trimmed = trim($value);
                 if (!empty($mapping[$trimmed]))
                     $headers[$key] = $mapping[$trimmed];
@@ -2557,12 +2605,19 @@ class SocietysController extends AppController {
 
             $addedPayment = 0;
             $failedCnt = 0;
+            $failedReasons = array();
             $billVoucherNumber = $this->SocietyBill->billVoucherNumber();
 
             if (!empty($sheetData)) {
                 foreach ($sheetData as $index => $row) {
                     if (empty($row))
                         continue;
+
+                    $allEmpty = true;
+                    foreach ($row as $val) {
+                        if ($val !== null && trim($val) !== '') { $allEmpty = false; break; }
+                    }
+                    if ($allEmpty) continue;
 
                     $aData = array();
                     foreach ($row as $column => $value) {
@@ -2572,12 +2627,18 @@ class SocietysController extends AppController {
 
                     if (empty($aData['ledger_head_title']) || empty($aData['amount']) || empty($aData['payment_date'])) {
                         $failedCnt++;
+                        $missing = array();
+                        if (empty($aData['ledger_head_title'])) $missing[] = 'DebitTo';
+                        if (empty($aData['amount'])) $missing[] = 'Amount';
+                        if (empty($aData['payment_date'])) $missing[] = 'PaymentDate';
+                        $failedReasons[] = 'Row ' . $index . ': Missing ' . implode(', ', $missing);
                         continue;
                     }
 
                     $ledgerTitle = trim($aData['ledger_head_title']);
                     if (!isset($ledgerHeadsByTitle[$ledgerTitle])) {
                         $failedCnt++;
+                        $failedReasons[] = 'Row ' . $index . ': DebitTo "' . $ledgerTitle . '" not found';
                         continue;
                     }
 
@@ -2605,47 +2666,20 @@ class SocietysController extends AppController {
                         }
                     }
 
-                    $paymentDate = $aData['payment_date'];
-                    if (strstr($paymentDate, '/')) {
-                        list($dd, $mm, $yy) = explode('/', $paymentDate);
-                        if (strlen($yy) != 4) {
-                            $dt = DateTime::createFromFormat('y', $yy);
-                            $yy = $dt->format('Y');
-                        }
-                        $paymentDate = $yy . '-' . $mm . '-' . $dd;
-                    } elseif (strstr($paymentDate, '-') && strlen($paymentDate) != 10) {
-                        list($dd, $mm, $yy) = explode('-', $paymentDate);
-                        if (strlen($yy) != 4) {
-                            $dt = DateTime::createFromFormat('y', $yy);
-                            $yy = $dt->format('Y');
-                        }
-                        $paymentDate = $yy . '-' . $mm . '-' . $dd;
+                    $paymentDate = $this->_parseExcelDate($aData['payment_date']);
+                    if (empty($paymentDate)) {
+                        $failedCnt++;
+                        $failedReasons[] = 'Row ' . $index . ': Invalid PaymentDate "' . $aData['payment_date'] . '"';
+                        continue;
                     }
 
                     if (!$this->Util->isDateInCurrentFinancialYear($paymentDate)) {
                         $failedCnt++;
+                        $failedReasons[] = 'Row ' . $index . ': PaymentDate ' . $paymentDate . ' not in current financial year';
                         continue;
                     }
 
-                    $chequeDate = '';
-                    if (!empty($aData['cheque_date'])) {
-                        $chequeDate = $aData['cheque_date'];
-                        if (strstr($chequeDate, '/')) {
-                            list($dd, $mm, $yy) = explode('/', $chequeDate);
-                            if (strlen($yy) != 4) {
-                                $dt = DateTime::createFromFormat('y', $yy);
-                                $yy = $dt->format('Y');
-                            }
-                            $chequeDate = $yy . '-' . $mm . '-' . $dd;
-                        } elseif (strstr($chequeDate, '-') && strlen($chequeDate) != 10) {
-                            list($dd, $mm, $yy) = explode('-', $chequeDate);
-                            if (strlen($yy) != 4) {
-                                $dt = DateTime::createFromFormat('y', $yy);
-                                $yy = $dt->format('Y');
-                            }
-                            $chequeDate = $yy . '-' . $mm . '-' . $dd;
-                        }
-                    }
+                    $chequeDate = $this->_parseExcelDate(isset($aData['cheque_date']) ? $aData['cheque_date'] : '');
 
                     $paymentAmount = floatval($aData['amount']);
                     $taxAmount = isset($aData['tax_amount']) ? floatval($aData['tax_amount']) : 0.00;
@@ -2676,7 +2710,16 @@ class SocietysController extends AppController {
                         $billVoucherNumber++;
                     } else {
                         $failedCnt++;
+                        $failedReasons[] = 'Row ' . $index . ': Database save failed';
                     }
+                }
+            }
+
+            $errorDetail = '';
+            if (!empty($failedReasons)) {
+                $errorDetail = ' Errors: ' . implode(' | ', array_slice($failedReasons, 0, 5));
+                if (count($failedReasons) > 5) {
+                    $errorDetail .= ' ... and ' . (count($failedReasons) - 5) . ' more';
                 }
             }
 
@@ -2684,10 +2727,10 @@ class SocietysController extends AppController {
                 $this->Session->setFlash(__($addedPayment . ' payment(s) imported successfully.'), 'success');
                 $this->redirect(array('action' => 'society_payments'));
             } elseif (!empty($failedCnt) && !empty($addedPayment)) {
-                $this->Session->setFlash(__($addedPayment . ' payment(s) saved, ' . $failedCnt . ' record(s) failed. Please check your data and try again.'), 'error');
+                $this->Session->setFlash(__($addedPayment . ' payment(s) saved, ' . $failedCnt . ' record(s) failed.' . $errorDetail), 'error');
                 $this->redirect(array('action' => 'society_payments'));
             } elseif (!empty($failedCnt) && empty($addedPayment)) {
-                $this->Session->setFlash(__('No payments could be saved. Please check your Excel data and try again.'), 'error');
+                $this->Session->setFlash(__('No payments could be saved. ' . $failedCnt . ' record(s) failed.' . $errorDetail), 'error');
                 $this->redirect(array('action' => 'add_society_payment_from_xls'));
             }
 
