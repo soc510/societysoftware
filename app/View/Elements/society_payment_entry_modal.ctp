@@ -3,7 +3,7 @@
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header modal-header-bg">
-                <button type="button" class="close"><a href="<?php echo Router::url(array('controller' =>'societys','action' =>'dashboard')); ?>">&times;</a></button>
+                <button type="button" class="close" data-dismiss="modal">&times;</button>
                 <h6 class="modal-title modal-title-color">Payment Entry</h6>
             </div>
             <div class="modal-body modal-body-bg">                
@@ -78,7 +78,7 @@
                              </div>
                             <div class="col-md-4 nopadding modal-society-payment-form-btn">
                              <button type="button" onclick="saveSocietyPaymentReciepts();" class="btn btn-success btn-anim btn-sm btns">Save Society Payment</button>
-                            <button type="button" class="btn btn-warning btn-anim btn-sm btns"><a href="<?php echo Router::url(array('controller' =>'societys','action' =>'society_payments')); ?>">Cancel</a></button>
+                            <button type="button" class="btn btn-warning btn-anim btn-sm btns" data-dismiss="modal">Cancel</button>
                             </div>
                         </div>
                 <div class="clearfix"></div>
