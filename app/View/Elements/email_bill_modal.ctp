@@ -14,7 +14,7 @@
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header modal-header-bg">
-                <button type="button" class="close"><a href="<?php echo Router::url(array('controller' =>'societys','action' =>'dashboard')); ?>">&times;</a></button>
+                <button type="button" class="close" data-dismiss="modal">&times;</button>
                 <h6 class="modal-title modal-title-color">Email Bill</h6>
             </div>
             <div class="modal-body modal-body-bg">

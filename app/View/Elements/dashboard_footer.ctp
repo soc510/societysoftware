@@ -196,6 +196,38 @@
         setTimeout(adjustTop, 1000);
     })();
     </script>
+    <script>
+    (function(){
+        var _suppressUntil = 0;
+        window.showLoader = function(centerY){
+            if(Date.now() < _suppressUntil) return;
+            if(document.querySelector('.blockUI')) return;
+            $.blockUI({
+                message:'<span class="p-10 b-c-gainsboro b-r-1"><img src="'+webrootUrl+'img/loader_please_wait.gif" height="80" align=""><span> &nbsp;Please wait...</span>',
+                centerY: centerY != undefined ? centerY : true,
+                baseZ:99999,
+                css:{border:'none',padding:'2px',backgroundColor:'none'},
+                overlayCSS:{backgroundColor:'#000',opacity:0.15,cursor:'wait'}
+            });
+            if(window._loaderTimeout) clearTimeout(window._loaderTimeout);
+            window._loaderTimeout = setTimeout(function(){ window.hideLoader(); }, 2000);
+        };
+        window.hideLoader = function(){
+            if(window._loaderTimeout) clearTimeout(window._loaderTimeout);
+            _suppressUntil = Date.now() + 3000;
+            try{ $.unblockUI(); }catch(e){}
+            $('.blockUI').remove();
+        };
+        $(document).ajaxComplete(function(){
+            clearTimeout(window._ajaxHideTimer);
+            window._ajaxHideTimer = setTimeout(function(){
+                if(document.querySelector('.blockUI')){
+                    window.hideLoader();
+                }
+            }, 800);
+        });
+    })();
+    </script>
 </body>
 <!-- Mirrored from hencework.com/theme/magilla/full-width-light/index.html by HTTrack Website Copier/3.x [XR&CO'2014], Sun, 24 Dec 2017 10:01:25 GMT -->
 </html>

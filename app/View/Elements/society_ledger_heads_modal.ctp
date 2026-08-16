@@ -19,7 +19,7 @@ if ($db != 'default'){
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header modal-header-bg">
-                <button type="button" class="close"><a href="<?php echo Router::url(array('controller' =>'societys','action' =>'dashboard')); ?>">&times;</a></button>
+                <button type="button" class="close" data-dismiss="modal">&times;</button>
                 <h6 class="modal-title modal-title-color">Account Master / Ledger Heads</h6>
             </div>
             <!--<ul class="pager">
@@ -129,7 +129,7 @@ if ($db != 'default'){
                                 <input type="checkbox" name="ledger_heads_is_interest_free" id="ledger_heads_is_interest_free" <?php echo isset($societyLedgerHeadsDetails['SocietyLedgerHeads']['is_interest_free']) && $societyLedgerHeadsDetails['SocietyLedgerHeads']['is_interest_free'] == 1 ? 'checked' :''; ?>> interest Free?<br>
                                 <div class="modal-ledger-form-btn">
                                     <button type="button" class="btn btn-success btn-anim btns" onclick="addUpdateSocietyLedgerHeads();"><i class="icon-rocket"></i><span class="btn-text"> Update</span></button>                            
-                                    <a type="button" data-toggle="tooltip" data-original-title="Go to dashboard" class="btn btn-success btn-anim btns" href="<?php echo Router::url(array('controller' =>'societys','action' =>'dashboard')); ?>"><i class="icon-rocket"></i><span class="btn-text">Cancel</span></a>
+                                    <a type="button" data-toggle="tooltip" data-original-title="Close" class="btn btn-success btn-anim btns" href="javascript:void(0);" data-dismiss="modal"><i class="icon-rocket"></i><span class="btn-text">Cancel</span></a>
                                     <a type="button" data-toggle="tooltip" data-original-title="Print Friendly" class="btn btn-success btn-anim btns" href="javascript:void(0);" onclick="printFlatShopReports('print_ledger_heads','print_ledger_heads_section');"><i class="fa fa-print"></i><span class="btn-text">Print Friendly</span></a>  
                                 </div>
                             </div> 

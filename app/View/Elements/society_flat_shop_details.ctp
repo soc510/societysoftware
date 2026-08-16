@@ -31,7 +31,7 @@ $op = date('d/m/Y',strtotime($this->Session->read('Auth.year_start_date')));
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header modal-header-bg">
-                <button type="button" class="close"><a href="<?php echo Router::url(array('controller' =>'societys','action' =>'dashboard')); ?>">&times;</a></button>
+                <button type="button" class="close" data-dismiss="modal">&times;</button>
                 <h6 class="modal-title modal-title-color">Flat / Shop Details</h6>
             </div>
 
@@ -415,8 +415,12 @@ $op = date('d/m/Y',strtotime($this->Session->read('Auth.year_start_date')));
 <script>
 
 
+    var _memberUnitBusy = false;
     function memberunitno(){
-     
+        if(_memberUnitBusy) return;
+        _memberUnitBusy = true;
+        setTimeout(function(){ _memberUnitBusy = false; }, 3000);
+
         var flat_no = $("#member_unit_no").val();
         var buildingId = $("#member_building_id").val();
         var wingId = $("#member_wing_id").val();
@@ -432,12 +436,13 @@ $op = date('d/m/Y',strtotime($this->Session->read('Auth.year_start_date')));
                 if (jsonData.id != 0) {
                     getSocietyMemberDetails(jsonData.id);
                 } else {
+                    _memberUnitBusy = false;
                     alert('This flat no does not exist!!!!');
                     return false;
                 }
             },
-            error: function () {
-                hideLoader();
+            error: function() {
+                _memberUnitBusy = false;
             }
         });
     }
@@ -465,9 +470,6 @@ $("#update_op").click(function(event) {
                 success: function (responseText) {
                     hideLoader();
                    location.reload(true);
-                },
-                error: function () {
-                    hideLoader();
                 }
             });
 });
