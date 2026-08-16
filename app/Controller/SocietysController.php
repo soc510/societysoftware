@@ -2633,9 +2633,28 @@ class SocietysController extends AppController {
 
                     $ledgerTitle = trim($aData['ledger_head_title']);
                     if (!isset($ledgerHeadsByTitle[$ledgerTitle])) {
-                        $failedCnt++;
-                        $failedReasons[] = 'Row ' . $index . ': DebitTo "' . $ledgerTitle . '" not found';
-                        continue;
+                        $this->SocietyLedgerHeads = ClassRegistry::init('SocietyLedgerHeads');
+                        $this->SocietyLedgerHeads->create();
+                        $newLedger = $this->SocietyLedgerHeads->save(array('SocietyLedgerHeads' => array(
+                            'title' => $ledgerTitle,
+                            'short_code' => strtoupper(substr(preg_replace('/[^A-Za-z]/', '', $ledgerTitle), 0, 10)),
+                            'account_category_id' => 4,
+                            'account_head_id' => 4,
+                            'society_id' => $societyLoginID,
+                            'financial_year_id' => $financialYearId,
+                            'opening_amount' => 0,
+                            'cdate' => date('Y-m-d H:i:s'),
+                            'status' => Configure::read('Active')
+                        )));
+                        if ($newLedger) {
+                            $newId = $this->SocietyLedgerHeads->id;
+                            $ledgerHeadsByTitle[$ledgerTitle] = $newId;
+                            $societyExpenseLedgerHeadsLists[$newId] = $ledgerTitle;
+                        } else {
+                            $failedCnt++;
+                            $failedReasons[] = 'Row ' . $index . ': Could not create ledger head "' . $ledgerTitle . '"';
+                            continue;
+                        }
                     }
 
                     $paymentType = isset($aData['payment_type']) ? trim($aData['payment_type']) : 'Bank';
