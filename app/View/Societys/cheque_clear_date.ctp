@@ -96,14 +96,23 @@
                                 <div class="clearfix"></div>
                                 
                                 <form class="" method="post" id="updateChequeClearDateFrm" name="updateChequeClearDateFrm" data-parsley-trigger="blur" class="form_parsley" data-validate="parsley" autocomplete="off">
-                                    <div class="col-md-2 ma-15 pull-right">
-                                        <input type="hidden" name="update_type" id="update_type" value="<?php if(isset($postData['MemberPayment']['reciept_type'])) { echo $postData['MemberPayment']['reciept_type'];}else{echo '';}?>" />
-                                        <button type="button" data-toggle="tooltip" data-original-title="" class="btn btn-warning  btn-sm <?php if(isset($postData['MemberPayment']['reciept_type']) && $postData['MemberPayment']['reciept_type'] != '') { echo '';}else{echo 'disabled';}?> " onclick="submitChequeClearForm()"><i class="icon-rocket"></i><span class="btn-text"> Update Clear Date</span></button>
+                                    <input type="hidden" name="update_type" id="update_type" value="<?php if(isset($postData['MemberPayment']['reciept_type'])) { echo $postData['MemberPayment']['reciept_type'];}else{echo '';}?>" />
+                                    <div class="row" style="margin:15px 0;">
+                                        <div class="col-md-3 pull-right" style="text-align:right;">
+                                            <button type="button" data-toggle="tooltip" data-original-title="" class="btn btn-warning btn-sm <?php if(isset($postData['MemberPayment']['reciept_type']) && $postData['MemberPayment']['reciept_type'] != '') { echo '';}else{echo 'disabled';}?>" onclick="submitChequeClearForm()" style="margin-top:22px;"><i class="icon-rocket"></i><span class="btn-text"> Update Clear Date</span></button>
+                                        </div>
+                                        <div class="col-md-2 pull-right">
+                                            <label class="control-label" style="color:#fff;background:#e91e63;padding:3px 8px;border-radius:3px;display:block;font-size:12px;">Search By Amount</label>
+                                            <input type="text" class="form-control input-sm" id="amount_filter" placeholder="Amount..." onkeyup="filterTable();" style="border:2px solid #e91e63;">
+                                        </div>
+                                        <div class="col-md-2 pull-right">
+                                            <label class="control-label" style="color:#fff;background:#009688;padding:3px 8px;border-radius:3px;display:block;font-size:12px;">Search By Cheque No</label>
+                                            <input type="text" class="form-control input-sm" id="cheque_no_filter" placeholder="Cheque No..." onkeyup="filterTable();" style="border:2px solid #009688;">
+                                        </div>
                                     </div>
-                                    <br>
                                     <div class="table-wrap">
                                         <div class="table-responsive1">
-                                            <table class="table table-striped table-bordered mb-0 padding-td-none padding-th-none">
+                                            <table class="table table-striped table-bordered mb-0 padding-td-none padding-th-none" id="cheque_clear_table">
                                                 <thead>
                                                     <tr>
                                                         <th>Flat No.</th>
@@ -288,14 +297,35 @@
             return false;
     }
     }
-    function printReconcile(el){           
+    function printReconcile(el){
         $('#reconciliationModal').modal('hide');
         var restorepage = document.body.innerHTML;
         var printAllReports =  document.getElementById(el).innerHTML;
         document.body.innerHTML = printAllReports;
         window.print();
         document.body.innerHTML = restorepage;
-         
+
         window.location.reload();
+    }
+    function filterTable(){
+        var chequeNo = $('#cheque_no_filter').val().trim().toLowerCase();
+        var amount = $('#amount_filter').val().trim();
+        $('#cheque_clear_table tbody tr').each(function(){
+            var cols = $(this).find('td').length;
+            if(cols <= 1) return;
+            var rowChequeNo = $(this).find('td:eq(3)').text().trim().toLowerCase();
+            var rowDeposit = $(this).find('td:eq(6)').text().trim();
+            var rowWithdraw = $(this).find('td:eq(7)').text().trim();
+            var chequeMatch = (chequeNo === '' || rowChequeNo.indexOf(chequeNo) !== -1);
+            var amountMatch = true;
+            if(amount !== ''){
+                amountMatch = (rowDeposit.indexOf(amount) !== -1 || rowWithdraw.indexOf(amount) !== -1);
+            }
+            if(chequeMatch && amountMatch){
+                $(this).show();
+            } else {
+                $(this).hide();
+            }
+        });
     }
 </script>

@@ -12883,13 +12883,15 @@ $accountMemberLedgerDetails[$memberId]['MemberBillSummary'][$paymentCounterr]['t
 
 
 		$monthlyBillsSummaryDetails = array();
+		$receiptsData = array();
+		$wingList = array();
 
-
+		if ($this->request->is('post')) {
 
 		$monthlyBillsSummaryDetails = $this->MemberBillSummary->find('all', array('conditions' => $conditionQuery, 'order' => array('MemberBillSummary.bill_no' => 'asc')));
 
-
-
+		$this->loadModel('Wing');
+		$wingList = $this->Wing->find('list', array('fields' => array('Wing.id', 'Wing.wing_name'), 'conditions' => array('Wing.society_id' => $societyLoginID)));
 
 
 
@@ -12959,37 +12961,21 @@ $accountMemberLedgerDetails[$memberId]['MemberBillSummary'][$paymentCounterr]['t
 
 			}
 
-
-
 		}
 
+		} // end if post - heavy query block
 
-
-
-
-		$this->set(compact('postData', 'billingFrequenciesArray', 'societyDetails', 'societyParameters', 'monthlyBillsSummaryDetails', 'societyLedgerHeadTitleList','receiptsData'));
-
-
+		$this->set(compact('postData', 'billingFrequenciesArray', 'societyDetails', 'societyParameters', 'monthlyBillsSummaryDetails', 'societyLedgerHeadTitleList','receiptsData','wingList'));
 
 		if ($this->request->is('post')) {
 
-
-
 			if (isset($monthlyBillsSummaryDetails) && !empty($monthlyBillsSummaryDetails)) {
-
-
 
 				$this->render('account_bill_half_page');
 
-
-
 			}
 
-
-
 		}
-
-
 
 	}
 
