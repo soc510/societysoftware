@@ -2250,7 +2250,7 @@ class SocietysController extends AppController {
         $this->loadModel('SocietyPayment');        
         $societyPayments = $this->SocietyPayment->find('all',array('fields'=>array('SocietyPayment.id','SocietyPayment.particulars',
         'SocietyPayment.bill_voucher_number',
-        'SocietyPayment.payment_date','SocietyPayment.cheque_date','SocietyPayment.payment_type',
+        'SocietyPayment.payment_date','SocietyPayment.cheque_date','SocietyPayment.cheque_reference_number','SocietyPayment.payment_type',
         'SocietyLedgerHeads.account_category_id','SocietyLedgerHeads.title',
         'SocietyPayment.amount','SocietyPayment.total_amount','SocietyPayment.tax_amount',
         'SocietyPayment.financial_year_id'),

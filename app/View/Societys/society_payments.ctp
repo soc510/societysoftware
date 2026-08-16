@@ -27,6 +27,7 @@
                                            <th>Payment Date</th>
                                            <th>Cheque Date</th>
                                            <th>Amount</th>
+                                           <th>Cheque No.</th>
                                            <th>Tax Amount</th>
                                            <th>Total Amount</th>
                                            <th>Type</th>
@@ -47,6 +48,7 @@
                                                <td><?php echo isset($payment['SocietyPayment']['payment_date']) ? $utilObj->getFormatDate($payment['SocietyPayment']['payment_date'],'d/m/Y') :'' ; ?></td>
                                                <td><?php echo isset($payment['SocietyPayment']['cheque_date']) ? $utilObj->getFormatDate($payment['SocietyPayment']['cheque_date'],'d/m/Y') :'' ; ?></td>
                                                <td class="text-right"><?php echo isset($payment['SocietyPayment']['amount']) ? $payment['SocietyPayment']['amount'] :'' ; ?></td>
+                                               <td><?php echo isset($payment['SocietyPayment']['cheque_reference_number']) ? $payment['SocietyPayment']['cheque_reference_number'] :'' ; ?></td>
                                                <td class="text-right"><?php echo isset($payment['SocietyPayment']['tax_amount']) ? $payment['SocietyPayment']['tax_amount'] :'' ; ?></td>
                                                <td class="text-right"><?php echo isset($payment['SocietyPayment']['total_amount']) ? $payment['SocietyPayment']['total_amount'] :'' ; ?></td>
                                                <td><?php echo isset($payment['SocietyPayment']['payment_type']) ? $payment['SocietyPayment']['payment_type'] :'' ; ?></td>
