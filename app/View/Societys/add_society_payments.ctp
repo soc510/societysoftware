@@ -14,7 +14,6 @@
                     <div class="pull-right">
                         <a class="btn btn-success btn-sm" href="<?php echo $this->Html->url(array('controller' => 'societys', 'action' => 'downloadSampleFileForSocietyPayment')); ?>"><i class="fa fa-download" style="color:#fff;font-size:10px;"></i>&nbsp;Download Excel Template</a>
                         <a class="btn btn-info btn-sm" href="<?php echo $this->Html->url(array('controller' => 'societys', 'action' => 'add_society_payment_from_xls')); ?>"><i class="fa fa-upload" style="color:#fff;font-size:10px;"></i>&nbsp;Import from Excel</a>
-                        <a class="btn btn-danger btn-sm" href="<?php echo $this->Html->url(array('controller' => 'societys', 'action' => 'add_society_payment_from_pdf')); ?>"><i class="fa fa-file-pdf-o" style="color:#fff;font-size:10px;"></i>&nbsp;Import From PDF</a>
                     </div>
                     <div class="clearfix"></div>
                 </div>
