@@ -435,6 +435,9 @@ $op = date('d/m/Y',strtotime($this->Session->read('Auth.year_start_date')));
                     alert('This flat no does not exist!!!!');
                     return false;
                 }
+            },
+            error: function () {
+                hideLoader();
             }
         });
     }
@@ -462,6 +465,9 @@ $("#update_op").click(function(event) {
                 success: function (responseText) {
                     hideLoader();
                    location.reload(true);
+                },
+                error: function () {
+                    hideLoader();
                 }
             });
 });

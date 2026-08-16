@@ -81,7 +81,7 @@
         );
         echo $this->Js->writeBuffer();
     ?>
-    <script src="<?php echo $this->webroot; ?>js/common.js"></script>
+    <script src="<?php echo $this->webroot; ?>js/common.js?version=<?php echo Configure::read('FileVersion');?>"></script>
     <?php echo $this->element('admin_js'); ?>
     <?php if(!empty($this->params['action']) && $this->params['action'] == 'society_tariff_orders' && $this->params['controller'] == 'societys'){?>
     <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.js"></script>
