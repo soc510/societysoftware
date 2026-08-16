@@ -246,6 +246,51 @@ class UtilityController extends AppController {
     
 
     
+    public function lock_file() {
+        $this->loadModel('BillAuditLog');
+
+        $conditions = array('BillAuditLog.society_id' => $this->societyloginID);
+
+        if ($this->request->is('post') && !empty($this->request->data)) {
+            if (!empty($this->request->data['BillAuditLog']['from_date'])) {
+                $conditions['BillAuditLog.changed_at >='] = $this->request->data['BillAuditLog']['from_date'] . ' 00:00:00';
+            }
+            if (!empty($this->request->data['BillAuditLog']['to_date'])) {
+                $conditions['BillAuditLog.changed_at <='] = $this->request->data['BillAuditLog']['to_date'] . ' 23:59:59';
+            }
+            if (!empty($this->request->data['BillAuditLog']['action_type'])) {
+                $conditions['BillAuditLog.action_type'] = $this->request->data['BillAuditLog']['action_type'];
+            }
+        }
+
+        $auditLogs = $this->BillAuditLog->find('all', array(
+            'conditions' => $conditions,
+            'order' => array('BillAuditLog.changed_at' => 'DESC'),
+            'limit' => 500,
+            'recursive' => -1
+        ));
+
+        $memberNames = array();
+        $userNames = array();
+        if (!empty($auditLogs)) {
+            $memberIds = array_unique(array_filter(array_map(function($l) { return $l['BillAuditLog']['member_id']; }, $auditLogs)));
+            if (!empty($memberIds)) {
+                $memberNames = $this->Member->find('list', array(
+                    'conditions' => array('Member.id' => $memberIds),
+                    'fields' => array('Member.id', 'Member.member_name')
+                ));
+            }
+            $userIds = array_unique(array_filter(array_map(function($l) { return $l['BillAuditLog']['changed_by']; }, $auditLogs)));
+            if (!empty($userIds)) {
+                $userNames = $this->User->find('list', array(
+                    'conditions' => array('User.id' => $userIds),
+                    'fields' => array('User.id', 'User.username')
+                ));
+            }
+        }
+        $this->set(compact('auditLogs', 'memberNames', 'userNames'));
+    }
+
     public function billFrequencyMonthDetails(){
 	//1-Monthly, 2-BiMonthly, 3-Quarterly, 4-Quadruple,5-Half Yearly,6-Yearly
       $billingFrequenciesArray = array(

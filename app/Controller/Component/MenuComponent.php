@@ -131,6 +131,13 @@ class MenuComponent extends Component {
                     //)
 
                     ),
+                    'Add User' => array(
+
+                        'link' => Router::url(array('controller' => 'resellers', 'action' => 'manage_users'), true),
+
+                        'icon' => '<i class="zmdi zmdi-account-add mr-20"></i>',
+                    ),
+
                     'Audit reports' => array(
 
                         'link' => Router::url(array('controller' => 'resellers', 'action' => 'audit_report'), true),
@@ -236,9 +243,10 @@ class MenuComponent extends Component {
                     'Utilities' => array('icon' => '<i class="zmdi zmdi-account mr-20"></i></i>', 'sublink' => Router::url(array('controller' => 'societys', 'action' => 'dashboard'), true),
                         'submenu' => array(
                             Router::url(array('controller' => 'utility', 'action' => 'update_bill_date'), true) => 'update bill dates',
+                            Router::url(array('controller' => 'utility', 'action' => 'lock_file'), true) => 'Lock File',
                         )
-                    ),     
-                                        
+                    ),
+
                     'Bill Print' => array('icon' => '<i class="zmdi zmdi-account mr-20"></i></i>', 'sublink' => Router::url(array('controller' => 'societys', 'action' => 'dashboard'), true),
                         'submenu' => array(
                             Router::url(array('controller' => 'reports', 'action' => 'bill_with_receipt_tabular'), true) => 'Bill With Receipt Tabular',
@@ -248,7 +256,7 @@ class MenuComponent extends Component {
                             Router::url(array('controller' => 'account_reports', 'action' => 'bill_with_interest_gst'), true) => 'Bill With Interest Gst',
                             Router::url(array('controller' => 'account_reports', 'action' => 'bill_summary_with_prev_data'), true) => 'Bill Summary With Prev Data',
                             Router::url(array('controller' => 'reports', 'action' => 'bill_with_receipt'), true) => 'Bill Receipt'
-                            
+
                         )
                     )
             ));
@@ -312,9 +320,10 @@ class MenuComponent extends Component {
                     'Utilities' => array('icon' => '<i class="zmdi zmdi-account mr-20"></i></i>', 'sublink' => Router::url(array('controller' => 'societys', 'action' => 'dashboard'), true),
                         'submenu' => array(
                             Router::url(array('controller' => 'utility', 'action' => 'update_bill_date'), true) => 'update bill dates',
+                            Router::url(array('controller' => 'utility', 'action' => 'lock_file'), true) => 'Lock File',
                         )
                     ),
-                    
+
                     'Bill Print' => array('icon' => '<i class="zmdi zmdi-account mr-20"></i></i>', 'sublink' => Router::url(array('controller' => 'societys', 'action' => 'dashboard'), true),
                         'submenu' => array(
                             Router::url(array('controller' => 'reports', 'action' => 'bill_with_receipt_tabular'), true) => 'Bill With Receipt Tabular',
@@ -324,7 +333,7 @@ class MenuComponent extends Component {
                             Router::url(array('controller' => 'account_reports', 'action' => 'bill_with_interest_gst'), true) => 'Bill With Interest Gst',
                             Router::url(array('controller' => 'account_reports', 'action' => 'bill_summary_with_prev_data'), true) => 'Bill Summary With Prev Data',
                             Router::url(array('controller' => 'reports', 'action' => 'bill_with_receipt'), true) => 'Bill Receipt'
-                            
+
                         )
                     ),
                     /*'PrintBill' => array(

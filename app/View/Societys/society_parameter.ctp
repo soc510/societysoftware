@@ -263,7 +263,16 @@
                                             </div>
                                         </div> 
                                         <div class="col-md-12">
-                                            <div class="form-group">                                                
+                                            <div class="form-group">
+                                                <label for="allow_edit_all_bills" class="control-label">Allow Edit All Bills (Locked Bills)</label>
+                                                <select class="form-control" id="allow_edit_all_bills" name="data[SocietyParameter][allow_edit_all_bills]">
+                                                    <option value="0"<?php if(isset($this->request->data['SocietyParameter']['allow_edit_all_bills']) && $this->request->data['SocietyParameter']['allow_edit_all_bills'] == 0) { echo ' selected';} ?>>No - Only Last Bill Editable</option>
+                                                    <option value="1"<?php if(isset($this->request->data['SocietyParameter']['allow_edit_all_bills']) && $this->request->data['SocietyParameter']['allow_edit_all_bills'] == 1) { echo ' selected';} ?>>Yes - All Bills Editable (With Audit Log)</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-12">
+                                            <div class="form-group">
                                                 <label for="Scanner Image" class="control-label">Scanner Image </label> 
                                                 <?php if(!empty($this->request->data['SocietyParameter']['scanner_image_path'])) echo $this->Html->image($this->request->data['SocietyParameter']['scanner_image_path'], array('height' => '100', 'width' => '100', 'fullBase' => true, 'plugin' => false)); ?>
                                                 <input type="file" class="form-control" id="title" name="data[SocietyParameter][scanner_image]" value="<?php echo isset($this->request->data['SocietyParameter']['scanner_image']) ? $this->request->data['SocietyParameter']['scanner_image'] :''; ?>">

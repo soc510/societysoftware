@@ -393,9 +393,33 @@ $MonthArray = array("1" => "January", "2" => "February", "3" => "March", "4" => 
                         <button id="delMemSum" type="button" class="btn btn-danger btn-anim btn-sm hide" onclick="deleteMemberBillSummaryById();" ifpayment="0">Delete</button>
                         <a id="cancelMemSum" type="button" data-toggle="tooltip" data-original-title="Go to dashboard" class="btn btn-success btn-anim btns btn-sm" href="<?php echo Router::url(array('controller' =>'societys','action' =>'dashboard')); ?>"><i class="icon-rocket"></i><span class="btn-text">Cancel</span></a>
                         <button id="updateManualSum" type="button" class="btn btn-warning btn-anim btn-sm" onclick="updateManualInterest();">Manual Update Interest</button>
+                        <div style="margin-top:10px;">
+                            <span id="billLockedMsg" class="label label-warning" style="display:none;font-size:13px;padding:8px 15px;"><i class="fa fa-lock"></i> This bill is locked. Only last bill is editable. Enable "Allow Edit All Bills" in Society Parameter.</span>
+                        </div>
                     </center>
                 </form>
             </div>
         </div>
     </div>
 </div>
+<script>
+$(document).ajaxComplete(function(event, xhr, settings) {
+    if (settings.url && settings.url.indexOf('getAllMembersBillSummaryDetails') !== -1) {
+        try {
+            var resp = JSON.parse(xhr.responseText);
+            if (resp.bill_locked == 1) {
+                $('#billLockedMsg').show();
+                $('#updateMemSum').prop('disabled', true).addClass('disabled');
+                $('#InterestMemSum').prop('disabled', true).addClass('disabled');
+                $('#delMemSum').addClass('hide');
+                $('#updateManualSum').prop('disabled', true).addClass('disabled');
+            } else {
+                $('#billLockedMsg').hide();
+                $('#updateMemSum').prop('disabled', false).removeClass('disabled');
+                $('#InterestMemSum').prop('disabled', false).removeClass('disabled');
+                $('#updateManualSum').prop('disabled', false).removeClass('disabled');
+            }
+        } catch(e) {}
+    }
+});
+</script>

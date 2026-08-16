@@ -94,7 +94,57 @@ class SocietyBillsController extends AppController {
 
     }
 
+    private function _isLastBillForMember($billSummaryId) {
+        $bill = $this->MemberBillSummary->find('first', array(
+            'conditions' => array('MemberBillSummary.id' => $billSummaryId),
+            'fields' => array('member_id', 'society_id', 'month', 'financial_year_id'),
+            'recursive' => -1
+        ));
+        if (empty($bill)) return true;
 
+        $laterBill = $this->MemberBillSummary->find('count', array(
+            'conditions' => array(
+                'MemberBillSummary.member_id' => $bill['MemberBillSummary']['member_id'],
+                'MemberBillSummary.society_id' => $bill['MemberBillSummary']['society_id'],
+                'MemberBillSummary.financial_year_id' => $bill['MemberBillSummary']['financial_year_id'],
+                'MemberBillSummary.month >' => $bill['MemberBillSummary']['month']
+            ),
+            'recursive' => -1
+        ));
+        return ($laterBill == 0);
+    }
+
+    private function _canEditBill($billSummaryId) {
+        if ($this->_isLastBillForMember($billSummaryId)) {
+            return true;
+        }
+        $params = $this->SocietyParameter->find('first', array(
+            'conditions' => array('SocietyParameter.society_id' => $this->societyloginID),
+            'fields' => array('allow_edit_all_bills'),
+            'recursive' => -1
+        ));
+        return (!empty($params['SocietyParameter']['allow_edit_all_bills']) && $params['SocietyParameter']['allow_edit_all_bills'] == 1);
+    }
+
+    private function _logBillAudit($actionType, $billSummaryId, $memberId, $billNo, $billMonth, $fieldName, $oldValue, $newValue, $remarks = '') {
+        $this->loadModel('BillAuditLog');
+        $this->BillAuditLog->create();
+        $this->BillAuditLog->save(array('BillAuditLog' => array(
+            'society_id' => $this->societyloginID,
+            'member_id' => $memberId,
+            'bill_summary_id' => $billSummaryId,
+            'bill_no' => $billNo,
+            'bill_month' => $billMonth,
+            'action_type' => $actionType,
+            'field_name' => $fieldName,
+            'old_value' => $oldValue,
+            'new_value' => $newValue,
+            'changed_by' => $this->societyloginID,
+            'changed_at' => date('Y-m-d H:i:s'),
+            'ip_address' => $this->request->clientIp(),
+            'remarks' => $remarks
+        )));
+    }
 
 
 
@@ -7686,11 +7736,10 @@ if($billGeneratedMonths==4){
 
         $response['memberrole'] = $this->Session->read('Auth.User.role');
 
-
+        $billId = isset($memberBillsDetails['MemberBillSummary']['id']) ? $memberBillsDetails['MemberBillSummary']['id'] : '';
+        $response['bill_locked'] = (!empty($billId) && !$this->_canEditBill($billId)) ? 1 : 0;
 
         return new CakeResponse(array('body' => json_encode($response), 'status' => 200));
-
-
 
     }
 
@@ -7734,15 +7783,12 @@ if($billGeneratedMonths==4){
 
             $billSummaryId = (isset($this->request->data['MemberBillSummary']['id']) && !empty($this->request->data['MemberBillSummary']['id'])) ? $this->request->data['MemberBillSummary']['id'] : '';
 
-
-
-            
-
-
-
-            
-
-
+            if (!empty($billSummaryId) && !$this->_canEditBill($billSummaryId)) {
+                $response['error'] = 1;
+                $response['error_message'] = 'This bill is locked. Only the last bill can be deleted. Enable "Allow Edit All Bills" in Society Parameter to delete older bills.';
+                echo json_encode($response);
+                return;
+            }
 
             $this->loadModel('MemberBillSettlement');
 
@@ -7824,19 +7870,16 @@ if($billGeneratedMonths==4){
 
 
 
-            $billSummary = $this->MemberBillSummary->find('first', array('conditions' => $conditionsArr1, 'fields' => array('MemberBillSummary.month','MemberBillSummary.member_id')));
-
-
-
-            
-
-
+            $billSummary = $this->MemberBillSummary->find('first', array('conditions' => $conditionsArr1, 'fields' => array('MemberBillSummary.month','MemberBillSummary.member_id','MemberBillSummary.bill_no')));
 
             $this->MemberBillSummary->id = $billSummaryId;
 
-
-
-            if ($this->MemberBillSummary->delete()){            
+            if ($this->MemberBillSummary->delete()){
+                $this->_logBillAudit('delete', $billSummaryId,
+                    isset($billSummary['MemberBillSummary']['member_id']) ? $billSummary['MemberBillSummary']['member_id'] : null,
+                    isset($billSummary['MemberBillSummary']['bill_no']) ? $billSummary['MemberBillSummary']['bill_no'] : '',
+                    isset($billSummary['MemberBillSummary']['month']) ? $billSummary['MemberBillSummary']['month'] : '',
+                    'bill_summary', json_encode($billSummary), '', 'Bill deleted from modal');            
 
 
 
@@ -8216,6 +8259,14 @@ if($billGeneratedMonths==4){
         // if ($this->RequestHandler->isAjax()) {
             $this->autoRender = false;
             $postData['id'] = isset($this->request->data['MemberBillSummary']['id']) ? $this->request->data['MemberBillSummary']['id'] : '';
+
+            if (!$processAfterEditAddDeletePayment && !empty($postData['id']) && !$this->_canEditBill($postData['id'])) {
+                $responseArr['error'] = 1;
+                $responseArr['error_message'] = 'This bill is locked. Only the last bill can be edited. Enable "Allow Edit All Bills" in Society Parameter to edit older bills.';
+                echo json_encode($responseArr);
+                return;
+            }
+
             $postData['discount'] = isset($this->request->data['MemberBillSummary']['discount']) ? $this->request->data['MemberBillSummary']['discount'] : '';
             $postData['principal_adjusted'] = isset($this->request->data['MemberBillSummary']['principal_adjusted']) ? $this->request->data['MemberBillSummary']['principal_adjusted'] : 0.00;
             $postData['interest_adjusted'] = isset($this->request->data['MemberBillSummary']['interest_adjusted']) ? $this->request->data['MemberBillSummary']['interest_adjusted'] : 0.00;
@@ -8233,6 +8284,19 @@ if($billGeneratedMonths==4){
 
              if(!$processAfterEditAddDeletePayment)
                  $billUpdated = $this->updateMemberTarrifDetails($this->request->data,$billType);
+
+            if ($billUpdated && !$processAfterEditAddDeletePayment && !empty($postData['id'])) {
+                $editedBill = $this->MemberBillSummary->find('first', array(
+                    'conditions' => array('MemberBillSummary.id' => $postData['id']),
+                    'fields' => array('member_id', 'bill_no', 'month'),
+                    'recursive' => -1
+                ));
+                if (!empty($editedBill)) {
+                    $this->_logBillAudit('edit', $postData['id'], $editedBill['MemberBillSummary']['member_id'],
+                        $editedBill['MemberBillSummary']['bill_no'], $editedBill['MemberBillSummary']['month'],
+                        'bill_details', '', json_encode($this->request->data), 'Bill updated from modal');
+                }
+            }
 
             if($billUpdated || $processAfterEditAddDeletePayment){
 
@@ -10060,7 +10124,51 @@ if($billGeneratedMonths==4){
                 }                    
             }
     	}
-        $this->set(compact('memberBillSummaryDataArr','from_date','to_date'));
+        $lastBillIds = array();
+        if (!empty($memberBillSummaryDataArr)) {
+            $memberMaxMonth = array();
+            $memberMaxBillId = array();
+            foreach ($memberBillSummaryDataArr as $bd) {
+                $mid = $bd['member_id'];
+                $mon = $bd['month'];
+                $bid = $bd['id'];
+                if (!isset($memberMaxMonth[$mid]) || $mon > $memberMaxMonth[$mid]) {
+                    $memberMaxMonth[$mid] = $mon;
+                    $memberMaxBillId[$mid] = $bid;
+                }
+            }
+            $lastBillIds = array_flip($memberMaxBillId);
+        }
+        $params = $this->SocietyParameter->find('first', array(
+            'conditions' => array('SocietyParameter.society_id' => $this->societyloginID),
+            'fields' => array('allow_edit_all_bills'),
+            'recursive' => -1
+        ));
+        $allowEditAll = (!empty($params['SocietyParameter']['allow_edit_all_bills']) && $params['SocietyParameter']['allow_edit_all_bills'] == 1);
+        $this->set(compact('memberBillSummaryDataArr','from_date','to_date','lastBillIds','allowEditAll'));
+    }
+
+    public function bill_audit_logs() {
+        $this->loadModel('BillAuditLog');
+        $this->loadModel('Member');
+        $auditLogs = $this->BillAuditLog->find('all', array(
+            'conditions' => array('BillAuditLog.society_id' => $this->societyloginID),
+            'order' => array('BillAuditLog.changed_at' => 'DESC'),
+            'limit' => 200,
+            'recursive' => -1
+        ));
+        $memberNames = array();
+        if (!empty($auditLogs)) {
+            $memberIds = array_unique(array_filter(array_map(function($l) { return $l['BillAuditLog']['member_id']; }, $auditLogs)));
+            if (!empty($memberIds)) {
+                $members = $this->Member->find('list', array(
+                    'conditions' => array('Member.id' => $memberIds),
+                    'fields' => array('Member.id', 'Member.member_name')
+                ));
+                $memberNames = $members;
+            }
+        }
+        $this->set(compact('auditLogs', 'memberNames'));
     }
 
 
@@ -10071,7 +10179,10 @@ if($billGeneratedMonths==4){
 
     public function delete_generated_bills($billGeneratedId = null) {
 
-
+        if (!empty($billGeneratedId) && !$this->_canEditBill($billGeneratedId)) {
+            $this->Session->setFlash(__('This bill is locked. Only the last bill can be deleted. Enable "Allow Edit All Bills" in Society Parameter.'), 'error');
+            return $this->redirect(array('action' => 'society_generated_bills'));
+        }
 
         if (!$this->MemberBillSummary->exists($billGeneratedId)) {
 
@@ -10429,11 +10540,12 @@ if($billGeneratedMonths==4){
 
         if($lastBillGeneratedId != ''){
 
-
+            if (!$this->_canEditBill($lastBillGeneratedId)) {
+                $this->Session->setFlash(__('This bill is locked. Only the last bill can be edited. Enable "Allow Edit All Bills" in Society Parameter to edit older bills.'), 'error');
+                return $this->redirect(array('controller' => 'society_bills', 'action' => 'society_generated_bills'));
+            }
 
             $lastBillGeneratedData = $this->MemberBillSummary->find('first', array('conditions' => array('MemberBillSummary.id' => $lastBillGeneratedId, 'MemberBillSummary.society_id' => $societyLoginId), 'recursive' => -1));
-
-
 
         }
 
