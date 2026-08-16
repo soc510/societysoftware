@@ -2949,11 +2949,17 @@ public function getAllMemberTariffDetails(){
 
                 foreach($dataArr as $paymentID =>$chequeData){
 
-                    if($recieptType == "Receipt"){                        
+                    if($recieptType == "Receipt"){
 
                         $this->MemberPayment->id = $paymentID;
 
                         $this->MemberPayment->saveField('credited_date',$chequeData['cleared_date']);
+
+                        if(isset($chequeData['cheque_date']) && !empty($chequeData['cheque_date'])){
+
+                            $this->MemberPayment->saveField('cheque_date',$chequeData['cheque_date']);
+
+                        }
 
                         $response['error'] = 0;
 
@@ -2965,15 +2971,27 @@ public function getAllMemberTariffDetails(){
 
                         $this->SocietyPayment->saveField('debited_date',$chequeData['cleared_date']);
 
+                        if(isset($chequeData['cheque_date']) && !empty($chequeData['cheque_date'])){
+
+                            $this->SocietyPayment->saveField('cheque_date',$chequeData['cheque_date']);
+
+                        }
+
                         $response['error'] = 0;
 
                         $response['error_message'] = 'Cheque Cleared Dates have been updated successfully.';
 
-                    }  else if($recieptType == "General"){                        
+                    }  else if($recieptType == "General"){
 
                         $this->SocietyOtherIncome->id = $paymentID;
 
                         $this->SocietyOtherIncome->saveField('credited_date',$chequeData['cleared_date']);
+
+                        if(isset($chequeData['cheque_date']) && !empty($chequeData['cheque_date'])){
+
+                            $this->SocietyOtherIncome->saveField('cheque_date',$chequeData['cheque_date']);
+
+                        }
 
                         $response['error'] = 0;
 
@@ -3073,9 +3091,15 @@ public function getAllMemberTariffDetails(){
 
                     $ledgerHeadDetails = $this->SocietyLedgerHeads->find('first', array('conditions' => array('SocietyLedgerHeads.id' => $this->request->data['society_bank_id'], 'SocietyLedgerHeads.society_id' => $societyLoginID)));
 
-                    $openingBalance = $ledgerHeadDetails['SocietyLedgerHeads']['opening_amount'];
-
                     $bankName = $ledgerHeadDetails['SocietyLedgerHeads']['title'];
+
+                    $financialYearId = $this->Util->getFinancialYear();
+                    $openingData = $this->SocietyBill->getSocietyLedgerOpClosingBal($societyLoginID, $this->request->data['society_bank_id']);
+                    if (!empty($openingData) && !empty($openingData['balance_amount'])) {
+                        $openingBalance = $openingData['balance_amount'];
+                    } else {
+                        $openingBalance = isset($ledgerHeadDetails['SocietyLedgerHeads']['opening_amount']) ? $ledgerHeadDetails['SocietyLedgerHeads']['opening_amount'] : 0;
+                    }
 
                 }
 
