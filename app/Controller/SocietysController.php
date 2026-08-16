@@ -1621,18 +1621,14 @@ class SocietysController extends AppController {
 
         $societyLedgerHeadsLists = $this->SocietyLedgerHeads->find('all', array('conditions' => array('SocietyLedgerHeads.society_id' => $societyLoginID, 'SocietyLedgerHeads.status' => Configure::read('Active')), 'fields' => array('SocietyLedgerHeads.id', 'SocietyLedgerHeads.title', 'AccountHead.title', 'AccountCategory.title', 'SocietyHeadSubCategory.title'), 'order' => array('SocietyLedgerHeads.title' => 'asc')));
 
-
-
-	//echo '<pre>';
-
-	//print_r($societyLedgerHeadsLists); exit;
+        $openingBalanceMap = $this->SocietyBill->getSocietyLedgerOpClosingBalSocietyWise($societyLoginID);
 
         // Ledger heads referenced by any bill, voucher, payment, tariff, bank or
         // opening balance must not be deletable - the list hides the delete button
         // for these, and the delete action itself refuses them.
         $usedLedgerHeadIds = $this->getUsedLedgerHeadIds($societyLoginID);
 
-        $this->set(compact('societyLedgerHeadsLists', 'usedLedgerHeadIds'));
+        $this->set(compact('societyLedgerHeadsLists', 'usedLedgerHeadIds', 'openingBalanceMap'));
 
     }
 

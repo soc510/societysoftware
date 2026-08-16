@@ -61,7 +61,7 @@ $societyLedgerHeadIds = array_keys($societyLedgerHeadTitleList);
                                                             <div class="">Bill For &nbsp; : &nbsp;<?php echo isset($memberbillReport['MemberBillSummary']['monthName']) ? $memberbillReport['MemberBillSummary']['monthName'] :'' ; ?> <?php echo isset($memberbillReport['Society']['financial_year']) ? $memberbillReport['Society']['financial_year'] :'' ; ?></div>
                                                         </div>
                                                         <div class="col-md-4 col-sm-4 col-xs-4">
-                                                            <div class="">Wing &nbsp;&nbsp;&nbsp;&nbsp; : &nbsp;<?php echo isset($wingDetails['wing_name']);?></div>
+                                                            <div class="">Wing &nbsp;&nbsp;&nbsp;&nbsp; : &nbsp;<?php $memberWingId = isset($memberbillReport['Member']['wing_id']) ? $memberbillReport['Member']['wing_id'] : ''; echo isset($wingList[$memberWingId]) ? $wingList[$memberWingId] : ''; ?></div>
                                                         </div>
                                                         <div class="col-md-4 col-sm-4 col-xs-4">
                                                             <div class="">Floor No : <?php echo isset($memberbillReport['Member']['floor_no']) ? $memberbillReport['Member']['floor_no'] :'' ; ?></div>

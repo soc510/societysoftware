@@ -232,30 +232,14 @@ class SocietyBillComponent extends Component {
 
         App::import('model', 'SocietyLedgerHeads');
 
-        App::import('model','MemberBillGenerate');
-
-        App::import('model','SocietyPayment');
-
-        
-
         $societyLedgerHeadsObj = new SocietyLedgerHeads();
-
-        $memberBillGenerateObj = new MemberBillGenerate();
-
-        $societyPaymentObj = new SocietyPayment();
-
-        
 
         $societyLoginID = $this->Session->read('Auth.User.id');
 
-        //$societyLedgerHeadsObj->recursive = -1;
-
 	$societyLedgerHeadsLists = $societyLedgerHeadsObj->find('all', array('conditions' => array('SocietyLedgerHeads.society_id' => $societyLoginID, 'SocietyLedgerHeads.status' => Configure::read('Active')), 'fields' => array('SocietyLedgerHeads.id', 'SocietyLedgerHeads.title'), 'order' => array('SocietyLedgerHeads.title' => 'asc')));
 
-
-
         $societyLedgerHeadsDetails = $societyLedgerHeadsObj->find('first', array('conditions' => array('SocietyLedgerHeads.society_id' => $societyLoginID), 'order' => array('SocietyLedgerHeads.id' => 'asc')));
-    
+
         if(isset($societyLedgerHeadsDetails['AccountHead']['title']) && $societyLedgerHeadsDetails['AccountHead']['title']=='Income'){
             $societyLedgerHeadsDetails['SocietyLedgerHeads']['opening_amount']=0.00;
         }
@@ -268,150 +252,11 @@ class SocietyBillComponent extends Component {
 
         }
 
-        
+        $societyLedgerHeadsDetails['ledgerPaymentData'] = array();
+        $societyLedgerHeadsDetails['txn_type'] = '';
 
-        //print_r($societyCashBalanceHeadsLists);die;
-
-        
-
-        if (count($societyLedgerHeadsDetails) > 0) {
-
-            //Get society ledger head expenses and payments
-
-            $txnType = $societyLedgerHeadsDetails['AccountHead']['transaction_type'];
-
-            if (stripos($txnType, 'credit') !== false) {
-
-                $txnType = 'credit';
-
-            } else if (stripos($txnType, 'debit') !== false) {
-
-                $txnType = 'debit';
-
-            }
-
-
-
-            $isInBill = $societyLedgerHeadsDetails['SocietyLedgerHeads']['is_in_bill_charges'];
-
-
-
-            $societyPaymentData = array();
-
-
-
-            $societyLedgerHeadId = $societyLedgerHeadsDetails['SocietyLedgerHeads']['id'];
-
-
-
-            if ($isInBill == 0) {
-
-                $societyPayments = $societyPaymentObj->find('all', array('conditions' => array('SocietyPayment.ledger_head_id' => $societyLedgerHeadId, 'SocietyPayment.society_id' => $this->Session->read('Auth.User.id'))));
-
-                if (!empty($societyPayments)) {
-
-                    foreach ($societyPayments as $paymentDetails) {
-
-                        $paymentData = $paymentDetails['SocietyPayment'];
-
-                        $paymentDate = date('d/m/Y', strtotime($paymentData['payment_date']));
-
-                        $formattedDate = date('Y-m-d',strtotime($paymentData['bill_generated_date']));
-
-                        $societyPaymentData[] = array('payment_date' => $paymentDate,'formatted_date' => $formattedDate,'amount' => $paymentData['total_amount'], 'txn_type' => $txnType);
-
-                    }
-
-                }
-
-            } else {
-
-                $memberBills = $memberBillGenerateObj->find('all', array('conditions' => array('MemberBillGenerate.ledger_head_id' => $societyLedgerHeadId, 'MemberBillGenerate.society_id' => $this->Session->read('Auth.User.id'))));
-
-                if (!empty($memberBills)) {
-
-                    foreach ($memberBills as $paymentDetails) {
-
-                        $paymentData = $paymentDetails['MemberBillGenerate'];
-
-                        $paymentDate = date('d/m/Y', strtotime($paymentData['bill_generated_date']));
-
-                        $formattedDate = date('Y-m-d',strtotime($paymentData['bill_generated_date']));
-
-                        $societyPaymentData[] = array('payment_date' => $paymentDate,'formatted_date' => $formattedDate,'amount' => $paymentData['amount'], 'txn_type' => $txnType);
-
-                    }
-
-                }
-
-            }
-
-            
-
-            $journalVoucherLedgerPaymentData = $this->getJournalVoucherCreaditDebitDataByLedgerHeadId($societyLedgerHeadId);
-
-            
-
-            if (!empty($journalVoucherLedgerPaymentData)) {
-
-                //$societyPaymentData[] = $JournalVoucherPaymentReceiptDetails;
-
-                foreach ($journalVoucherLedgerPaymentData as $jvData) {
-
-                    $txnJvType = '';
-
-                    $jvAmt = 0;
-
-                    $JVPARTICULAR = "";
-
-                    if ($jvData['JournalVoucher']['jv_debit_ledger_head_id'] != '') {
-
-                        $txnJvType = "debit";
-
-                        $jvAmt = $jvData['JournalVoucher']['jv_amount_debited'];
-
-                        $JVPARTICULAR = "JV Debited. V.No ".$jvData['JournalVoucher']['voucher_no'];
-
-                    }
-
-
-
-                    if ($jvData['JournalVoucher']['jv_credit_ledger_head_id'] != '') {
-
-                        $txnJvType = "credit";
-
-                        $jvAmt = $jvData['JournalVoucher']['jv_amount_credited'];
-
-                        $JVPARTICULAR = "JV Credited. V.No ".$jvData['JournalVoucher']['voucher_no'];
-
-                    }
-
-
-
-                    $paymentDate = isset($jvData['JournalVoucher']['voucher_date']) ? date('d/m/Y',strtotime($jvData['JournalVoucher']['voucher_date'])) : "";
-
-                    $formattedDate = isset($jvData['JournalVoucher']['voucher_date']) ? date('Y-m-d',strtotime($jvData['JournalVoucher']['voucher_date'])) : "";
-
-                    $societyPaymentData[] = array('particularNote' => $JVPARTICULAR,'payment_date' => $paymentDate,'formatted_date' => $formattedDate,'amount' => $jvAmt, 'txn_type' => $txnJvType);
-
-                }
-
-            }
-
-            
-
-            usort($societyPaymentData,array($this,"sortMultiDimentionalArray"));
-
-
-            $societyLedgerHeadsDetails['ledgerPaymentData'] = $societyPaymentData;
-
-            $societyLedgerHeadsDetails['txn_type'] = $txnType;
-
-            $this->controller->set('societyLedgerHeadsDetails', $societyLedgerHeadsDetails);
-
+        $this->controller->set('societyLedgerHeadsDetails', $societyLedgerHeadsDetails);
 	    $this->controller->set('societyLedgerHeadsLists', $societyLedgerHeadsLists);
-
-        }
 
     }
 

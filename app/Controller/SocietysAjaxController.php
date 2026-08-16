@@ -1155,9 +1155,80 @@ print_r($memberBills);
 }
 
 
+public function updateAllOpeningBalances() {
+    $this->layout = false;
+    $response = array('error' => 1, 'error_message' => 'Opening Balances could not be updated.');
+
+    if ($this->RequestHandler->isAjax()) {
+        $this->autoRender = false;
+        $this->loadModel('SocietyLedgerHeads');
+        $societyLoginID = $this->Session->read('Auth.User.id');
+        $financialYearId = $this->Session->read('Auth.year_id') - 1;
+        $balances = isset($this->request->data['balances']) ? $this->request->data['balances'] : array();
+
+        if (!empty($balances)) {
+            App::import('model', 'LedgerHeadOpeningModel');
+            $ledgerHeadOpening = new LedgerHeadOpeningModel();
+
+            $ledgerHeads = $this->SocietyLedgerHeads->find('all', array(
+                'conditions' => array('SocietyLedgerHeads.society_id' => $societyLoginID, 'SocietyLedgerHeads.status' => Configure::read('Active')),
+                'fields' => array('SocietyLedgerHeads.id', 'SocietyLedgerHeads.account_category_id'),
+                'recursive' => -1
+            ));
+            $categoryMap = array();
+            foreach ($ledgerHeads as $lh) {
+                $categoryMap[$lh['SocietyLedgerHeads']['id']] = $lh['SocietyLedgerHeads']['account_category_id'];
+            }
+
+            foreach ($balances as $ledgerHeadId => $amount) {
+                $ledgerHeadId = (int)$ledgerHeadId;
+                $amount = floatval($amount);
+                $accountCategoryId = isset($categoryMap[$ledgerHeadId]) ? $categoryMap[$ledgerHeadId] : 0;
+
+                $existingData = $ledgerHeadOpening->find('first', array(
+                    'conditions' => array('ledger_head_id' => $ledgerHeadId, 'society_id' => $societyLoginID, 'financial_year_id' => $financialYearId),
+                    'recursive' => -1
+                ));
+
+                $opCredit = 0;
+                $opDebit = 0;
+                if ($accountCategoryId == 2) {
+                    $opDebit = $amount;
+                } else if ($accountCategoryId == 1) {
+                    $opCredit = $amount;
+                }
+
+                if (!empty($existingData)) {
+                    $ledgerHeadOpening->id = $existingData['LedgerHeadOpeningModel']['id'];
+                    $ledgerHeadOpening->save(array(
+                        'balance_amount' => $amount,
+                        'op_credit' => $opCredit,
+                        'op_debit' => $opDebit
+                    ));
+                } else {
+                    $ledgerHeadOpening->create();
+                    $ledgerHeadOpening->save(array(
+                        'financial_year_id' => $financialYearId,
+                        'society_id' => $societyLoginID,
+                        'ledger_head_id' => $ledgerHeadId,
+                        'account_category_id' => $accountCategoryId,
+                        'balance_amount' => $amount,
+                        'op_credit' => $opCredit,
+                        'op_debit' => $opDebit,
+                        'created_at' => date('Y-m-d H:i:s')
+                    ));
+                }
+            }
+            $response['error'] = 0;
+            $response['error_message'] = 'All Opening Balances updated successfully.';
+        }
+    }
+    return new CakeResponse(array('body' => json_encode($response), 'status' => 200));
+}
+
 public function add_society_ledger_heads() {
 
-        $this->layout = false; //Update add Society/Login 
+        $this->layout = false; //Update add Society/Login
 
         $response['error'] = 1;
 

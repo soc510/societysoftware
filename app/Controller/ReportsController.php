@@ -521,11 +521,18 @@ class ReportsController extends AppController {
 
         $options['AND'] = array('MemberBillSummary.society_id' => $this->societyloginID);
 
-
+        if (isset($this->request->data['MemberPayment']['bill_type']) && !empty($this->request->data['MemberPayment']['bill_type'])) {
+            $billType = $this->request->data['MemberPayment']['bill_type'];
+            if ($billType == 'Regular') {
+                $options['AND']['MemberBillSummary.bill_type'] = 'reg';
+            } else if ($billType == 'Supplementary') {
+                $options['AND']['MemberBillSummary.bill_type'] = 'sup';
+            }
+        }
 
         if (isset($this->request->data['MemberPayment']['payment_date']) && !empty($this->request->data['MemberPayment']['payment_date'])) {
 
-            $options['AND']['MemberBillSummary.bill_generated_date'] = $this->request->data['MemberPayment']['payment_date'];
+            $options['AND']['MemberBillSummary.bill_generated_date <='] = $this->request->data['MemberPayment']['payment_date'];
 
         }
 
@@ -541,8 +548,6 @@ class ReportsController extends AppController {
 
         }
 
-
-
         if (isset($this->request->data['MemberPayment']['due_amt']) && !empty($this->request->data['MemberPayment']['due_amt']) && !empty($this->request->data['MemberPayment']['adv_amt'])) {
 
             $options['OR']['MemberBillSummary.op_due_amount BETWEEN ? and ?'] = array($this->request->data['MemberPayment']['due_amt'], $this->request->data['MemberPayment']['adv_amt']);
@@ -556,8 +561,6 @@ class ReportsController extends AppController {
             $options['OR']['MemberBillSummary.op_due_amount'] = $this->request->data['MemberPayment']['adv_amt'];
 
         }
-
-
 
         if (isset($this->request->data['MemberPayment']['flat_no']) && !empty($this->request->data['MemberPayment']['flat_no']) && !empty($this->request->data['MemberPayment']['flat_no_to'])) {
 
@@ -575,11 +578,11 @@ class ReportsController extends AppController {
 
         if ($this->request->is(array('post'))) {
 
-            $societyMemberPassbook = $this->MemberBillSummary->find('all', array('contain' => array('Member'), 'conditions' => $options));
+            $societyMemberPassbook = $this->MemberBillSummary->find('all', array('contain' => array('Member'), 'conditions' => $options, 'order' => array('Member.flat_no' => 'asc', 'MemberBillSummary.bill_generated_date' => 'asc')));
 
         }
 
-        $this->set(compact('postData', 'options', 'societyMemberPassbook','societyDetails'));
+        $this->set(compact('postData', 'options', 'societyMemberPassbook', 'societyDetails'));
 
         //print_r($societyMemberPassbook);die;
 
