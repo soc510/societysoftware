@@ -2548,7 +2548,8 @@ class SocietysController extends AppController {
             move_uploaded_file($this->request->data['data']['file']['tmp_name'], $uploadFile);
 
             $data = $this->PhpExcel->loadWorksheet($uploadFile);
-            $sheetData = $data->getActiveSheet()->toArray(null, true, true, true);
+            $activeSheet = $data->getActiveSheet();
+            $sheetData = $activeSheet->toArray(null, true, true, true);
 
             $headers = $sheetData[1];
 
@@ -2566,13 +2567,29 @@ class SocietysController extends AppController {
                 'Notes'         => 'notes'
             );
 
+            $dateColumns = array();
             foreach ($headers as $key => $value) {
                 if ($value === null) { unset($headers[$key]); continue; }
                 $trimmed = trim($value);
-                if (!empty($mapping[$trimmed]))
+                if (!empty($mapping[$trimmed])) {
                     $headers[$key] = $mapping[$trimmed];
-                else
+                    if ($mapping[$trimmed] == 'payment_date' || $mapping[$trimmed] == 'cheque_date') {
+                        $dateColumns[$key] = $mapping[$trimmed];
+                    }
+                } else {
                     unset($headers[$key]);
+                }
+            }
+
+            foreach ($sheetData as $rowIdx => $rowData) {
+                if ($rowIdx == 1) continue;
+                foreach ($dateColumns as $colKey => $fieldName) {
+                    $rawVal = $activeSheet->getCell($colKey . $rowIdx)->getValue();
+                    if (is_numeric($rawVal) && $rawVal > 25000) {
+                        $unixDate = PHPExcel_Shared_Date::ExcelToPHP($rawVal);
+                        $sheetData[$rowIdx][$colKey] = date('d/m/Y', $unixDate);
+                    }
+                }
             }
             unset($sheetData[1]);
 
@@ -2602,6 +2619,7 @@ class SocietysController extends AppController {
             $addedPayment = 0;
             $failedCnt = 0;
             $failedReasons = array();
+            $failedRows = array();
             $billVoucherNumber = $this->SocietyBill->billVoucherNumber();
 
             if (!empty($sheetData)) {
@@ -2628,6 +2646,7 @@ class SocietysController extends AppController {
                         if (empty($aData['amount'])) $missing[] = 'Amount';
                         if (empty($aData['payment_date'])) $missing[] = 'PaymentDate';
                         $failedReasons[] = 'Row ' . $index . ': Missing ' . implode(', ', $missing);
+                        $failedRows[] = array('row' => $index, 'reason' => 'Missing ' . implode(', ', $missing), 'data' => $aData);
                         continue;
                     }
 
@@ -2653,6 +2672,7 @@ class SocietysController extends AppController {
                         } else {
                             $failedCnt++;
                             $failedReasons[] = 'Row ' . $index . ': Could not create ledger head "' . $ledgerTitle . '"';
+                            $failedRows[] = array('row' => $index, 'reason' => 'Could not create ledger head', 'data' => $aData);
                             continue;
                         }
                     }
@@ -2685,12 +2705,15 @@ class SocietysController extends AppController {
                     if (empty($paymentDate)) {
                         $failedCnt++;
                         $failedReasons[] = 'Row ' . $index . ': Invalid PaymentDate "' . $aData['payment_date'] . '"';
+                        $failedRows[] = array('row' => $index, 'reason' => 'Invalid PaymentDate', 'data' => $aData);
                         continue;
                     }
 
                     if (!$this->Util->isDateInCurrentFinancialYear($paymentDate)) {
                         $failedCnt++;
                         $failedReasons[] = 'Row ' . $index . ': PaymentDate ' . $paymentDate . ' not in current financial year';
+                        $aData['parsed_payment_date'] = $paymentDate;
+                        $failedRows[] = array('row' => $index, 'reason' => 'Date not in current financial year', 'data' => $aData);
                         continue;
                     }
 
@@ -2726,6 +2749,7 @@ class SocietysController extends AppController {
                     } else {
                         $failedCnt++;
                         $failedReasons[] = 'Row ' . $index . ': Database save failed';
+                        $failedRows[] = array('row' => $index, 'reason' => 'Database save failed', 'data' => $aData);
                     }
                 }
             }
@@ -2741,18 +2765,19 @@ class SocietysController extends AppController {
             if (empty($failedCnt) && $addedPayment > 0) {
                 $this->Session->setFlash(__($addedPayment . ' payment(s) imported successfully.'), 'success');
                 $this->redirect(array('action' => 'society_payments'));
-            } elseif (!empty($failedCnt) && !empty($addedPayment)) {
-                $this->Session->setFlash(__($addedPayment . ' payment(s) saved, ' . $failedCnt . ' record(s) failed.' . $errorDetail), 'error');
-                $this->redirect(array('action' => 'society_payments'));
-            } elseif (!empty($failedCnt) && empty($addedPayment)) {
-                $this->Session->setFlash(__('No payments could be saved. ' . $failedCnt . ' record(s) failed.' . $errorDetail), 'error');
-                $this->redirect(array('action' => 'add_society_payment_from_xls'));
+            } elseif (!empty($failedCnt)) {
+                $msg = !empty($addedPayment)
+                    ? $addedPayment . ' payment(s) saved, ' . $failedCnt . ' record(s) failed.'
+                    : 'No payments could be saved. ' . $failedCnt . ' record(s) failed.';
+                $this->Session->setFlash(__($msg), 'error');
+                $this->set('failedRows', $failedRows);
+                $this->set('failedCount', $failedCnt);
+                $this->set('savedCount', $addedPayment);
             }
 
             @unlink($uploadFile);
-        } else {
-            $this->set(compact('societyBankLists', 'societyCashLists', 'societyExpenseLedgerHeadsLists'));
         }
+        $this->set(compact('societyBankLists', 'societyCashLists', 'societyExpenseLedgerHeadsLists'));
     }
 
     public function downloadSampleFileForSocietyPayment() {

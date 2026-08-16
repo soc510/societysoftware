@@ -4651,5 +4651,85 @@ function getOpeningBalanceForthePeriod($date, $societyId, $ledgerHeadId) {
 
     }
 
+    public function saveFailedPayments() {
+        $this->autoRender = false;
+        if (!$this->request->is('post')) {
+            return new CakeResponse(array('body' => json_encode(array('status' => 'error', 'message' => 'Invalid request')), 'status' => 400));
+        }
+
+        $societyLoginID = $this->Session->read('Auth.User.id');
+        $financialYearId = $this->Util->getFinancialYear();
+
+        $input = json_decode(file_get_contents('php://input'), true);
+        $rows = isset($input['rows']) ? $input['rows'] : (isset($this->request->data['rows']) ? $this->request->data['rows'] : array());
+
+        $this->loadModel('SocietyPayment');
+        $this->loadModel('SocietyLedgerHeads');
+
+        $societyExpenseLedgerHeadsLists = $this->SocietyBill->societyAllLedgerHeadsLists();
+        $ledgerHeadsByTitle = array_flip($societyExpenseLedgerHeadsLists);
+        $societyBankLists = $this->SocietyBill->societyBankBalanceHeadsLists();
+        $societyCashLists = $this->SocietyBill->societyCashBalanceHeadsLists();
+        $bankByTitle = !empty($societyBankLists) ? array_flip($societyBankLists) : array();
+        $cashByTitle = !empty($societyCashLists) ? array_flip($societyCashLists) : array();
+
+        $billVoucherNumber = $this->SocietyBill->billVoucherNumber();
+        $saved = 0;
+        $failed = 0;
+
+        foreach ($rows as $r) {
+            $ledgerTitle = trim($r['debit_to']);
+            if (!isset($ledgerHeadsByTitle[$ledgerTitle])) {
+                $failed++;
+                continue;
+            }
+            $paymentDate = $r['payment_date'];
+            if (empty($paymentDate)) { $failed++; continue; }
+
+            $paymentType = !empty($r['payment_type']) ? $r['payment_type'] : 'Bank';
+            $paymentByLedgerId = 0;
+            if ($paymentType == 'Bank' && !empty($bankByTitle)) {
+                $paymentByLedgerId = reset($bankByTitle);
+            } elseif ($paymentType == 'Cash' && !empty($cashByTitle)) {
+                $paymentByLedgerId = reset($cashByTitle);
+            }
+
+            $amount = floatval($r['amount']);
+            $taxAmount = isset($r['tax_amount']) ? floatval($r['tax_amount']) : 0;
+            $totalAmount = $amount - $taxAmount;
+
+            $chequeDate = !empty($r['cheque_date']) ? $r['cheque_date'] : null;
+
+            $saveData = array('SocietyPayment' => array(
+                'ledger_head_id'           => $ledgerHeadsByTitle[$ledgerTitle],
+                'payment_date'             => $paymentDate,
+                'payment_type'             => $paymentType,
+                'payment_by_ledger_id'     => $paymentByLedgerId,
+                'amount'                   => $amount,
+                'tax_amount'               => $taxAmount,
+                'total_amount'             => $totalAmount,
+                'cheque_reference_number'  => isset($r['cheque_no']) ? $r['cheque_no'] : '',
+                'cheque_date'              => $chequeDate,
+                'bill_voucher_number'      => !empty($r['voucher_no']) ? $r['voucher_no'] : $billVoucherNumber,
+                'particulars'              => isset($r['particulars']) ? $r['particulars'] : '',
+                'notes'                    => isset($r['notes']) ? $r['notes'] : '',
+                'society_id'               => $societyLoginID,
+                'financial_year_id'        => $financialYearId,
+                'cdate'                    => date('Y-m-d H:i:s'),
+                'udate'                    => date('Y-m-d H:i:s')
+            ));
+
+            $this->SocietyPayment->create();
+            if ($this->SocietyPayment->save($saveData)) {
+                $saved++;
+                $billVoucherNumber++;
+            } else {
+                $failed++;
+            }
+        }
+
+        return new CakeResponse(array('body' => json_encode(array('status' => 'success', 'saved' => $saved, 'failed' => $failed)), 'status' => 200));
+    }
+
 }
 
