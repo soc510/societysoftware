@@ -183,35 +183,27 @@ if ($db != 'default'){
                                         </thead>
                                         <tbody id="ledger_details">
                                             <?php
-                                            $societyLedgerHeadsDetails = []; // added just to remove from by default loading anything
-                                            if(isset($societyLedgerHeadsDetails['txn_type']) && $societyLedgerHeadsDetails['txn_type'] == 'debit') {
-                                                $openingDebit = $societyLedgerHeadsDetails['SocietyLedgerHeads']['opening_amount'];
-                                                $openingCredit = 0;
-                                                $openingBalance = $openingDebit;
-                                                $posReg = ' Dr.';
-                                            } else if(isset($societyLedgerHeadsDetails['txn_type']) && $societyLedgerHeadsDetails['txn_type'] == 'credit') {
-                                                $openingCredit = $societyLedgerHeadsDetails['SocietyLedgerHeads']['opening_amount'];
-                                                $openingDebit = 0;
-                                                $openingBalance = $openingCredit;
-                                                $posReg = ' Cr.';
-                                            }
+                                            $openingDebit = 0;
+                                            $openingCredit = 0;
+                                            $openingBalance = 0;
+                                            $posReg = '';
                                             ?>
                                             <tr id="">
                                                 <td class="opening-bal"><?php echo $op;?></td>
                                                 <td class="opening-bal">Opening Balance</td>
-                                                <td class="opening-bal"><?php echo $openingDebit;?></td>
-                                                <td class="opening-bal"><?php echo $openingCredit;?></td>
-                                                <td class="opening-bal"><?php echo $openingBalance.''.$posReg;?></td>
+                                                <td class="opening-bal"></td>
+                                                <td class="opening-bal"></td>
+                                                <td class="opening-bal"></td>
                                             </tr>
 
-                                            
-                                            <?php if(isset($societyLedgerHeadsDetails['ledgerPaymentData'])) {
+
+                                            <?php if(isset($societyLedgerHeadsDetails['ledgerPaymentData']) && !empty($societyLedgerHeadsDetails['ledgerPaymentData'])) {
                                             $particularNote = 'To Payment';
-                                            
-                                            if($societyLedgerHeadsDetails['SocietyLedgerHeads']['is_in_bill_charges'] == 1) {
+
+                                            if(isset($societyLedgerHeadsDetails['SocietyLedgerHeads']['is_in_bill_charges']) && $societyLedgerHeadsDetails['SocietyLedgerHeads']['is_in_bill_charges'] == 1) {
                                                 $particularNote = 'By Bill';
                                             }
-                                            
+
                                             $indBalance = $openingBalance;
 
                                             foreach($societyLedgerHeadsDetails['ledgerPaymentData'] as $paymentData) {
