@@ -435,11 +435,11 @@ class SocietyBillComponent extends Component {
 
         //$societyMemberObj->Behaviors->attach('Containable');
 
-        $societyMemberLists = $societyMemberObj->find('first', array('contain' => array('Society', 'Building', 'Wing'), 'conditions' => array('Member.status' => Configure::read('Active'), 'Member.society_id' => $societyLoginID), 'order' => array('Member.id' => 'asc')));
+        $societyMemberLists = $societyMemberObj->find('first', array('conditions' => array('Member.status' => Configure::read('Active'), 'Member.society_id' => $societyLoginID), 'order' => array('Member.id' => 'asc'), 'recursive' => 0));
 
        
 
-        $societyMemberFlatList = $societyMemberObj->find('all', array('contain' => array('flat_no'), 'conditions' => array('Member.status' => Configure::read('Active'), 'Member.society_id' => $societyLoginID), 'fields'=>array('flat_no'), 'order' => array('Member.id' => 'asc')));
+        $societyMemberFlatList = $societyMemberObj->find('all', array('conditions' => array('Member.status' => Configure::read('Active'), 'Member.society_id' => $societyLoginID), 'fields'=>array('Member.id', 'Member.flat_no'), 'order' => array('Member.id' => 'asc'), 'recursive' => -1));
 
 
         if (isset($societyMemberLists['Member']['id'])) {
@@ -454,7 +454,7 @@ class SocietyBillComponent extends Component {
 
             $societyMemberBillPaymentData = array();
 
-            $memberBillSummary = $societyMemberObj->MemberBillSummary->find('all', array('conditions' => $condition));
+            $memberBillSummary = $societyMemberObj->MemberBillSummary->find('all', array('conditions' => $condition, 'recursive' => -1));
 
             
 

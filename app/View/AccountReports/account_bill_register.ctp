@@ -16,44 +16,27 @@
                             <form class="duesFromMemberFrm" method="post" id="duesFromMemberFrm" name="duesFromMemberFrm" data-parsley-trigger="blur" class="form_parsley" data-validate="parsley" autocomplete="off"> 
                                 <div class="col-md-8 member-tariff-left-box"> 
                                     <div class="row">
-                                        <div class="col-md-3 no-padding-right"> 
-                                            <div class="account-report-form-field-box">   
-                                                <div class="account-report-form-box-label">From Date &nbsp;</div>  
-                                                <!--input type="date" class="account-report-form-box-field-date" id="" name="data[MemberBillSummary][bill_generated_date]" value="<?php echo isset($postData['MemberBillSummary']['bill_generated_date']) ? $postData['MemberBillSummary']['bill_generated_date'] :'' ; ?>">-->
-                                                <input type="date" name="data[MemberBillSummary][bill_generated_date]" class="account-report-form-box-field-date-75"  value="<?php echo isset($postData['from_date']) ? $postData['from_date'] :'' ; ?>">
-                                                
-												<!--select class="account-report-form-box-field-date" name="data[MemberBillSummary][start_month]"-->
-
-                                                <?php 
-
-                                                    if(!empty($societyGeneratedBillMonths)){
-                                                        foreach($societyGeneratedBillMonths as $billData){ ?>
-                                                        <option value="<?= $billData['bill_month_id'];?>"><?= $billData['bill_month'];?></option>    
-                                                <?php
-                                                        }
-                                                    }
-                                                ?>
+                                        <div class="col-md-3 no-padding-right">
+                                            <div class="account-report-form-field-box">
+                                                <div class="account-report-form-box-label">From Month &nbsp;</div>
+                                                <select class="account-report-form-box-field-date-75" name="data[MemberBillSummary][from_month]">
+                                                    <option value="">Select Month</option>
+                                                    <?php if(isset($billMonthsList) && !empty($billMonthsList)) { foreach($billMonthsList as $monthNo => $monthLabel) { ?>
+                                                        <option value="<?php echo $monthNo; ?>" <?php if(isset($postData['MemberBillSummary']['from_month']) && $postData['MemberBillSummary']['from_month'] == $monthNo) echo 'selected'; ?>><?php echo $monthLabel; ?></option>
+                                                    <?php } } ?>
                                                 </select>
-                                            </div> 
+                                            </div>
                                         </div>
-                                        <div class="col-md-3 no-padding-right"> 
-                                            <div class="account-report-form-field-box">   
-                                                <div class="account-report-form-box-label">To Date &nbsp;</div>  
-												<input type="date" name="data[MemberBillSummary][bill_generated_date_to]"  class="account-report-form-box-field-date-75" id=""  value="<?php echo isset($postData['to_date']) ? $postData['to_date'] :'' ; ?>">
-                                                
-                                                <!--<input type="date" class="account-report-form-box-field-date" id="" name="data[MemberBillSummary][bill_generated_date_to]" value="<?php echo isset($postData['MemberBillSummary']['bill_generated_date_to']) ? $postData['MemberBillSummary']['bill_generated_date_to'] :'' ; ?>">-->
-                                            <!--select class="account-report-form-box-field-date" name="data[MemberBillSummary][end_month]" -->
-                                                <?php 
-
-                                                    if(!empty($societyGeneratedBillMonths)){
-                                                        foreach($societyGeneratedBillMonths as $billData){ ?>
-                                                        <option value="<?= $billData['bill_month_id'];?>"><?= $billData['bill_month'];?></option>    
-                                                <?php
-                                                        }
-                                                    }
-                                                ?>
-                                                </select>                                                
-                                            </div> 
+                                        <div class="col-md-3 no-padding-right">
+                                            <div class="account-report-form-field-box">
+                                                <div class="account-report-form-box-label">To Month &nbsp;</div>
+                                                <select class="account-report-form-box-field-date-75" name="data[MemberBillSummary][to_month]">
+                                                    <option value="">Select Month</option>
+                                                    <?php if(isset($billMonthsList) && !empty($billMonthsList)) { foreach($billMonthsList as $monthNo => $monthLabel) { ?>
+                                                        <option value="<?php echo $monthNo; ?>" <?php if(isset($postData['MemberBillSummary']['to_month']) && $postData['MemberBillSummary']['to_month'] == $monthNo) echo 'selected'; ?>><?php echo $monthLabel; ?></option>
+                                                    <?php } } ?>
+                                                </select>
+                                            </div>
                                         </div>
                                         <div class="col-md-3 no-padding-right"> 
                                             <div class="account-report-form-field-box">   
@@ -181,7 +164,7 @@
                                                             <th>For</th>
                                                             <th width="5%">Bill No</th>
                                                             <th>Bill Date</th>
-                                                            <?php foreach($uniqueTariffsInBills as $billLedgerId=>$billLedgerTitle) {
+                                                            <?php if(isset($uniqueTariffsInBills)) foreach($uniqueTariffsInBills as $billLedgerId=>$billLedgerTitle) {
                                                                 echo "<th>".substr($billLedgerTitle,0,5)."</th>";
                                                             } ?>
                                                             <th>Amount</th>
@@ -200,9 +183,9 @@
                                                     <tbody>
                                                 <?php
                                                 $tarrifVerticalTotal = array();
-                                                $monthlyAmtTotal = $inteAmtTotal = $billAmtTotal = $prinArrTotal = $inteArrTotal = $taxArrTotal = $payAmtTotal = $paidAmtTotal = $adjuAmtTotal = $balanceAmtTotal = 0.00;
+                                                $monthlyAmtTotal = $inteAmtTotal = $billAmtTotal = $prinArrTotal = $inteArrTotal = $taxArrTotal = $payAmtTotal = $paidAmtTotal = $adjuAmtTotal = $discountAmtTotal = $balanceAmtTotal = 0.00;
                                                 $sr=1;
-                                                foreach($billRegisterData as $billId=>$billDetails) {
+                                                if(isset($billRegisterData)) foreach($billRegisterData as $billId=>$billDetails) {
                                                     $billSummary = $billDetails['MemberBillSummary'];                                                    
                                                     $monthlyAmtTotal +=$billSummary['monthly_amount'];
                                                     $inteAmtTotal +=$billSummary['interest_on_due_amount'];
@@ -234,7 +217,7 @@
                                                             <td><?php echo $billSummary['bill_no']; ?></td>
                                                             <td><?php echo $utilObj->getFormatDate($billSummary['bill_generated_date'],'d/m/Y'); ?></td>
 
-                                                    <?php foreach($uniqueTariffsInBills as $billLedgerId=>$billLedgerTitle) {
+                                                    <?php if(isset($uniqueTariffsInBills)) foreach($uniqueTariffsInBills as $billLedgerId=>$billLedgerTitle) {
                                                         $amount = 0.00;
                                                         if(isset($billTariffs[$billLedgerId])) {
                                                            $amount = $billTariffs[$billLedgerId];

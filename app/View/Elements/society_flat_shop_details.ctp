@@ -22,6 +22,9 @@ $op = date('d/m/Y',strtotime($this->Session->read('Auth.year_start_date')));
 .select2-container--default {
     width: 74% !important;
 }
+#flat_shop_details .select2-container {
+    width: 75% !important;
+}
 </style>
 <!-- Modal for flat/shop Details -->
 <div class="modal fade" id="flat_shop_details" role="dialog">
@@ -71,7 +74,7 @@ $op = date('d/m/Y',strtotime($this->Session->read('Auth.year_start_date')));
                 <?php 
                     if(isset($societyMemberFlatList) && count($societyMemberFlatList) > 0){
                         foreach($societyMemberFlatList as $flatNo => $FlatList){ ?>
-                            <option value="<?php echo $FlatList['Member']['flat_no'];?>"><?php echo $FlatList['Member']['flat_no'];?></option>
+                            <option value="<?php echo $FlatList['Member']['flat_no'];?>" <?php if(isset($societyMemberLists['Member']['flat_no']) && $societyMemberLists['Member']['flat_no'] == $FlatList['Member']['flat_no']) echo 'selected'; ?>><?php echo $FlatList['Member']['flat_no'];?></option>
                     <?php
                     }
                 }
@@ -530,4 +533,17 @@ function renderOldMemberLedger(resp) {
     var totBal = td - tc;
     tb.append('<tr style="font-weight:bold;"><td colspan="2" class="text-right">Total</td><td class="text-right">' + td.toFixed(2) + '</td><td class="text-right">' + tc.toFixed(2) + '</td><td class="text-right">' + Math.abs(totBal).toFixed(2) + ' ' + np(totBal) + '</td></tr>');
 }
+</script>
+<script type="text/javascript">
+$(document).ready(function() {
+    $('#flat_shop_details').on('shown.bs.modal', function () {
+        if ($.fn.select2) {
+            $('#member_unit_no').select2({
+                dropdownParent: $('#flat_shop_details'),
+                placeholder: 'Search flat no...',
+                allowClear: false
+            });
+        }
+    });
+});
 </script>

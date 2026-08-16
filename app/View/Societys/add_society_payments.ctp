@@ -11,6 +11,10 @@
                     <div class="pull-left">
                         <h6 class="panel-title txt-dark">Society Payments</h6>
                     </div>
+                    <div class="pull-right">
+                        <a class="btn btn-success btn-sm" href="<?php echo $this->Html->url(array('controller' => 'societys', 'action' => 'downloadSampleFileForSocietyPayment')); ?>"><i class="fa fa-download" style="color:#fff;font-size:10px;"></i>&nbsp;Download Excel Template</a>
+                        <a class="btn btn-info btn-sm" href="<?php echo $this->Html->url(array('controller' => 'societys', 'action' => 'add_society_payment_from_xls')); ?>"><i class="fa fa-upload" style="color:#fff;font-size:10px;"></i>&nbsp;Import from Excel</a>
+                    </div>
                     <div class="clearfix"></div>
                 </div>
                 <div class="panel-wrapper collapse in">
