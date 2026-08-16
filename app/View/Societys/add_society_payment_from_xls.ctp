@@ -85,13 +85,13 @@
                         <?php foreach($failedRows as $idx => $fRow) {
                             $d = $fRow['data'];
                             $parsedDate = isset($d['parsed_payment_date']) ? $d['parsed_payment_date'] : (isset($d['payment_date']) ? $d['payment_date'] : '');
-                            $displayDate = '';
+                            $dateForInput = '';
                             if(!empty($parsedDate)) {
-                                $ts = strtotime($parsedDate);
-                                if($ts) {
-                                    $displayDate = date('d/m/Y', $ts);
+                                if(preg_match('/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/', $parsedDate, $m)) {
+                                    $dateForInput = $m[3].'-'.$m[2].'-'.$m[1];
                                 } else {
-                                    $displayDate = $parsedDate;
+                                    $ts = strtotime($parsedDate);
+                                    if($ts) $dateForInput = date('Y-m-d', $ts);
                                 }
                             }
                         ?>
@@ -99,7 +99,7 @@
                             <td><input type="checkbox" class="failed_row_chk" data-idx="<?php echo $idx; ?>"></td>
                             <td><?php echo $fRow['row']; ?></td>
                             <td class="failed_debit_to"><?php echo isset($d['ledger_head_title']) ? htmlspecialchars($d['ledger_head_title']) : ''; ?></td>
-                            <td><input type="text" class="form-control input-sm failed_payment_date" value="<?php echo htmlspecialchars($displayDate); ?>" placeholder="dd/mm/yyyy" style="width:120px;"></td>
+                            <td><input type="date" class="form-control input-sm failed_payment_date" value="<?php echo htmlspecialchars($dateForInput); ?>" style="width:150px;"></td>
                             <td class="failed_payment_type"><?php echo isset($d['payment_type']) ? htmlspecialchars($d['payment_type']) : 'Bank'; ?></td>
                             <td class="failed_amount"><?php echo isset($d['amount']) ? htmlspecialchars($d['amount']) : '0'; ?></td>
                             <td class="failed_tax_amount"><?php echo isset($d['tax_amount']) ? htmlspecialchars($d['tax_amount']) : '0'; ?></td>
@@ -167,17 +167,7 @@
 
 </div>
 
-<link rel="stylesheet" href="https://code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css">
 <script>
-$(function(){
-    $('.failed_payment_date').datepicker({
-        dateFormat: 'dd/mm/yy',
-        changeMonth: true,
-        changeYear: true,
-        yearRange: '2020:2030'
-    });
-});
-
 function toggleAllFailed(el) {
     var checkboxes = document.querySelectorAll('.failed_row_chk');
     for (var i = 0; i < checkboxes.length; i++) {
@@ -201,7 +191,7 @@ function getSelectedRows() {
         var chqDateVal = tr.querySelector('.failed_cheque_date').innerText.trim();
         rows.push({
             debit_to: tr.querySelector('.failed_debit_to').innerText.trim(),
-            payment_date: ddmmyyyyToYmd(payDateVal),
+            payment_date: payDateVal,
             payment_type: tr.querySelector('.failed_payment_type').innerText.trim() || 'Bank',
             amount: tr.querySelector('.failed_amount').innerText.trim(),
             tax_amount: tr.querySelector('.failed_tax_amount').innerText.trim(),
