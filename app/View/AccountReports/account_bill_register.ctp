@@ -181,7 +181,7 @@
                                                             <th>For</th>
                                                             <th width="5%">Bill No</th>
                                                             <th>Bill Date</th>
-                                                            <?php foreach($uniqueTariffsInBills as $billLedgerId=>$billLedgerTitle) {
+                                                            <?php if(isset($uniqueTariffsInBills)) foreach($uniqueTariffsInBills as $billLedgerId=>$billLedgerTitle) {
                                                                 echo "<th>".substr($billLedgerTitle,0,5)."</th>";
                                                             } ?>
                                                             <th>Amount</th>
@@ -202,7 +202,7 @@
                                                 $tarrifVerticalTotal = array();
                                                 $monthlyAmtTotal = $inteAmtTotal = $billAmtTotal = $prinArrTotal = $inteArrTotal = $taxArrTotal = $payAmtTotal = $paidAmtTotal = $adjuAmtTotal = $balanceAmtTotal = 0.00;
                                                 $sr=1;
-                                                foreach($billRegisterData as $billId=>$billDetails) {
+                                                if(isset($billRegisterData)) foreach($billRegisterData as $billId=>$billDetails) {
                                                     $billSummary = $billDetails['MemberBillSummary'];                                                    
                                                     $monthlyAmtTotal +=$billSummary['monthly_amount'];
                                                     $inteAmtTotal +=$billSummary['interest_on_due_amount'];
@@ -234,7 +234,7 @@
                                                             <td><?php echo $billSummary['bill_no']; ?></td>
                                                             <td><?php echo $utilObj->getFormatDate($billSummary['bill_generated_date'],'d/m/Y'); ?></td>
 
-                                                    <?php foreach($uniqueTariffsInBills as $billLedgerId=>$billLedgerTitle) {
+                                                    <?php if(isset($uniqueTariffsInBills)) foreach($uniqueTariffsInBills as $billLedgerId=>$billLedgerTitle) {
                                                         $amount = 0.00;
                                                         if(isset($billTariffs[$billLedgerId])) {
                                                            $amount = $billTariffs[$billLedgerId];

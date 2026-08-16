@@ -230,7 +230,16 @@
                             }
                             ?>
                             <?php if ($show){ ?>
-                            <a type="button" data-toggle="tooltip" data-original-title="Member Ledger" class="btn btn-default" target="_blank" href="<?php echo Router::url(array('controller' =>'account_reports','action' =>'account_bill_register')); ?>"><span class="btn-text">Bill Register</span></a>   
+                            <a type="button" data-toggle="tooltip" data-original-title="Member Ledger" class="btn btn-default" target="_blank" href="<?php echo Router::url(array('controller' =>'account_reports','action' =>'account_bill_register')); ?>"><span class="btn-text">Bill Register</span></a>
+                            <?php } ?>
+                            <?php
+                            $show = true;
+                            if ($this->Session->read('Auth.User.role') == 'Member'){
+                                $show = false;
+                            }
+                            ?>
+                            <?php if ($show){ ?>
+                            <a type="button" data-toggle="tooltip" data-original-title="Member Chart" class="btn btn-default" target="_blank" href="<?php echo Router::url(array('controller' =>'account_reports','action' =>'member_chart')); ?>"><span class="btn-text">Member Chart</span></a>
                             <?php } ?>
                             <?php 
                             $show = true;

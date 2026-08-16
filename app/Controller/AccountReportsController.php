@@ -24299,7 +24299,129 @@ print_r($taxBillsSummaryDetails);exit;*/
 		
 		/***************** Closing balance code for Ledger Head Ends *************************/
 		//print_r($htmlData);
-		
+
+	}
+
+	function member_chart() {
+		$societyLoginID = $this->societyloginID;
+		$postData = $this->request->data;
+		$societyDetails = $this->SocietyBill->getSocietyDetails();
+		$financialYearId = $this->Util->getFinancialYear();
+
+		$this->loadModel('Member');
+		$this->loadModel('MemberBillGenerate');
+		$this->loadModel('MemberBillSummary');
+		$this->loadModel('MemberPayment');
+		$this->loadModel('SocietyLedgerHeads');
+
+		$memberChartData = array();
+		$uniqueLedgerHeads = array();
+
+		if ($this->request->is(array('post'))) {
+
+			$optionsMember['AND'] = array('Member.society_id' => $societyLoginID, 'Member.status' => Configure::read('Active'));
+
+			if (isset($postData['MemberChart']['building_id']) && !empty($postData['MemberChart']['building_id'])) {
+				$optionsMember['AND']['Member.building_id'] = $postData['MemberChart']['building_id'];
+			}
+			if (isset($postData['MemberChart']['wing_id']) && !empty($postData['MemberChart']['wing_id'])) {
+				$optionsMember['AND']['Member.wing_id'] = $postData['MemberChart']['wing_id'];
+			}
+			if (isset($postData['MemberChart']['flat_no']) && !empty($postData['MemberChart']['flat_no']) && !empty($postData['MemberChart']['flat_no_to'])) {
+				$optionsMember['OR']['Member.flat_no BETWEEN ? and ?'] = array($postData['MemberChart']['flat_no'], $postData['MemberChart']['flat_no_to']);
+			} else if (isset($postData['MemberChart']['flat_no_to']) && !empty($postData['MemberChart']['flat_no_to'])) {
+				$optionsMember['AND']['Member.flat_no'] = $postData['MemberChart']['flat_no_to'];
+			} else if (isset($postData['MemberChart']['flat_no']) && !empty($postData['MemberChart']['flat_no'])) {
+				$optionsMember['AND']['Member.flat_no'] = $postData['MemberChart']['flat_no'];
+			}
+
+			$this->Member->unbindModel(array('hasMany' => array('MemberTariffDetails', 'MemberTariff', 'MemberBillSummary', 'MemberPayment')), false);
+			$this->Member->unbindModel(array('belongsTo' => array('Society', 'Building', 'Wing')), false);
+
+			$membersList = $this->Member->find('all', array('conditions' => $optionsMember, 'order' => array('Member.flat_no' => 'asc')));
+
+			$billType = isset($postData['MemberChart']['bill_type']) ? $postData['MemberChart']['bill_type'] : 'reg';
+
+			$optionsBill = array();
+			$optionsBill['AND']['MemberBillSummary.society_id'] = $societyLoginID;
+			$optionsBill['AND']['MemberBillSummary.financial_year_id'] = $financialYearId;
+			$optionsBill['AND']['MemberBillSummary.bill_type'] = $billType;
+
+			if (isset($postData['MemberChart']['from_date']) && !empty($postData['MemberChart']['from_date']) && isset($postData['MemberChart']['to_date']) && !empty($postData['MemberChart']['to_date'])) {
+				$optionsBill['AND']['MemberBillSummary.bill_generated_date >='] = $postData['MemberChart']['from_date'];
+				$optionsBill['AND']['MemberBillSummary.bill_generated_date <='] = $postData['MemberChart']['to_date'];
+			}
+
+			$ledgerHeadsList = $this->SocietyLedgerHeads->find('all', array(
+				'conditions' => array('SocietyLedgerHeads.society_id' => $societyLoginID, 'SocietyLedgerHeads.is_in_bill_charges' => 1),
+				'order' => array('SocietyLedgerHeads.id' => 'asc')
+			));
+			foreach ($ledgerHeadsList as $lh) {
+				$uniqueLedgerHeads[$lh['SocietyLedgerHeads']['id']] = $lh['SocietyLedgerHeads']['title'];
+			}
+
+			foreach ($membersList as $member) {
+				$memberId = $member['Member']['id'];
+				$openingBalance = floatval($member['Member']['op_principal']) + floatval($member['Member']['op_interest']) + floatval($member['Member']['op_tax']);
+
+				$memberBillOptions = $optionsBill;
+				$memberBillOptions['AND']['MemberBillSummary.member_id'] = $memberId;
+
+				$billSummaries = $this->MemberBillSummary->find('all', array('conditions' => $memberBillOptions, 'order' => array('MemberBillSummary.bill_no' => 'asc')));
+
+				$tariffTotals = array();
+				$totalBilled = 0;
+				$interestTotal = 0;
+				$gstTotal = 0;
+
+				foreach ($billSummaries as $bill) {
+					$billNo = $bill['MemberBillSummary']['bill_no'];
+					$interestTotal += floatval($bill['MemberBillSummary']['interest_on_due_amount']);
+					$gstTotal += floatval($bill['MemberBillSummary']['tax_total']);
+
+					$tariffs = $this->MemberBillGenerate->find('all', array('conditions' => array(
+						'MemberBillGenerate.society_id' => $societyLoginID,
+						'MemberBillGenerate.member_id' => $memberId,
+						'MemberBillGenerate.bill_number' => $billNo,
+						'MemberBillGenerate.bill_type' => $billType
+					)));
+
+					foreach ($tariffs as $t) {
+						$lhId = $t['MemberBillGenerate']['ledger_head_id'];
+						$amt = floatval($t['MemberBillGenerate']['amount']);
+						if (!isset($tariffTotals[$lhId])) $tariffTotals[$lhId] = 0;
+						$tariffTotals[$lhId] += $amt;
+						$totalBilled += $amt;
+					}
+				}
+
+				$totalBilled += $interestTotal + $gstTotal;
+
+				$paymentOptions = array('MemberPayment.society_id' => $societyLoginID, 'MemberPayment.member_id' => $memberId);
+				if (isset($postData['MemberChart']['from_date']) && !empty($postData['MemberChart']['from_date']) && isset($postData['MemberChart']['to_date']) && !empty($postData['MemberChart']['to_date'])) {
+					$paymentOptions['MemberPayment.payment_date >='] = $postData['MemberChart']['from_date'];
+					$paymentOptions['MemberPayment.payment_date <='] = $postData['MemberChart']['to_date'];
+				}
+				$totalPaid = $this->MemberPayment->find('first', array('conditions' => $paymentOptions, 'fields' => array('SUM(MemberPayment.amount_paid) as total_paid')));
+				$received = !empty($totalPaid[0]['total_paid']) ? floatval($totalPaid[0]['total_paid']) : 0;
+
+				$closingBalance = $openingBalance + $totalBilled - $received;
+
+				$memberChartData[$memberId] = array(
+					'flat_no' => $member['Member']['flat_no'],
+					'member_name' => $member['Member']['member_name'],
+					'opening_balance' => $openingBalance,
+					'tariffs' => $tariffTotals,
+					'interest' => $interestTotal,
+					'gst' => $gstTotal,
+					'total_billed' => $totalBilled,
+					'received' => $received,
+					'closing_balance' => $closingBalance
+				);
+			}
+		}
+
+		$this->set(compact('societyDetails', 'memberChartData', 'uniqueLedgerHeads', 'postData'));
 	}
 
 }
