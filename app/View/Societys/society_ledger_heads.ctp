@@ -17,7 +17,7 @@
                     <div class="panel-body">
                         <div class="table-wrap">
                             <div class="table-responsive">
-                                <table id="datable_ledger_heads" class="table table-striped table-bordered padding-th-none padding-td-none">
+                                <table id="datable_1" class="table table-striped table-bordered padding-th-none padding-td-none">
                                     <thead>
                                         <tr>
                                             <th>#</th>
@@ -64,12 +64,9 @@
     </div>
 </div>
 <script>
-$(document).ready(function(){
-    $('#datable_ledger_heads').DataTable({"pageLength": 100, "lengthMenu": [10, 25, 50, 100, 200]});
-});
 function updateAllOpeningBalances(){
     var balanceData = {};
-    var table = $('#datable_ledger_heads').DataTable();
+    var table = $('#datable_1').DataTable();
     table.$('.op-balance-input').each(function(){
         var ledgerId = $(this).data('ledger-id');
         var amount = $(this).val();
