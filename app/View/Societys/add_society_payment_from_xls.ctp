@@ -87,8 +87,11 @@
                             $parsedDate = isset($d['parsed_payment_date']) ? $d['parsed_payment_date'] : (isset($d['payment_date']) ? $d['payment_date'] : '');
                             $dateForInput = '';
                             if(!empty($parsedDate)) {
-                                if(preg_match('/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/', $parsedDate, $m)) {
-                                    $dateForInput = $m[3].'-'.$m[2].'-'.$m[1];
+                                $parsedDate = trim($parsedDate);
+                                if(preg_match('/^(\d{4})-(\d{1,2})-(\d{1,2})$/', $parsedDate, $m)) {
+                                    $dateForInput = sprintf('%s-%02d-%02d', $m[1], $m[2], $m[3]);
+                                } elseif(preg_match('/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/', $parsedDate, $m)) {
+                                    $dateForInput = sprintf('%s-%02d-%02d', $m[3], $m[2], $m[1]);
                                 } else {
                                     $ts = strtotime($parsedDate);
                                     if($ts) $dateForInput = date('Y-m-d', $ts);
@@ -101,14 +104,24 @@
                             <td class="failed_debit_to"><?php echo isset($d['ledger_head_title']) ? htmlspecialchars($d['ledger_head_title']) : ''; ?></td>
                             <td><input type="date" class="form-control input-sm failed_payment_date" value="<?php echo htmlspecialchars($dateForInput); ?>" style="width:150px;"></td>
                             <td class="failed_payment_type"><?php echo isset($d['payment_type']) ? htmlspecialchars($d['payment_type']) : 'Bank'; ?></td>
-                            <td class="failed_amount"><?php echo isset($d['amount']) ? htmlspecialchars($d['amount']) : '0'; ?></td>
+                            <td><input type="number" class="form-control input-sm failed_amount" value="<?php echo isset($d['amount']) ? htmlspecialchars($d['amount']) : '0'; ?>" style="width:100px;" step="0.01"></td>
                             <td class="failed_tax_amount"><?php echo isset($d['tax_amount']) ? htmlspecialchars($d['tax_amount']) : '0'; ?></td>
                             <td class="failed_cheque_no"><?php echo isset($d['cheque_reference_number']) ? htmlspecialchars($d['cheque_reference_number']) : ''; ?></td>
-                            <td class="failed_cheque_date"><?php
+                            <td><?php
                                 $chqDate = isset($d['cheque_date']) ? $d['cheque_date'] : '';
-                                if(!empty($chqDate)) { $chqTs = strtotime($chqDate); if($chqTs) $chqDate = date('d/m/Y', $chqTs); }
-                                echo htmlspecialchars($chqDate);
-                            ?></td>
+                                $chqDateForInput = '';
+                                if(!empty($chqDate)) {
+                                    $chqDate = trim($chqDate);
+                                    if(preg_match('/^(\d{4})-(\d{1,2})-(\d{1,2})$/', $chqDate, $cm)) {
+                                        $chqDateForInput = sprintf('%s-%02d-%02d', $cm[1], $cm[2], $cm[3]);
+                                    } elseif(preg_match('/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/', $chqDate, $cm)) {
+                                        $chqDateForInput = sprintf('%s-%02d-%02d', $cm[3], $cm[2], $cm[1]);
+                                    } else {
+                                        $chqTs = strtotime($chqDate);
+                                        if($chqTs) $chqDateForInput = date('Y-m-d', $chqTs);
+                                    }
+                                }
+                            ?><input type="date" class="form-control input-sm failed_cheque_date" value="<?php echo htmlspecialchars($chqDateForInput); ?>" style="width:150px;"></td>
                             <td class="failed_particulars"><?php echo isset($d['particulars']) ? htmlspecialchars($d['particulars']) : ''; ?></td>
                             <td class="failed_voucher_no"><?php echo isset($d['bill_voucher_number']) ? htmlspecialchars($d['bill_voucher_number']) : ''; ?></td>
                             <td><span class="label label-danger"><?php echo htmlspecialchars($fRow['reason']); ?></span></td>
@@ -187,16 +200,14 @@ function getSelectedRows() {
     var checkboxes = document.querySelectorAll('.failed_row_chk:checked');
     for (var i = 0; i < checkboxes.length; i++) {
         var tr = checkboxes[i].closest('tr');
-        var payDateVal = tr.querySelector('.failed_payment_date').value.trim();
-        var chqDateVal = tr.querySelector('.failed_cheque_date').innerText.trim();
         rows.push({
             debit_to: tr.querySelector('.failed_debit_to').innerText.trim(),
-            payment_date: payDateVal,
+            payment_date: tr.querySelector('.failed_payment_date').value.trim(),
             payment_type: tr.querySelector('.failed_payment_type').innerText.trim() || 'Bank',
-            amount: tr.querySelector('.failed_amount').innerText.trim(),
+            amount: tr.querySelector('.failed_amount').value.trim(),
             tax_amount: tr.querySelector('.failed_tax_amount').innerText.trim(),
             cheque_no: tr.querySelector('.failed_cheque_no').innerText.trim(),
-            cheque_date: ddmmyyyyToYmd(chqDateVal),
+            cheque_date: tr.querySelector('.failed_cheque_date').value.trim(),
             particulars: tr.querySelector('.failed_particulars').innerText.trim(),
             voucher_no: tr.querySelector('.failed_voucher_no').innerText.trim()
         });
@@ -273,10 +284,10 @@ function downloadFailedAsExcel() {
         var debitTo = tr.querySelector('.failed_debit_to').innerText.trim().replace(/,/g, ' ');
         var payDate = tr.querySelector('.failed_payment_date').value;
         var payType = tr.querySelector('.failed_payment_type').innerText.trim();
-        var amount = tr.querySelector('.failed_amount').innerText.trim();
+        var amount = tr.querySelector('.failed_amount').value.trim();
         var taxAmt = tr.querySelector('.failed_tax_amount').innerText.trim();
         var chequeNo = tr.querySelector('.failed_cheque_no').innerText.trim();
-        var chequeDate = tr.querySelector('.failed_cheque_date').innerText.trim();
+        var chequeDate = tr.querySelector('.failed_cheque_date').value.trim();
         var particulars = tr.querySelector('.failed_particulars').innerText.trim().replace(/,/g, ' ');
         var voucherNo = tr.querySelector('.failed_voucher_no').innerText.trim();
         var reason = tr.querySelector('.label-danger').innerText.trim().replace(/,/g, ' ');
