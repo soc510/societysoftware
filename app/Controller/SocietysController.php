@@ -82,8 +82,13 @@ class SocietysController extends AppController {
         $this->loadModel('MemberPayment');
         $this->loadModel('SocietyPayment');
 
+        $lightNavActions = array('society_payments');
         if (!$this->RequestHandler->isAjax()) {
-            $this->loadAllNavigationModals();
+            if(in_array($this->action, $lightNavActions)){
+                $this->SocietyBill->loadAllNavigationModalsDropdowns();
+            } else {
+                $this->loadAllNavigationModals();
+            }
         }
 
 
@@ -2248,13 +2253,23 @@ class SocietysController extends AppController {
         $societyPaymentData = [];
         
         $this->loadModel('SocietyPayment');        
+        $conditions = array('SocietyPayment.society_id' => $societyLoginID,'SocietyPayment.status'=>Configure::read('Active'),'SocietyPayment.financial_year_id' => $financialYearId);
+        if($this->request->is('post') && isset($this->request->data['Filter'])){
+            $filterData = $this->request->data['Filter'];
+            if(!empty($filterData['from_date'])){
+                $conditions['SocietyPayment.payment_date >='] = $filterData['from_date'];
+            }
+            if(!empty($filterData['to_date'])){
+                $conditions['SocietyPayment.payment_date <='] = $filterData['to_date'];
+            }
+        }
         $societyPayments = $this->SocietyPayment->find('all',array('fields'=>array('SocietyPayment.id','SocietyPayment.particulars',
         'SocietyPayment.bill_voucher_number',
         'SocietyPayment.payment_date','SocietyPayment.cheque_date','SocietyPayment.cheque_reference_number','SocietyPayment.payment_type',
         'SocietyLedgerHeads.account_category_id','SocietyLedgerHeads.title',
         'SocietyPayment.amount','SocietyPayment.total_amount','SocietyPayment.tax_amount',
-        'SocietyPayment.financial_year_id'),
-        'conditions' => array('SocietyPayment.society_id' => $societyLoginID,'SocietyPayment.status'=>Configure::read('Active'),'SocietyPayment.financial_year_id' => $financialYearId),
+        'SocietyPayment.financial_year_id','SocietyPayment.debited_date'),
+        'conditions' => $conditions,
         'order'=>array('SocietyPayment.payment_date' => 'desc'))); 
         
         if(!empty($societyPayments)){
@@ -2456,20 +2471,29 @@ class SocietysController extends AppController {
             if($this->Util->isDateInCurrentFinancialYear($paymentDate)){
 
                     
-                if ($this->SocietyPayment->save($this->request->data)) {  
-                        
+                if ($this->SocietyPayment->save($this->request->data)) {
+                    if($this->RequestHandler->isAjax()){
+                        $this->autoRender = false;
+                        echo json_encode(array('error'=>0,'error_message'=>'Society Payment saved successfully.'));
+                        return;
+                    }
                     $this->Session->setFlash(__('Society Payment saved successfully.'), 'success');
-                    
-    
                     $this->redirect(array('controller' => 'societys', 'action' => 'society_payments'));
-    
                 } else {
-    
+                    if($this->RequestHandler->isAjax()){
+                        $this->autoRender = false;
+                        echo json_encode(array('error'=>1,'error_message'=>'The SocietyPayment could not be saved.'));
+                        return;
+                    }
                     $this->Session->setFlash(__('The SocietyPayment could not be saved .'), 'error');
                 }
             }
             else {
-
+                if($this->RequestHandler->isAjax()){
+                    $this->autoRender = false;
+                    echo json_encode(array('error'=>1,'error_message'=>'The SocietyPayment could not be saved due payment Date.'));
+                    return;
+                }
                 $this->Session->setFlash(__('The SocietyPayment could not be saved due payment Date .'), 'error');
             }
 

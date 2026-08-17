@@ -3098,7 +3098,27 @@ public function getAllMemberTariffDetails(){
 
     }
 
-
+    public function updateSocietyPaymentField() {
+        $this->layout = false;
+        $response['error'] = 1;
+        $response['error_message'] = 'Could not update.';
+        if ($this->request->is('ajax')) {
+            $this->autoRender = false;
+            $this->loadModel('SocietyPayment');
+            $id = isset($this->request->data['id']) ? $this->request->data['id'] : null;
+            $field = isset($this->request->data['field']) ? $this->request->data['field'] : null;
+            $value = isset($this->request->data['value']) ? $this->request->data['value'] : '';
+            $allowedFields = array('payment_date','cheque_date','debited_date','cheque_reference_number');
+            if($id && $field && in_array($field, $allowedFields)){
+                $this->SocietyPayment->id = $id;
+                if($this->SocietyPayment->saveField($field, $value)){
+                    $response['error'] = 0;
+                    $response['error_message'] = 'Updated successfully.';
+                }
+            }
+        }
+        return new CakeResponse(array('body' => json_encode($response), 'status' => 200));
+    }
 
     public function bank_reconciliation() {
 
