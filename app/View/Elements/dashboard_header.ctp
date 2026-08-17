@@ -20,5 +20,8 @@
         <link href="https://www.jquery-az.com/jquery/css/jquery.multiselect.css">
            <?php if(!empty($this->params['action']) && $this->params['action'] == 'assign_societies' && $this->params['controller'] == 'admin'){?>
     <?php }?>
-        <link href="<?php echo $this->webroot; ?>css/custom_society.css" rel="stylesheet" type="text/css">
+        <?php /* ?version= like the js in dashboard_footer.ctp: without it this file
+                 stays cached in the browser after a deploy, so a CSS fix looks like
+                 it did nothing. Bump FileVersion in app/Config/app_config.php. */ ?>
+        <link href="<?php echo $this->webroot; ?>css/custom_society.css?version=<?php echo Configure::read('FileVersion');?>" rel="stylesheet" type="text/css">
 </head>

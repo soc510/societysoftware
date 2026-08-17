@@ -11,6 +11,10 @@
                     <div class="pull-left">
                         <h6 class="panel-title txt-dark">Society Payments</h6>
                     </div>
+                    <div class="pull-right">
+                        <a class="btn btn-success btn-sm" href="<?php echo $this->Html->url(array('controller' => 'societys', 'action' => 'downloadSampleFileForSocietyPayment')); ?>"><i class="fa fa-download" style="color:#fff;font-size:10px;"></i>&nbsp;Download Excel Template</a>
+                        <a class="btn btn-info btn-sm" href="<?php echo $this->Html->url(array('controller' => 'societys', 'action' => 'add_society_payment_from_xls')); ?>"><i class="fa fa-upload" style="color:#fff;font-size:10px;"></i>&nbsp;Import from Excel</a>
+                    </div>
                     <div class="clearfix"></div>
                 </div>
                 <div class="panel-wrapper collapse in">
@@ -186,9 +190,10 @@
                                     </div>
                                 </div>
                                 <div class="form-group mb-0 padding-0">
-                                     <div class="col-sm-offset-2 col-sm-10"> 
-                                        <button type="submit" data-toggle="tooltip" data-original-title="Make Payment" class="btn btn-success btn-anim" onclick=""><i class="icon-rocket"></i><span class="btn-text">Make Payment</span></button>                                        
-                                        <a type="button" data-toggle="tooltip" data-original-title="Go to member list" class="btn btn-success btn-anim" href="<?php echo Router::url(array('controller' =>'societys','action' =>'society_payments')); ?>"><i class="icon-rocket"></i><span class="btn-text">Cancel</span></a>                                                                            
+                                     <div class="col-sm-offset-2 col-sm-10">
+                                        <button type="button" id="btnMakePayment" data-toggle="tooltip" data-original-title="Make Payment" class="btn btn-success btn-anim" onclick="savePaymentAjax();"><i class="icon-rocket"></i><span class="btn-text">Make Payment</span></button>
+                                        <a type="button" data-toggle="tooltip" data-original-title="Go to member list" class="btn btn-success btn-anim" href="<?php echo Router::url(array('controller' =>'societys','action' =>'society_payments')); ?>"><i class="icon-rocket"></i><span class="btn-text">Cancel</span></a>
+                                        <span id="saveStatus" style="margin-left:10px;font-weight:bold;"></span>
                                      </div>
                                 </div>
                             </form>
@@ -199,4 +204,48 @@
         </div>
     </div>
 </div>
+<script>
+function savePaymentAjax(){
+    var btn = document.getElementById('btnMakePayment');
+    var status = document.getElementById('saveStatus');
+    var form = document.getElementById('societyPaymentsForm');
+
+    if(!form.checkValidity()){
+        form.reportValidity();
+        return;
+    }
+
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Saving...';
+    status.innerHTML = '';
+
+    $.ajax({
+        type: "POST",
+        url: window.location.href,
+        data: $('#societyPaymentsForm').serialize(),
+        dataType: 'json',
+        headers: {'X-Requested-With': 'XMLHttpRequest'},
+        success: function(resp){
+            btn.disabled = false;
+            btn.innerHTML = '<i class="icon-rocket"></i><span class="btn-text">Make Payment</span>';
+            if(resp.error == 0){
+                status.style.color = '#5cb85c';
+                status.innerHTML = resp.error_message;
+                setTimeout(function(){
+                    window.location.href = webrootUrl + 'societys/society_payments';
+                }, 500);
+            } else {
+                status.style.color = '#d9534f';
+                status.innerHTML = resp.error_message;
+            }
+        },
+        error: function(){
+            btn.disabled = false;
+            btn.innerHTML = '<i class="icon-rocket"></i><span class="btn-text">Make Payment</span>';
+            status.style.color = '#d9534f';
+            status.innerHTML = 'Error saving payment.';
+        }
+    });
+}
+</script>
 

@@ -36,3 +36,11 @@
 *.woff binary
 *.ttf binary
 *.eot binary
+
+# Files whose lines end in \r\r\n. `* text eol=lf` above would rewrite every
+# line of them on the next commit, burying a one-line change in a whole-file
+# whitespace diff. `-text` stops the conversion; `diff` keeps them readable in
+# a diff anyway, which plain `-text` alone would not.
+# Fix the endings properly in a commit of their own, then drop the entry.
+app/webroot/css/custom_society.css -text diff
+app/Config/app_config.php -text diff

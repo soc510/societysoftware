@@ -96,14 +96,33 @@
                                 <div class="clearfix"></div>
                                 
                                 <form class="" method="post" id="updateChequeClearDateFrm" name="updateChequeClearDateFrm" data-parsley-trigger="blur" class="form_parsley" data-validate="parsley" autocomplete="off">
-                                    <div class="col-md-2 ma-15 pull-right">
-                                        <input type="hidden" name="update_type" id="update_type" value="<?php if(isset($postData['MemberPayment']['reciept_type'])) { echo $postData['MemberPayment']['reciept_type'];}else{echo '';}?>" />
-                                        <button type="button" data-toggle="tooltip" data-original-title="" class="btn btn-warning  btn-sm <?php if(isset($postData['MemberPayment']['reciept_type']) && $postData['MemberPayment']['reciept_type'] != '') { echo '';}else{echo 'disabled';}?> " onclick="submitChequeClearForm()"><i class="icon-rocket"></i><span class="btn-text"> Update Clear Date</span></button>
+                                    <input type="hidden" name="update_type" id="update_type" value="<?php if(isset($postData['MemberPayment']['reciept_type'])) { echo $postData['MemberPayment']['reciept_type'];}else{echo '';}?>" />
+                                    <div class="row" style="margin:15px 0;">
+                                        <div class="col-md-2 pull-right" style="text-align:right;">
+                                            <button type="button" data-toggle="tooltip" data-original-title="" class="btn btn-warning btn-sm" onclick="submitChequeClearForm()" style="margin-top:22px;"><i class="icon-rocket"></i><span class="btn-text"> Update Clear Date</span></button>
+                                        </div>
+                                        <div class="col-md-3 pull-right">
+                                            <label class="control-label" style="color:#fff;background:#673ab7;padding:3px 8px;border-radius:3px;display:block;font-size:12px;">All Clear Date</label>
+                                            <div class="input-group input-group-sm">
+                                                <input type="date" class="form-control input-sm" id="all_clear_date" style="border:2px solid #673ab7;">
+                                                <span class="input-group-btn">
+                                                    <button type="button" class="btn btn-sm" style="background:#673ab7;color:#fff;border:2px solid #673ab7;" onclick="applyAllClearDate();">Apply</button>
+                                                    <button type="button" class="btn btn-sm" style="background:#e91e63;color:#fff;border:2px solid #e91e63;" onclick="applyAllUnclearDate();">Unclear</button>
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-2 pull-right">
+                                            <label class="control-label" style="color:#fff;background:#e91e63;padding:3px 8px;border-radius:3px;display:block;font-size:12px;">Search By Amount</label>
+                                            <input type="text" class="form-control input-sm" id="amount_filter" placeholder="Amount..." onkeyup="debounceFilter();" style="border:2px solid #e91e63;">
+                                        </div>
+                                        <div class="col-md-2 pull-right">
+                                            <label class="control-label" style="color:#fff;background:#009688;padding:3px 8px;border-radius:3px;display:block;font-size:12px;">Search By Cheque No</label>
+                                            <input type="text" class="form-control input-sm" id="cheque_no_filter" placeholder="Cheque No..." onkeyup="debounceFilter();" style="border:2px solid #009688;">
+                                        </div>
                                     </div>
-                                    <br>
                                     <div class="table-wrap">
                                         <div class="table-responsive1">
-                                            <table class="table table-striped table-bordered mb-0 padding-td-none padding-th-none">
+                                            <table class="table table-striped table-bordered mb-0 padding-td-none padding-th-none" id="cheque_clear_table">
                                                 <thead>
                                                     <tr>
                                                         <th>Flat No.</th>
@@ -114,6 +133,7 @@
                                                         <th>Cleared Date</th>
                                                         <th>Deposit</th>
                                                         <th>Withdraw</th>
+                                                        <th style="width:40px;text-align:center;"><input type="checkbox" id="select_all" onclick="toggleSelectAll(this);"></th>
                                                     </tr>
                                                 </thead>
                                                 <tbody>
@@ -129,15 +149,16 @@
                                                             $totalDeposit +=$finalData['deposit'];
                                                             $totalWithdraw +=$finalData['withdrawal'];
                                                          ?>
-                                                        <tr id="">
+                                                        <tr id="" class="data-row">
                                                             <td><?php echo isset($finalData['flat_no']) ? $finalData['flat_no'] : '';  ?></td>
                                                             <td><?php echo isset($finalData['voucher_no']) ? $finalData['voucher_no'] : '';  ?></td>
                                                             <td><?php echo isset($finalData['payment_date']) ? $utilObj->getFormatDate($finalData['payment_date'],'d-m-Y') :'';  ?></td>
-                                                            <td><?php echo isset($finalData['cheque_number']) ? $finalData['cheque_number'] :'';  ?></td>
-                                                            <td><?php echo isset($finalData['cheque_date']) ? $utilObj->getFormatDate($finalData['cheque_date'],'d-m-Y') :'';  ?></td>
-                                                            <td><input type="date" class="form-control" name="data[ClearChequePayment][<?php echo isset($finalData['id']) ? $finalData['id'] : '';  ?>][cleared_date]" id="cleared_date_<?php echo isset($finalData['id']) ? $finalData['id'] : '';  ?>" value="<?php echo (isset($finalData['cleared_date']) && $finalData['cleared_date'] != '0000-00-00') ? $utilObj->getFormatDate($finalData['cleared_date']) :'' ; ?>" ><input type="hidden" class="form-control" name="data[ClearChequePayment][<?php echo isset($finalData['id']) ? $finalData['id'] : '';  ?>][cheque_date]" id="cheque_date_<?php echo isset($finalData['id']) ? $finalData['id'] : '';  ?>" value="<?php echo isset($finalData['cheque_date']) ? $finalData['cheque_date'] :'';  ?>" ></td>
+                                                            <td><input type="text" class="form-control input-sm" name="data[ClearChequePayment][<?php echo isset($finalData['id']) ? $finalData['id'] : '';  ?>][cheque_number]" id="cheque_number_<?php echo isset($finalData['id']) ? $finalData['id'] : '';  ?>" value="<?php echo isset($finalData['cheque_number']) ? $finalData['cheque_number'] :'';  ?>" style="width:100px;"></td>
+                                                            <td><input type="date" class="form-control" name="data[ClearChequePayment][<?php echo isset($finalData['id']) ? $finalData['id'] : '';  ?>][cheque_date]" id="cheque_date_<?php echo isset($finalData['id']) ? $finalData['id'] : '';  ?>" value="<?php echo (isset($finalData['cheque_date']) && $finalData['cheque_date'] != '0000-00-00') ? $utilObj->getFormatDate($finalData['cheque_date']) :'';  ?>" ></td>
+                                                            <td><input type="date" class="form-control" name="data[ClearChequePayment][<?php echo isset($finalData['id']) ? $finalData['id'] : '';  ?>][cleared_date]" id="cleared_date_<?php echo isset($finalData['id']) ? $finalData['id'] : '';  ?>" value="<?php echo (isset($finalData['cleared_date']) && $finalData['cleared_date'] != '0000-00-00') ? $utilObj->getFormatDate($finalData['cleared_date']) :'' ; ?>" ></td>
                                                             <td><?php echo isset($finalData['deposit']) ? $finalData['deposit'] :'';  ?></td>
                                                             <td><?php echo isset($finalData['withdrawal']) ? $finalData['withdrawal'] :'';  ?></td>
+                                                            <td style="text-align:center;"><input type="checkbox" class="row-checkbox" data-id="<?php echo isset($finalData['id']) ? $finalData['id'] : '';  ?>" onclick="toggleRowCheckbox();"></td>
                                                         </tr>
                                                         <?php $idCount++; } ?>
                                                         <tr id="">
@@ -145,12 +166,14 @@
                                                             <td></td>
                                                             <td></td>
                                                             <td></td>
+                                                            <td></td>
                                                             <td style="font-weight:bold;">Total</td>
                                                             <td style="font-weight:bold;"><?php echo number_format($totalDeposit);  ?></td>
                                                             <td style="font-weight:bold;"><?php echo number_format($totalWithdraw);  ?></td>
+                                                            <td></td>
                                                         </tr>
                                                         <?php } else {?>
-                                                        <tr><td colspan="8"><center>Payment has not made for selected bank. </center></td></tr>
+                                                        <tr><td colspan="9"><center>Payment has not made for selected bank. </center></td></tr>
                                                         <?php }?>
                                                 </tbody>
                                             </table>
@@ -190,7 +213,59 @@
         document.getElementById("btnreconciliation").onclick = submitReconciliation;
         document.getElementById("btnreconciliationdetail").onclick = submitReconciliationDetail;
     };
-    function submitReconciliation(){    
+
+    function toggleSelectAll(source) {
+        var checkboxes = document.querySelectorAll('.row-checkbox');
+        for (var i = 0; i < checkboxes.length; i++) {
+            var row = checkboxes[i].closest('tr');
+            if (row && row.style.display !== 'none') {
+                checkboxes[i].checked = source.checked;
+            }
+        }
+    }
+
+    function toggleRowCheckbox() {
+        var total = document.querySelectorAll('.row-checkbox').length;
+        var checked = document.querySelectorAll('.row-checkbox:checked').length;
+        document.getElementById('select_all').checked = (total > 0 && total === checked);
+    }
+
+    function applyAllClearDate() {
+        var allDate = document.getElementById('all_clear_date').value;
+        if (allDate === '') {
+            alert('Please select a date first');
+            return;
+        }
+        var checkedBoxes = document.querySelectorAll('.row-checkbox:checked');
+        if (checkedBoxes.length === 0) {
+            alert('Please select at least one entry');
+            return;
+        }
+        for (var i = 0; i < checkedBoxes.length; i++) {
+            var id = checkedBoxes[i].getAttribute('data-id');
+            var clearedInput = document.getElementById('cleared_date_' + id);
+            if (clearedInput) {
+                clearedInput.value = allDate;
+            }
+        }
+    }
+
+    function applyAllUnclearDate() {
+        var checkedBoxes = document.querySelectorAll('.row-checkbox:checked');
+        if (checkedBoxes.length === 0) {
+            alert('Please select at least one entry');
+            return;
+        }
+        for (var i = 0; i < checkedBoxes.length; i++) {
+            var id = checkedBoxes[i].getAttribute('data-id');
+            var clearedInput = document.getElementById('cleared_date_' + id);
+            if (clearedInput) {
+                clearedInput.value = '';
+            }
+        }
+    }
+
+    function submitReconciliation(){
         if (document.getElementById("society_bank_id").value == '') {
             alert("Please select a Bank Name");
             return false;
@@ -199,8 +274,6 @@
             var payment_date = document.getElementById("payment_date").value;
             var payment_date_to = document.getElementById("payment_date_to").value;
             var postData = 'society_bank_id='+society_bank_id+'&payment_date='+payment_date+'&payment_date_to='+payment_date_to;
-            //$('#reconciliationModalBody').html(postData);
-            //            $('#reconciliationModal').modal('show');
             $.ajax({
                 type: "POST",
                 url: webrootUrl + 'societys_ajax/bank_reconciliation',
@@ -216,7 +289,7 @@
             });
         }
     }
-    function submitReconciliationDetail(){    
+    function submitReconciliationDetail(){
         if (document.getElementById("society_bank_id").value == '') {
             alert("Please select a Bank Name");
             return false;
@@ -225,8 +298,6 @@
             var payment_date = document.getElementById("payment_date").value;
             var payment_date_to = document.getElementById("payment_date_to").value;
             var postData = 'society_bank_id='+society_bank_id+'&payment_date='+payment_date+'&payment_date_to='+payment_date_to;
-            //$('#reconciliationModalBody').html(postData);
-            //            $('#reconciliationModal').modal('show');
             $.ajax({
                 type: "POST",
                 url: webrootUrl + 'societys_ajax/bank_reconciliation_detail',
@@ -258,7 +329,6 @@
                 sid = id.split('cleared_date_');
                 cheque_id = 'cheque_date_'+sid[1];
                 chequeDate = $('#'+cheque_id).val();
-                //alert(chequeDate);alert(clearedDate);
                 var x = new Date(chequeDate);
                 var y = new Date(clearedDate);
                 if (x.getTime() > y.getTime()) {
@@ -288,14 +358,37 @@
             return false;
     }
     }
-    function printReconcile(el){           
+    function printReconcile(el){
         $('#reconciliationModal').modal('hide');
         var restorepage = document.body.innerHTML;
         var printAllReports =  document.getElementById(el).innerHTML;
         document.body.innerHTML = printAllReports;
         window.print();
         document.body.innerHTML = restorepage;
-         
+
         window.location.reload();
+    }
+    var filterTimer = null;
+    function debounceFilter(){
+        if(filterTimer) clearTimeout(filterTimer);
+        filterTimer = setTimeout(function(){ filterTable(); }, 300);
+    }
+    function filterTable(){
+        var chequeNo = document.getElementById('cheque_no_filter').value.trim().toLowerCase();
+        var amount = document.getElementById('amount_filter').value.trim();
+        var rows = document.querySelectorAll('#cheque_clear_table tbody tr.data-row');
+        for(var i = 0; i < rows.length; i++){
+            var cells = rows[i].cells;
+            var chequeInput = cells[3].querySelector('input');
+            var rowChequeNo = chequeInput ? chequeInput.value.trim().toLowerCase() : '';
+            var rowDeposit = cells[6].textContent.trim();
+            var rowWithdraw = cells[7].textContent.trim();
+            var chequeMatch = (chequeNo === '' || rowChequeNo.indexOf(chequeNo) !== -1);
+            var amountMatch = true;
+            if(amount !== ''){
+                amountMatch = (rowDeposit.indexOf(amount) !== -1 || rowWithdraw.indexOf(amount) !== -1);
+            }
+            rows[i].style.display = (chequeMatch && amountMatch) ? '' : 'none';
+        }
     }
 </script>

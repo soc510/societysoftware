@@ -15,6 +15,23 @@
      $currentdb = '2021-22';
      $currentdb = $this->Session->read('Auth.start_year').'-'.$this->Session->read('Auth.end_year');
 
+     // Financial years this society is assigned to (society_year_mapping), for the
+     // header year switcher. Rendered as a dropdown below when there is more than one.
+     App::uses('ClassRegistry', 'Utility');
+     $__assignedYearOptions = array();
+     $__curYearId = $this->Session->read('Auth.year_id');
+     $__societyIdForYear = $this->Session->read('Auth.User.id');
+     if (!empty($__societyIdForYear)) {
+         $__yearMapModel = ClassRegistry::init('SocietyFinancialYearMapping');
+         $__yearMaps = $__yearMapModel->find('all', array('conditions' => array('SocietyFinancialYearMapping.society_id' => $__societyIdForYear, 'SocietyFinancialYearMapping.is_active' => 1), 'recursive' => -1));
+         $__assignedYearIds = array();
+         foreach ($__yearMaps as $__ym) { if (!empty($__ym['SocietyFinancialYearMapping']['year_id'])) { $__assignedYearIds[] = $__ym['SocietyFinancialYearMapping']['year_id']; } }
+         if (!empty($__assignedYearIds)) {
+             $__fyMasterModel = ClassRegistry::init('FinancialYearMaster');
+             $__assignedYearOptions = $__fyMasterModel->find('all', array('conditions' => array('FinancialYearMaster.id' => $__assignedYearIds, 'FinancialYearMaster.is_active' => 1), 'order' => array('FinancialYearMaster.year_start_date' => 'asc'), 'recursive' => -1));
+         }
+     }
+
     ?>
 
 
@@ -108,7 +125,21 @@
                    </div>
             </div>
            <?php } ?>
-            <div class="dash-top-header pull-left"><b><?php echo $currentdb;?></b></div>
+            <div class="dash-top-header pull-left">
+            <?php if (count($__assignedYearOptions) > 1) { ?>
+                <select onchange="if(this.value){window.location.href='<?php echo $this->webroot; ?>societys/change_financial_year/'+this.value;}" title="Change financial year" style="background:#fff;color:#333;border:1px solid #bbb;border-radius:4px;padding:3px 8px;font-weight:bold;font-size:14px;cursor:pointer;">
+                <?php foreach ($__assignedYearOptions as $__yo) {
+                    $__yid = $__yo['FinancialYearMaster']['id'];
+                    $__ytext = $__yo['FinancialYearMaster']['year'];
+                    $__isCur = ((!empty($__curYearId) && $__yid == $__curYearId) || $__ytext === $currentdb);
+                ?>
+                    <option value="<?php echo $__yid; ?>" style="color:#000;" <?php echo $__isCur ? 'selected' : ''; ?>><?php echo $__ytext; ?></option>
+                <?php } ?>
+                </select>
+            <?php } else { ?>
+                <b><?php echo $currentdb;?></b>
+            <?php } ?>
+            </div>
             <div class="dash-top-header pull-left block txt-dark weight-500 font-20"><b><?php echo isset($societyName) ?  $societyName : '';?></b></div>
             <div id="mobile_only_nav" class="mobile-only-nav pull-right">
                 <ul class="nav navbar-right top-nav pull-right">

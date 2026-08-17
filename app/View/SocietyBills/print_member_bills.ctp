@@ -9,6 +9,11 @@ if(isset($societyParameters['SocietyParameter']['show_bills_in_receipt']) && $so
 
 $showAllBillInTarrif = $societyParameters['SocietyParameter']['show_all_tariff_name'];
 
+$signatureImagePath = '';
+if(!empty($societyParameters['SocietyParameter']['signature_image_path'])){
+	$signatureImagePath = strchr($societyParameters['SocietyParameter']['signature_image_path'],'society_signature');
+}
+
 //  echo numberTowordsEnglish('12312.00');exit;
 ?>
 <div class="container-fluid">
@@ -288,7 +293,12 @@ $check_div = empty($memberReceipts)? 'none':'block';
                                             <div class="col-md-12 col-xs-12">
                                                 <p class="pull-right">For <?php echo $societyDetails['society_name'];?>&nbsp;&nbsp; </p>
                                                 <br> <br>
-                                                <p class="pull-right" style="margin-top:20px;" ><?php echo isset($societyDetails['authorised_person']) ? $societyDetails['authorised_person'] : 'Authorised Signature'; ?>&nbsp;&nbsp;</p>
+                                                <?php if (!empty($signatureImagePath)) { ?>
+                                                <div style="clear:both;text-align:right;">
+                                                    <?php echo $this->Html->image($signatureImagePath, array('height' => '45', 'style' => 'display:inline-block;', 'fullBase' => true, 'plugin' => false)); ?>&nbsp;&nbsp;
+                                                </div>
+                                                <?php } ?>
+                                                <p class="pull-right" style="margin-top:<?php echo !empty($signatureImagePath) ? '0' : '20px'; ?>;" ><?php echo isset($societyDetails['authorised_person']) ? $societyDetails['authorised_person'] : 'Authorised Signature'; ?>&nbsp;&nbsp;</p>
                                             </div>
                                             <div class="clearfix"></div>
                                             <div class="col-md-12 col-xs-12 special-field-text"><?php echo $societyParameters['SocietyParameter']['special_field']; ?></div>
@@ -383,12 +393,19 @@ $check_div = empty($memberReceipts)? 'none':'block';
                                                 <div class="col-md-7">
                                                     <p class="pull-right">For <?php echo $societyDetails['society_name'];?>&nbsp;&nbsp; </p>
                                                     <br> <br> <br>
+                                                    <?php if (!empty($signatureImagePath)) { ?>
+                                                    <div style="clear:both;text-align:right;">
+                                                        <?php echo $this->Html->image($signatureImagePath, array('height' => '45', 'style' => 'display:inline-block;', 'fullBase' => true, 'plugin' => false)); ?>&nbsp;&nbsp;
+                                                    </div>
+                                                    <?php } ?>
                                                     <p class="pull-right" style="marigin-top:20px;" ><?php echo isset($societyDetails['authorised_person']) ? $societyDetails['authorised_person'] : 'Authorised Signature'; ?>&nbsp;&nbsp;</p>
                                                 </div>
                                             </div>
                                             <div class="row">
                                            
-</div><div style="width:100%; text-align:right;">
+</div><?php /* Payment QR moved from the right to the left, opposite the
+             signature which stays on the right. */ ?>
+<div style="width:100%; text-align:left;">
 <?php
 if (!empty($societyParameters['SocietyParameter']['scanner_image_path'])) {
     echo $this->Html->image(

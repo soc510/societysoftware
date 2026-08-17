@@ -24,12 +24,27 @@ error_reporting(0);
                             <form class="" method="post" id="balanceSheetFrm" name="balanceSheetFrm" data-parsley-trigger="blur" class="form_parsley" data-validate="parsley" autocomplete="off"> 
                                 <div class="col-md-12 member-tariff-left-box"> 
                                     <div class="row">                                                       
-                                        <div class="col-md-3 nopadding1">  
-                                            <div class="account-report-form-field-box">     
-                                                <div class="account-report-form-field-box">   
-                                                    <div class="account-report-form-box-label">As On Date &nbsp;</div>  
-                                                    <input type="date" name='to_date'  class="account-report-form-box-field-date-50" id=""  value="<?php echo isset($postData['to_date']) ? $postData['to_date'] :'' ; ?>">
-                                                </div> 
+                                        <?php /* Only "As On Date" used to be here, and the controller ignored it -
+                                                 both ends came from the session financial year, so every run covered
+                                                 the whole year whatever was picked. Both ends are read now; leave
+                                                 either blank and that end falls back to the financial year. */ ?>
+                                        <div class="col-md-3 nopadding1">
+                                            <div class="account-report-form-field-box">
+                                                <div class="account-report-form-field-box">
+                                                    <div class="account-report-form-box-label">From &nbsp;</div>
+                                                    <?php /* Defaults to the selected financial year: 2025-2026 opens as
+                                                             01-04-2025 to 31-03-2026. Auth.year_start_date is already Y-m-d,
+                                                             which is what the date input needs. */ ?>
+                                                    <input type="date" name='from_date' class="account-report-form-box-field-date-50" id="" value="<?php echo !empty($postData['from_date']) ? $postData['from_date'] : $this->Session->read('Auth.year_start_date'); ?>">
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3 nopadding1">
+                                            <div class="account-report-form-field-box">
+                                                <div class="account-report-form-field-box">
+                                                    <div class="account-report-form-box-label">To &nbsp;</div>
+                                                    <input type="date" name='to_date'  class="account-report-form-box-field-date-50" id=""  value="<?php echo !empty($postData['to_date']) ? $postData['to_date'] : $this->Session->read('Auth.year_end_date'); ?>">
+                                                </div>
                                             </div>
                                         </div>
                                         <div class="col-md-3 nopadding1">  
@@ -41,14 +56,36 @@ error_reporting(0);
                                                 </div> 
                                             </div>
                                         </div>
-                                        <div class="col-md-6">                                
+                                        <?php /* Was col-md-6 next to a single date box. With From and To both
+                                                 present the row came to 15 of 12 columns and the buttons dropped
+                                                 below, so the button strip takes the full width of its own line. */ ?>
+                                        <div class="col-md-12">
                                             <div class="account-report-form-field-box">
                                                 <button type="submit" data-toggle="tooltip" data-original-title="" class="btn btn-success btn-sm btn-anim"><i class="icon-rocket"></i><span class="btn-text">Show</span></button>                                        
-                                                <a type="button" data-toggle="tooltip" data-original-title="Print Friendly" class="btn btn-success btn-anim btn-sm" href="javascript:void(0);" onclick="printAllReports('print_account_balancesheet');"><i class="fa fa-print"></i><span class="btn-text">Print Friendly</span></a>                                                                            
-                                                <a data-toggle="tooltip" data-original-title="Export to PDF" class="btn btn-success btn-anim btn-sm" href="javascript:void(0);" onclick=""><i class="fa fa-file-excel-o"></i><span class="btn-text">Export to PDF</span></a>  
-                                                <?php echo $this->Html->link('<i class="fa fa-download" style="color:#fff;font-size:10px;"></i> Export to Excel', array('controller'=>'excels_report','action' => 'download_account_balance_sheet','?' => array('to_date' => isset($postData['to_date']) ? base64_encode($postData['to_date']) : '','set_order' => isset($postData['set_order']) ? base64_encode($postData['set_order']) : '','order_liabilities' => isset($postData['order_liabilities']) ? base64_encode($postData['order_liabilities']) : '','order_assets' => isset($postData['order_assets']) ? base64_encode($postData['order_assets']) : '')), array('class' => 'btn btn-success btns','data-toggle' => 'tooltip', 'data-original-title' => 'download account balance sheet','escape' => false,'target' => '_blank')); ?> 
-                                                <a type="button" data-toggle="tooltip" data-original-title="Go to member payment list" class="btn btn-success btn-sm btn-anim" href=""><i class="icon-rocket"></i><span class="btn-text">Cancel</span></a>                                                                            
-                                              <div ><button type="button" class="btn btn-primary" onclick="export_product_excel()" value="Export" >Export  Excel</button></div>
+                                                <a type="button" data-toggle="tooltip" data-original-title="Print Friendly" class="btn btn-success btn-anim btn-sm" href="javascript:void(0);" onclick="printAllReports('print_account_balancesheet', 'landscape');"><i class="fa fa-print"></i><span class="btn-text">Print Friendly</span></a>                                                                            
+                                                <?php /* onclick was empty, then briefly the same as Print Friendly - which only opened the print dialog, so the button never produced a file. It now writes the PDF straight out. */ ?>
+                                                <a data-toggle="tooltip" data-original-title="Export to PDF" class="btn btn-success btn-anim btn-sm" href="javascript:void(0);" onclick="export_product_pdf();"><i class="fa fa-file-pdf-o"></i><span class="btn-text">Export to PDF</span></a>
+                                                <?php
+                                                /*
+                                                 * The server-side export (ExcelsReportController::download_account_balance_sheet)
+                                                 * is hidden, not removed.
+                                                 *
+                                                 * It is a hand-copied fork of account_balance_sheet() that has drifted badly:
+                                                 * none of its fourteen ledger queries filter on financial_year_id, so it sums
+                                                 * every year at once, and its dues/advance figures come from getMembersDueAmount(),
+                                                 * which has no society filter, no year filter and no date bounds. On a society
+                                                 * with five years of vouchers that is a 15x overstatement, and the dues column
+                                                 * can include other societies' members.
+                                                 *
+                                                 * Use the "Export Excel" button instead - it exports the table rendered above,
+                                                 * so it always agrees with what is on screen. Re-enable this only once the
+                                                 * fork shares the page's data builder.
+                                                 */
+                                                ?>
+                                                <a type="button" data-toggle="tooltip" data-original-title="Go to member payment list" class="btn btn-success btn-sm btn-anim" href=""><i class="icon-rocket"></i><span class="btn-text">Cancel</span></a>
+                                                <?php /* Was wrapped in its own <div>, which is block-level and dropped the
+                                                         button onto a second line; inline like the rest keeps the strip on one row. */ ?>
+                                                <a type="button" data-toggle="tooltip" data-original-title="Export to Excel" class="btn btn-success btn-sm btn-anim" href="javascript:void(0);" onclick="export_product_excel();"><i class="fa fa-download"></i><span class="btn-text">Export Excel</span></a>
                                             </div>
                                         </div>                                                         
                                     </div>  
@@ -64,6 +101,16 @@ error_reporting(0);
                                     </div>
                                     <div class="row1">
                                         <div class="report-bill">Balance Sheet </div>
+                                        <?php
+                                            // Shows the period the report covers, inside the print block so it
+                                            // carries into Print Friendly and the PDF. Falls back to the selected
+                                            // financial year when a run left an end blank.
+                                            $bsFrom = !empty($postData['from_date']) ? $postData['from_date'] : $this->Session->read('Auth.year_start_date');
+                                            $bsTo   = !empty($postData['to_date'])   ? $postData['to_date']   : $this->Session->read('Auth.year_end_date');
+                                            if (!empty($bsFrom) && !empty($bsTo)) {
+                                                echo '<div class="report-bill">' . date('d-M-Y', strtotime($bsFrom)) . ' to ' . date('d-M-Y', strtotime($bsTo)) . '</div>';
+                                            }
+                                        ?>
                                         <div class="text-center"></div>
                                         <div class="report-bill-outer-section">
                                             <div class="table-wrap1"><table id="" class="table table-bordered padding-td-none padding-th-none" >
@@ -148,19 +195,24 @@ error_reporting(0);
                                                                      $lastFlag = 'Dr';
                                                                  }
                                                                  
-                                                                 if($headCategory != 'Share Capital') {
-                                                                    $totalLiaOpening += $ledgerHeadDetails['openingAmount'];
-                                                                    $totalLiaTxn += $txnAmount;
-                                                                 }
+                                                                 /* Share Capital used to be skipped here, so the head printed its
+                                                                    own row but its opening balance and movement were left out of the
+                                                                    liability totals - the sheet then came up short by exactly that
+                                                                    head and could not agree with the asset side. It is a liability
+                                                                    like any other and belongs in the total; $totalLiaOpening and
+                                                                    $totalLiaTxn are added to in only two places (here and Advance
+                                                                    From Members), so counting it here cannot double it. */
+                                                                 $totalLiaOpening += $ledgerHeadDetails['openingAmount'];
+                                                                 $totalLiaTxn += $txnAmount;
                                                                                                                                   
                                                                  $openingPr = '';
                                                                  if(!empty($ledgerHeadDetails['openingAmount'])) {
-                                                                     $openingPr = number_format($ledgerHeadDetails['openingAmount'],2).' '.$openFlag;
+                                                                     $openingPr = number_format($ledgerHeadDetails['openingAmount'],2);
                                                                  }
                                                                  
                                                                  $txnPr = '';
                                                                  if(!empty($txnAmount)) {
-                                                                     $txnPr = number_format(abs($txnAmount),2).' '.$txnFlag;
+                                                                     $txnPr = number_format(abs($txnAmount),2);
                                                                  }
                                                                  
                                                                  
@@ -183,7 +235,7 @@ error_reporting(0);
                                                                     $headPr = '';
                                                                     if(!empty($ledgerHeadTotal)) {
                                                                         //echo $ledgerHeadTotal.'<br>';
-                                                                        $headPr = number_format(abs($ledgerHeadTotal),2).' '.$headFlag;
+                                                                        $headPr = number_format(abs($ledgerHeadTotal),2);
                                                                     }
                                                                  
                                                                     echo "<td style='font-weight:600;'>$headPr</td>";
@@ -235,12 +287,12 @@ error_reporting(0);
                                                                  
                                                                  $openingPr = '';
                                                                  if(!empty($advanceOpening)) {
-                                                                     $openingPr = number_format(abs($advanceOpening),2).' '.$openFlag;
+                                                                     $openingPr = number_format(abs($advanceOpening),2);
                                                                  }
                                                                  
                                                                  $txnPr = '';
                                                                  if(!empty($advanceTxn)) {
-                                                                     $txnPr = number_format(abs($advanceTxn),2).' '.$txnFlag;
+                                                                     $txnPr = number_format(abs($advanceTxn),2);
                                                                  }
                                                                  
                                                              echo "<tr>
@@ -296,12 +348,12 @@ error_reporting(0);
                                                          
                                                                  $openingPr = '';
                                                                  if(!empty($totalLiaOpening)) {
-                                                                     $openingPr = number_format(abs($totalLiaOpening),2).' '.$openFlag;
+                                                                     $openingPr = number_format(abs($totalLiaOpening),2);
                                                                  }
                                                                  
                                                                  $txnPr = '';
                                                                  if(!empty($totalLiaTxn)) {
-                                                                     $txnPr = number_format(abs($totalLiaTxn),2).' '.$txnFlag;
+                                                                     $txnPr = number_format(abs($totalLiaTxn),2);
                                                                  }
                                                                  
                                                          echo "<tr>
@@ -387,12 +439,12 @@ error_reporting(0);
                                                                                                                                   
                                                                  $openingPr = '';
                                                                  if(!empty($ledgerHeadDetails['openingAmount'])) {
-                                                                     $openingPr = number_format($ledgerHeadDetails['openingAmount'],2).' '.$openFlag;
+                                                                     $openingPr = number_format($ledgerHeadDetails['openingAmount'],2);
                                                                  }
                                                                  
                                                                  $txnPr = '';
                                                                  if(!empty($txnAmount)) {
-                                                                     $txnPr = number_format(abs($txnAmount),2).' '.$txnFlag;
+                                                                     $txnPr = number_format(abs($txnAmount),2);
                                                                  }
                                                                  
                                                                  echo "<tr>
@@ -413,7 +465,7 @@ error_reporting(0);
                                                                  
                                                                     $headPr = '';
                                                                     if(!empty($ledgerHeadTotal)) {
-                                                                        $headPr = number_format(abs($ledgerHeadTotal),2).' '.$headFlag;
+                                                                        $headPr = number_format(abs($ledgerHeadTotal),2);
                                                                     }
                                                                  
                                                                     echo "<td style='font-weight:600;'>$headPr</td>";
@@ -456,12 +508,12 @@ error_reporting(0);
                                                                  
                                                                  $openingPr = '';
                                                                  if(!empty($duesOpening)) {
-                                                                     $openingPr = number_format(abs($duesOpening),2).' '.$openFlag;
+                                                                     $openingPr = number_format(abs($duesOpening),2);
                                                                  }
                                                                  
                                                                  $txnPr = '';
                                                                  if(!empty($duesTxn)) {
-                                                                     $txnPr = number_format(abs($duesTxn),2).' '.$txnFlag;
+                                                                     $txnPr = number_format(abs($duesTxn),2);
                                                                  }
                                                              
                                                              
@@ -512,12 +564,12 @@ error_reporting(0);
                                                          
                                                                  $openingPr = '';
                                                                  if(!empty($totalAssetOpening)) {
-                                                                     $openingPr = number_format(abs($totalAssetOpening),2).' '.$openFlag;
+                                                                     $openingPr = number_format(abs($totalAssetOpening),2);
                                                                  }
                                                                  
                                                                  $txnPr = '';
                                                                  if(!empty($totalAssetTxn)) {
-                                                                     $txnPr = number_format(abs($totalAssetTxn),2).' '.$txnFlag;
+                                                                     $txnPr = number_format(abs($totalAssetTxn),2);
                                                                  }
                                                                  
                                                          echo "<tr>
@@ -535,18 +587,43 @@ error_reporting(0);
                                         </div>                                
                                     </div> 
                                     <br>
-                                <div class="row">
-                                    <div class="col-md-6 col-xs-6 text-left"><?php echo isset($resellerDetails['firstname']) ? $resellerDetails['firstname'] : ''; echo ' ';echo isset($resellerDetails['lastname']) ? $resellerDetails['lastname'] : ''; echo " ($resellerDetails[job_role]) "; ?></div>
-                                    <div class="col-md-6 col-xs-3 text-center"><?php echo isset($societyDetails['Society']['society_name']) ? $societyDetails['Society']['society_name'] : ''; ?></div>
-                                    <div class="clearfix"></div><br><br>
-                                    <div class="col-md-2 col-xs-3 text-left">License No : </div>
-                                    <div class="col-md-2 col-xs-3 text-left"><?php echo isset($resellerDetails['license_no']) ? $resellerDetails['license_no'] : ''; ?></div>
-                                    <div class="col-md-2 col-xs-3 text-center">&nbsp;</div>
-                                    
-                                    <div class="col-md-2 col-xs-3 text-center">Chairman</div>
-                                    <div class="col-md-2 col-xs-3 text-center">Secretary</div>
-                                    <div class="col-md-2 col-xs-3 text-center">Treasurer</div>
-                                </div>
+                                <?php
+                                    // Built the signature block as a table rather than a Bootstrap row.
+                                    // The col-md-* columns collapsed to full width in the print window,
+                                    // stacking the three signatures; a table keeps them side by side and
+                                    // evenly spaced on screen and in print alike.
+                                    $resellerName = trim((isset($resellerDetails['firstname']) ? $resellerDetails['firstname'] : '') . ' '
+                                                       . (isset($resellerDetails['lastname']) ? $resellerDetails['lastname'] : ''));
+                                    $resellerRole = isset($resellerDetails['job_role']) ? trim($resellerDetails['job_role']) : '';
+                                    // Only add the parentheses when there is a role - an empty reseller was
+                                    // printing a bare "()".
+                                    if ($resellerName !== '' && $resellerRole !== '') { $resellerName .= ' (' . $resellerRole . ')'; }
+                                    elseif ($resellerRole !== '') { $resellerName = '(' . $resellerRole . ')'; }
+                                ?>
+                                <?php /* report-signature is what the PDF and Excel exporters look for, so the
+                                         signed-off block travels with them the way it does with print. */ ?>
+                                <table class="report-signature" style="width:100%; margin-top:15px; border:0;">
+                                    <?php if ($resellerName !== '') { ?>
+                                    <tr><td colspan="3" style="text-align:left; border:0;"><?php echo h($resellerName); ?></td></tr>
+                                    <?php } ?>
+                                    <tr>
+                                        <td colspan="3" style="text-align:center; border:0;"><?php echo isset($societyDetails['Society']['society_name']) ? h($societyDetails['Society']['society_name']) : ''; ?></td>
+                                    </tr>
+                                    <tr><td colspan="3" style="border:0;">&nbsp;</td></tr>
+                                    <tr><td colspan="3" style="border:0;">&nbsp;</td></tr>
+                                    <tr>
+                                        <?php /* Chairman to the right of its third, Treasurer to the left of its
+                                                 own, Secretary centred between them - so the three sit as a group
+                                                 with an equal gap either side of Secretary instead of being
+                                                 stretched to the page edges. */ ?>
+                                        <?php /* The gap either side of Secretary is half the middle column, so
+                                                 the spacing is tuned by that width alone - keep the outer two
+                                                 equal and the group stays centred. */ ?>
+                                        <td style="text-align:right; border:0; width:42%;">Chairman</td>
+                                        <td style="text-align:center; border:0; width:16%;">Secretary</td>
+                                        <td style="text-align:left; border:0; width:42%;">Treasurer</td>
+                                    </tr>
+                                </table>
                                 </div> 
                             </div> 
                         </div>
@@ -614,17 +691,22 @@ error_reporting(0);
             </div>
         </div>
     </div>
-</div
-<script lang="javascript" src="dist/xlsx.full.min.js"></script>
+</div>
 <script type="text/javascript" src="https://unpkg.com/xlsx@0.15.1/dist/xlsx.full.min.js"></script>
+<script type="text/javascript" src="https://unpkg.com/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+<script type="text/javascript" src="https://unpkg.com/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
+<script type="text/javascript" src="<?php echo $this->webroot; ?>js/report_export.js?version=<?php echo Configure::read('FileVersion');?>"></script>
 <script>
+   // The report reading, the SpreadsheetML writer and the autoTable PDF all
+   // live in js/report_export.js so the income & expenditure statement, which
+   // has the same two-column shape, runs the identical code rather than a copy.
+   reportExport.alignOnReady('print_account_balancesheet');
+
    function export_product_excel(){
-      let export_to_excel_Balance__Sheet=document.getElementById('export_to_excel_balance_Sheet');
-      var pxe=XLSX.utils.table_to_book(export_to_excel_balance_sheet,{sheet:'Balance_Sheet'});
-      XLSX.write(pxe,{
-         bookType:'xlsx',
-         type:'base64'
-      });
-      XLSX.writeFile(pxe,'export_to_excel_balance_Sheet.xlsx');
+      reportExport.excel('print_account_balancesheet', 'Balance Sheet', 'BalanceSheet.xls');
+   }
+
+   function export_product_pdf(){
+      reportExport.pdf('print_account_balancesheet', 'BalanceSheet.pdf');
    }
 </script>

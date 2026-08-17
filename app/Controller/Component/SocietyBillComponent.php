@@ -184,8 +184,15 @@ class SocietyBillComponent extends Component {
 
 
         $financialYear = $this->getFinancialYearFromDate();
-        if (isset($financialYear) && $financialYear != '') {
-            $checkYear = isset($financialYear) ? substr($financialYear, 0, 4) : date('Y');
+
+        // getFinancialYearFromDate() concatenates Auth.start_year and Auth.end_year
+        // from the session. When neither is set - an admin who has not entered a
+        // society yet, or a session that expired - it returns a bare "-", which is
+        // not empty, so the old `!= ''` guard let it through. substr("-", 0, 4) is
+        // "-", and DateTime("--07-01") then throws, turning every screen that loads
+        // the nav dropdowns into a blank 500. Require a real 4-digit year instead.
+        $checkYear = substr((string)$financialYear, 0, 4);
+        if (ctype_digit($checkYear) && strlen($checkYear) === 4) {
             $checkMonth = date('m');
             $financialStartEndDate = $this->Util->getBillDateBilldueDateFromFinancialYearDate($checkYear, $checkMonth);
             if (isset($financialStartEndDate) && $financialStartEndDate != '') {
@@ -225,30 +232,14 @@ class SocietyBillComponent extends Component {
 
         App::import('model', 'SocietyLedgerHeads');
 
-        App::import('model','MemberBillGenerate');
-
-        App::import('model','SocietyPayment');
-
-        
-
         $societyLedgerHeadsObj = new SocietyLedgerHeads();
-
-        $memberBillGenerateObj = new MemberBillGenerate();
-
-        $societyPaymentObj = new SocietyPayment();
-
-        
 
         $societyLoginID = $this->Session->read('Auth.User.id');
 
-        //$societyLedgerHeadsObj->recursive = -1;
-
 	$societyLedgerHeadsLists = $societyLedgerHeadsObj->find('all', array('conditions' => array('SocietyLedgerHeads.society_id' => $societyLoginID, 'SocietyLedgerHeads.status' => Configure::read('Active')), 'fields' => array('SocietyLedgerHeads.id', 'SocietyLedgerHeads.title'), 'order' => array('SocietyLedgerHeads.title' => 'asc')));
 
-
-
         $societyLedgerHeadsDetails = $societyLedgerHeadsObj->find('first', array('conditions' => array('SocietyLedgerHeads.society_id' => $societyLoginID), 'order' => array('SocietyLedgerHeads.id' => 'asc')));
-    
+
         if(isset($societyLedgerHeadsDetails['AccountHead']['title']) && $societyLedgerHeadsDetails['AccountHead']['title']=='Income'){
             $societyLedgerHeadsDetails['SocietyLedgerHeads']['opening_amount']=0.00;
         }
@@ -261,150 +252,11 @@ class SocietyBillComponent extends Component {
 
         }
 
-        
+        $societyLedgerHeadsDetails['ledgerPaymentData'] = array();
+        $societyLedgerHeadsDetails['txn_type'] = '';
 
-        //print_r($societyCashBalanceHeadsLists);die;
-
-        
-
-        if (count($societyLedgerHeadsDetails) > 0) {
-
-            //Get society ledger head expenses and payments
-
-            $txnType = $societyLedgerHeadsDetails['AccountHead']['transaction_type'];
-
-            if (stripos($txnType, 'credit') !== false) {
-
-                $txnType = 'credit';
-
-            } else if (stripos($txnType, 'debit') !== false) {
-
-                $txnType = 'debit';
-
-            }
-
-
-
-            $isInBill = $societyLedgerHeadsDetails['SocietyLedgerHeads']['is_in_bill_charges'];
-
-
-
-            $societyPaymentData = array();
-
-
-
-            $societyLedgerHeadId = $societyLedgerHeadsDetails['SocietyLedgerHeads']['id'];
-
-
-
-            if ($isInBill == 0) {
-
-                $societyPayments = $societyPaymentObj->find('all', array('conditions' => array('SocietyPayment.ledger_head_id' => $societyLedgerHeadId, 'SocietyPayment.society_id' => $this->Session->read('Auth.User.id'))));
-
-                if (!empty($societyPayments)) {
-
-                    foreach ($societyPayments as $paymentDetails) {
-
-                        $paymentData = $paymentDetails['SocietyPayment'];
-
-                        $paymentDate = date('d/m/Y', strtotime($paymentData['payment_date']));
-
-                        $formattedDate = date('Y-m-d',strtotime($paymentData['bill_generated_date']));
-
-                        $societyPaymentData[] = array('payment_date' => $paymentDate,'formatted_date' => $formattedDate,'amount' => $paymentData['total_amount'], 'txn_type' => $txnType);
-
-                    }
-
-                }
-
-            } else {
-
-                $memberBills = $memberBillGenerateObj->find('all', array('conditions' => array('MemberBillGenerate.ledger_head_id' => $societyLedgerHeadId, 'MemberBillGenerate.society_id' => $this->Session->read('Auth.User.id'))));
-
-                if (!empty($memberBills)) {
-
-                    foreach ($memberBills as $paymentDetails) {
-
-                        $paymentData = $paymentDetails['MemberBillGenerate'];
-
-                        $paymentDate = date('d/m/Y', strtotime($paymentData['bill_generated_date']));
-
-                        $formattedDate = date('Y-m-d',strtotime($paymentData['bill_generated_date']));
-
-                        $societyPaymentData[] = array('payment_date' => $paymentDate,'formatted_date' => $formattedDate,'amount' => $paymentData['amount'], 'txn_type' => $txnType);
-
-                    }
-
-                }
-
-            }
-
-            
-
-            $journalVoucherLedgerPaymentData = $this->getJournalVoucherCreaditDebitDataByLedgerHeadId($societyLedgerHeadId);
-
-            
-
-            if (!empty($journalVoucherLedgerPaymentData)) {
-
-                //$societyPaymentData[] = $JournalVoucherPaymentReceiptDetails;
-
-                foreach ($journalVoucherLedgerPaymentData as $jvData) {
-
-                    $txnJvType = '';
-
-                    $jvAmt = 0;
-
-                    $JVPARTICULAR = "";
-
-                    if ($jvData['JournalVoucher']['jv_debit_ledger_head_id'] != '') {
-
-                        $txnJvType = "debit";
-
-                        $jvAmt = $jvData['JournalVoucher']['jv_amount_debited'];
-
-                        $JVPARTICULAR = "JV Debited. V.No ".$jvData['JournalVoucher']['voucher_no'];
-
-                    }
-
-
-
-                    if ($jvData['JournalVoucher']['jv_credit_ledger_head_id'] != '') {
-
-                        $txnJvType = "credit";
-
-                        $jvAmt = $jvData['JournalVoucher']['jv_amount_credited'];
-
-                        $JVPARTICULAR = "JV Credited. V.No ".$jvData['JournalVoucher']['voucher_no'];
-
-                    }
-
-
-
-                    $paymentDate = isset($jvData['JournalVoucher']['voucher_date']) ? date('d/m/Y',strtotime($jvData['JournalVoucher']['voucher_date'])) : "";
-
-                    $formattedDate = isset($jvData['JournalVoucher']['voucher_date']) ? date('Y-m-d',strtotime($jvData['JournalVoucher']['voucher_date'])) : "";
-
-                    $societyPaymentData[] = array('particularNote' => $JVPARTICULAR,'payment_date' => $paymentDate,'formatted_date' => $formattedDate,'amount' => $jvAmt, 'txn_type' => $txnJvType);
-
-                }
-
-            }
-
-            
-
-            usort($societyPaymentData,array($this,"sortMultiDimentionalArray"));
-
-
-            $societyLedgerHeadsDetails['ledgerPaymentData'] = $societyPaymentData;
-
-            $societyLedgerHeadsDetails['txn_type'] = $txnType;
-
-            $this->controller->set('societyLedgerHeadsDetails', $societyLedgerHeadsDetails);
-
+        $this->controller->set('societyLedgerHeadsDetails', $societyLedgerHeadsDetails);
 	    $this->controller->set('societyLedgerHeadsLists', $societyLedgerHeadsLists);
-
-        }
 
     }
 
@@ -428,11 +280,11 @@ class SocietyBillComponent extends Component {
 
         //$societyMemberObj->Behaviors->attach('Containable');
 
-        $societyMemberLists = $societyMemberObj->find('first', array('contain' => array('Society', 'Building', 'Wing'), 'conditions' => array('Member.status' => Configure::read('Active'), 'Member.society_id' => $societyLoginID), 'order' => array('Member.id' => 'asc')));
+        $societyMemberLists = $societyMemberObj->find('first', array('conditions' => array('Member.status' => Configure::read('Active'), 'Member.society_id' => $societyLoginID), 'order' => array('Member.id' => 'asc'), 'recursive' => 0));
 
        
 
-        $societyMemberFlatList = $societyMemberObj->find('all', array('contain' => array('flat_no'), 'conditions' => array('Member.status' => Configure::read('Active'), 'Member.society_id' => $societyLoginID), 'fields'=>array('flat_no'), 'order' => array('Member.id' => 'asc')));
+        $societyMemberFlatList = $societyMemberObj->find('all', array('conditions' => array('Member.status' => Configure::read('Active'), 'Member.society_id' => $societyLoginID), 'fields'=>array('Member.id', 'Member.flat_no'), 'order' => array('Member.id' => 'asc'), 'recursive' => -1));
 
 
         if (isset($societyMemberLists['Member']['id'])) {
@@ -447,7 +299,7 @@ class SocietyBillComponent extends Component {
 
             $societyMemberBillPaymentData = array();
 
-            $memberBillSummary = $societyMemberObj->MemberBillSummary->find('all', array('conditions' => $condition));
+            $memberBillSummary = $societyMemberObj->MemberBillSummary->find('all', array('conditions' => $condition, 'recursive' => -1));
 
             
 
@@ -897,7 +749,10 @@ class SocietyBillComponent extends Component {
 
         $societyLedgerHeadsObj = new SocietyLedgerHeads();
 
-        $societyExpenseLedgerHeadsLists = $societyLedgerHeadsObj->find('list', array('conditions' => array('SocietyLedgerHeads.status' => Configure::read('Active'), 'SocietyLedgerHeads.society_id' => $societyLoginID), 'fields' => array('SocietyLedgerHeads.title'), 'order' => array('SocietyLedgerHeads.title' => 'asc')));
+        // Feeds the "Debit To" dropdown on a society payment. Income heads
+        // (account_category_id 3) are excluded - money going out is never debited to
+        // an income head; only expense, asset and liability heads belong here.
+        $societyExpenseLedgerHeadsLists = $societyLedgerHeadsObj->find('list', array('conditions' => array('SocietyLedgerHeads.status' => Configure::read('Active'), 'SocietyLedgerHeads.society_id' => $societyLoginID, 'SocietyLedgerHeads.account_category_id !=' => 3), 'fields' => array('SocietyLedgerHeads.title'), 'order' => array('SocietyLedgerHeads.title' => 'asc')));
 
         //$societyExpenseLedgerHeadsLists = $societyHeadSubCategoryObj->find('list',array('fields' => array('id','title'),'conditions' => array('SocietyHeadSubCategory.status' => Configure::read('Active'), 'SocietyHeadSubCategory.society_id' => $societyLoginID, 'SocietyHeadSubCategory.account_head_id' => 4),'recursive' => -1));
 
@@ -1677,7 +1532,10 @@ public function generalReceiptNumber(){
 
         $societyLedgerHeadsObj = new SocietyLedgerHeads();
 
-        $societyOtherIncomeHeadsLists = $societyLedgerHeadsObj->find('list', array('conditions' => array('SocietyLedgerHeads.status' => Configure::read('Active'), 'SocietyLedgerHeads.society_id' => $societyLoginID), 'fields' => array('SocietyLedgerHeads.title'), 'order' => array('SocietyLedgerHeads.title' => 'asc')));
+        // Feeds the "Select Ledger" dropdown on a general receipt. Expense heads
+        // (account_category_id 4) are excluded - a receipt (money coming in) is never
+        // credited to an expense head; income, asset and liability heads belong here.
+        $societyOtherIncomeHeadsLists = $societyLedgerHeadsObj->find('list', array('conditions' => array('SocietyLedgerHeads.status' => Configure::read('Active'), 'SocietyLedgerHeads.society_id' => $societyLoginID, 'SocietyLedgerHeads.account_category_id !=' => 4), 'fields' => array('SocietyLedgerHeads.title'), 'order' => array('SocietyLedgerHeads.title' => 'asc')));
 
         //$societyExpenseLedgerHeadsLists = $societyHeadSubCategoryObj->find('list',array('fields' => array('id','title'),'conditions' => array('SocietyHeadSubCategory.status' => Configure::read('Active'), 'SocietyHeadSubCategory.society_id' => $societyLoginID, 'SocietyHeadSubCategory.account_head_id' => 4),'recursive' => -1));
 
@@ -1763,6 +1621,9 @@ public function generalReceiptNumber(){
         
         $societyLoginID = $this->Session->read('Auth.User.id');
         
+        // Did the caller name a specific transfer generation? (before it is
+        // normalised to 0 below). Only then do we scope vouchers to it.
+        $filterByMemberTransfer = ($memberTransfer !== "" && $memberTransfer !== null);
         if($memberTransfer==''){
             $memberTransfer=0;
         }
@@ -1774,6 +1635,12 @@ public function generalReceiptNumber(){
         // $options['AND']['OR'][] = array('JournalVoucher.jv_credit_member_head_id' => $memberId);
         $financialYearId = $this->Util->getFinancialYear();
         $options = array('JournalVoucher.society_id' => $societyLoginID, 'JournalVoucher.financial_year_id' =>$financialYearId );
+        // A transferred member shares one id across owners; when a generation is
+        // named, return only that owner's vouchers so old and new member ledgers
+        // do not bleed into each other. Callers that pass none stay unfiltered.
+        if ($filterByMemberTransfer) {
+            $options['JournalVoucher.member_transfer'] = $memberTransfer;
+        }
         
         $journalVoucherMemberPaymentData = $journalVoucherObj->find('all', array('conditions' => $options,
         'order' => array('JournalVoucher.voucher_date' => 'asc'), 'recursive' => -1));

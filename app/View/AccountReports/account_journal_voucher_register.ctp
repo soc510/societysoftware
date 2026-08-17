@@ -115,7 +115,9 @@
                                                                             
                                                                              $note = $tempDebitDetails['note'];
                                                                         } else if($tempDebitDetails['flag'] == 'member') {
-                                                                            $particular = $memberData[$tempDebitDetails['jv_debit_member_head_id']];
+                                                                            // debit_member_title is the previous owner's name on rows saved
+                                                                            // before a transfer, the current name otherwise.
+                                                                            $particular = isset($tempDebitDetails['debit_member_title']) && $tempDebitDetails['debit_member_title'] !== '' ? $tempDebitDetails['debit_member_title'] : $memberData[$tempDebitDetails['jv_debit_member_head_id']];
                                                                             $note = $tempDebitDetails['note'];
                                                                         } else {
                                                                             $particular = '';
@@ -140,7 +142,7 @@
                                                                             $particular = $ledgerData[$tempCreditDetails['jv_credit_ledger_head_id']];
                                                                             $note = $tempCreditDetails['note'];
                                                                         } else if($tempCreditDetails['flag'] == 'member') {
-                                                                            $particular = $memberData[$tempCreditDetails['jv_credit_member_head_id']];
+                                                                            $particular = isset($tempCreditDetails['credit_member_title']) && $tempCreditDetails['credit_member_title'] !== '' ? $tempCreditDetails['credit_member_title'] : $memberData[$tempCreditDetails['jv_credit_member_head_id']];
                                                                             $note = $tempCreditDetails['note'];
                                                                         } else {
                                                                             $particular = '';

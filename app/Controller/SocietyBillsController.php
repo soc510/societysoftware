@@ -99,7 +99,6 @@ class SocietyBillsController extends AppController {
 
 
 
-
     public function memberBillGenerate() {
         ini_set('max_execution_time', 2700);
 
@@ -5636,7 +5635,14 @@ if($billGeneratedMonths==4){
 
             #check if this data can be prefetched
             if (!empty($billDueDate) && !empty($billGeneratedDate)) {
-                $paymentCondition = array('MemberPayment.member_id' => $memberId,'MemberPayment.payment_date < ' => $billGeneratedDate,'MemberPayment.payment_date >= ' => $lastBillGeneratedDate, 'MemberPayment.society_id' => $societyId,'MemberPayment.bill_type' => $billType,'MemberPayment.member_transfer' => $latestTransferNo,'MemberPayment.member_transfer' => $this->financialYearId,'NOT' => array('MemberPayment.id' => $chqRetPayId));
+                $paymentCondition = array('MemberPayment.member_id' => $memberId,'MemberPayment.payment_date < ' => $billGeneratedDate,'MemberPayment.payment_date >= ' => $lastBillGeneratedDate, 'MemberPayment.society_id' => $societyId,'MemberPayment.bill_type' => $billType,'MemberPayment.member_transfer' => $latestTransferNo,'NOT' => array('MemberPayment.id' => $chqRetPayId));
+                    // The array above used to repeat 'MemberPayment.member_transfer', the
+                    // second one assigning a financial year id. PHP keeps only the last
+                    // value for a duplicate key, so the transfer filter was silently
+                    // replaced by a year id, matched almost nothing, and interest was
+                    // charged on a principal that payments had never been deducted from.
+                    // The payment window is already bounded by the two payment_date
+                    // conditions, so no year filter is needed here.
                 
                 $memberPaymentData = $this->MemberPayment->find('all', array('conditions' => $paymentCondition,'order'=>array('MemberPayment.payment_date'=>'asc')));            
 
@@ -6633,6 +6639,11 @@ if($billGeneratedMonths==4){
         $billNumberFrom = (isset($this->request->query['bill_from']) && !empty($this->request->query['bill_from'])) ? $this->request->query['bill_from'] : '';
         $billNumberTo = (isset($this->request->query['bill_to']) && !empty($this->request->query['bill_to'])) ? $this->request->query['bill_to'] : '';
         $billType = (isset($this->request->query['bill_type']) && !empty($this->request->query['bill_type'])) ? $this->request->query['bill_type'] : 'reg';
+        // Current / Old owner selection. A transferred unit keeps one member id, so the
+        // generation is carried on MemberBillSummary.member_transfer: the current owner's
+        // bills carry Member.member_transfer, every earlier owner a lower value.
+        $memberRecordType = (isset($this->request->query['member_record']) && $this->request->query['member_record'] != '') ? $this->request->query['member_record'] : 'Current';
+        $memberTransferList = $this->Member->find('list', array('conditions' => array('Member.society_id' => $societyId), 'fields' => array('Member.id', 'Member.member_transfer')));
 
 	    $banksList = $this->SocietyBill->getAllBankList();
 
@@ -6643,7 +6654,12 @@ if($billGeneratedMonths==4){
 
 
         $societyParameters = $this->SocietyBill->getSocietyParameters();
-        $optionsQuery[] = array('AND' => array('MemberBillSummary.society_id' => $societyId,'MemberBillSummary.financial_year_id' => $financialYearId,'MemberBillSummary.month' => $billMonth,'MemberBillSummary.bill_type'=>$billType));
+        $optionsQuery[] = array('AND' => array('MemberBillSummary.society_id' => $societyId,'MemberBillSummary.month' => $billMonth,'MemberBillSummary.bill_type'=>$billType));
+        // The old owner's bills sit in the year(s) before the transfer, which may not be
+        // the year currently selected, so only the Current view is scoped to it.
+        if ($memberRecordType != 'Old') {
+            $optionsQuery[0]['AND']['MemberBillSummary.financial_year_id'] = $financialYearId;
+        }
 
         /*Society bill taiffs*/
         $societyLedgerHeadTitleList = array();
@@ -6666,7 +6682,9 @@ if($billGeneratedMonths==4){
         } else if (isset($billNumberFrom) && !empty($billNumberFrom)) {
             $optionsQuery['AND']['MemberBillSummary.bill_no'] = $billNumberFrom;
         }
-		$optionsQuery['AND']['MemberBillSummary.financial_year_id'] = $financialYearId;
+		if ($memberRecordType != 'Old') {
+			$optionsQuery['AND']['MemberBillSummary.financial_year_id'] = $financialYearId;
+		}
         //Society ledger head list which are part of bill
         if ($this->SocietyTariffOrder->hasAny(array('SocietyTariffOrder.society_id' => $societyId))) {
             $societyLedgerHeadList = $this->SocietyTariffOrder->find('all', array('conditions' => array('SocietyLedgerHeads.status' => Configure::read('Active'), 'SocietyLedgerHeads.society_id' => $societyId), 'fields' => array('SocietyLedgerHeads.title', 'SocietyLedgerHeads.id'), 'order' => array('SocietyTariffOrder.id' => 'asc')));
@@ -6688,42 +6706,79 @@ if($billGeneratedMonths==4){
         
 
         if ($monthlyBills) {
-            foreach ($monthlyBills as $key => $bill) {
-                $printBillDetails[$bill['MemberBillSummary']['member_id']] = $bill;
-                $tariffDetails = $this->MemberBillGenerate->find('all', array('conditions' => array('MemberBillGenerate.society_id' => $societyId,'MemberBillGenerate.financial_year_id' => $financialYearId, 'MemberBillGenerate.month' => $billMonth, 'MemberBillGenerate.member_id' => $bill['MemberBillSummary']['member_id'],'MemberBillGenerate.bill_type'=>$billType)));
-                $printBillDetails[$bill['MemberBillSummary']['member_id']]['tariff'] = $tariffDetails;
-                $memberDetails = $this->Member->find('first', array('conditions' => array('Member.id' => $bill['MemberBillSummary']['member_id'])));
-                $printBillDetails[$bill['MemberBillSummary']['member_id']]['memberDetails'] = $memberDetails;
+            $oldOwnerNames = array();
+            if ($memberRecordType == 'Old') {
+                $this->loadModel('MemberIdentification');
+                // Ascending, so a unit transferred more than once keeps the most recent
+                // previous owner.
+                $identifications = $this->MemberIdentification->find('all', array('conditions' => array('MemberIdentification.society_id' => $societyId), 'fields' => array('MemberIdentification.member_id', 'MemberIdentification.third_member'), 'order' => array('MemberIdentification.id' => 'asc'), 'recursive' => -1));
+                foreach ($identifications as $identification) {
+                    if (!empty($identification['MemberIdentification']['third_member'])) {
+                        $oldOwnerNames[$identification['MemberIdentification']['member_id']] = $identification['MemberIdentification']['third_member'];
+                    }
+                }
+            }
 
+            foreach ($monthlyBills as $key => $bill) {
+                $billMemberId = $bill['MemberBillSummary']['member_id'];
+                $billTransfer = (int)$bill['MemberBillSummary']['member_transfer'];
+                $currentTransfer = isset($memberTransferList[$billMemberId]) ? (int)$memberTransferList[$billMemberId] : 0;
+                // The two views partition the unit's bills, so nothing becomes unreachable:
+                // the generation the member row still carries is the current owner's, every
+                // other generation belonged to someone before them.
+                if ($memberRecordType == 'Old') {
+                    if ($billTransfer == $currentTransfer) {
+                        continue;
+                    }
+                } else if ($billTransfer != $currentTransfer) {
+                    continue;
+                }
+
+                // Keyed by bill so an old owner with bills in more than one year keeps them all.
+                $billKey = $bill['MemberBillSummary']['id'];
+                $billFinancialYearId = $bill['MemberBillSummary']['financial_year_id'];
+                $printBillDetails[$billKey] = $bill;
+                $tariffDetails = $this->MemberBillGenerate->find('all', array('conditions' => array('MemberBillGenerate.society_id' => $societyId,'MemberBillGenerate.financial_year_id' => $billFinancialYearId, 'MemberBillGenerate.month' => $billMonth, 'MemberBillGenerate.member_id' => $billMemberId,'MemberBillGenerate.bill_type'=>$billType)));
+                $printBillDetails[$billKey]['tariff'] = $tariffDetails;
+                $memberDetails = $this->Member->find('first', array('conditions' => array('Member.id' => $billMemberId)));
+                $printBillDetails[$billKey]['memberDetails'] = $memberDetails;
+
+                // The member row always holds the current owner, so an old owner's bill has
+                // to be re-labelled with the previous owner recorded on the transfer.
+                if ($memberRecordType == 'Old' && isset($oldOwnerNames[$billMemberId])) {
+                    $printBillDetails[$billKey]['Member']['member_name'] = $oldOwnerNames[$billMemberId];
+                    $printBillDetails[$billKey]['Member']['member_prefix'] = '';
+                    $printBillDetails[$billKey]['Member']['joint_member_name'] = '';
+                }
 
                 // If April bill is printing then we need receipt after last bills generated dates
                 if($bill['MemberBillSummary']['month'] == 4) {
-                
+
                     // Get receipts from last years database
                     // $memberPaymentDetails = $this->getLastYearsMarchReceipts($societyId,$bill['MemberBillSummary']['member_id'],$billType);
                         $receiptFromDate = isset($this->request->query['receipt_from']) ? $this->request->query['receipt_from'] : date('Y').'-03-01';
                         $receiptToDate = isset($this->request->query['receipt_to']) ? $this->request->query['receipt_to'] : date('Y').'-03-31';
-                        
-//                        $memberPaymentDetails = $this->Member->MemberPayment->find('all', 
+
+//                        $memberPaymentDetails = $this->Member->MemberPayment->find('all',
 //                        array('conditions' => array('MemberPayment.member_id' => $bill['MemberBillSummary']['member_id'],'MemberPayment.bill_type'=>$billType
 //                        ,'MemberPayment.financial_year_id' => $financialYearId-1,'MemberPayment.payment_date >=' => $receiptFromDate,'MemberPayment.payment_date <=' => $receiptToDate),'order'=>array('MemberPayment.id'=>'desc')));
 
-                        $memberPaymentDetails = $this->Member->MemberPayment->find('all', 
-                        array('conditions' => array('MemberPayment.member_id' => $bill['MemberBillSummary']['member_id'],'MemberPayment.bill_type'=>$billType
+                        $memberPaymentDetails = $this->Member->MemberPayment->find('all',
+                        array('conditions' => array('MemberPayment.member_id' => $billMemberId,'MemberPayment.bill_type'=>$billType,'MemberPayment.member_transfer' => $billTransfer
                         ,'MemberPayment.payment_date >=' => $receiptFromDate,'MemberPayment.payment_date <=' => $receiptToDate),'order'=>array('MemberPayment.id'=>'desc')));
-                    
+
                 } else {
                     if (isset($this->request->query['receipt_from']) && !empty($this->request->query['receipt_from']) && isset($this->request->query['receipt_to']) && !empty($this->request->query['receipt_to'])) {
-                        $memberPaymentDetails = $this->Member->MemberPayment->find('all', array('conditions' => array('MemberPayment.member_id' => $bill['MemberBillSummary']['member_id'],'MemberPayment.financial_year_id' => $financialYearId,'MemberPayment.payment_date >=' => $this->request->query['receipt_from'],'MemberPayment.payment_date <=' => $this->request->query['receipt_to'],'MemberPayment.bill_type'=>$billType),'order'=>array('MemberPayment.id'=>'desc')));
+                        $memberPaymentDetails = $this->Member->MemberPayment->find('all', array('conditions' => array('MemberPayment.member_id' => $billMemberId,'MemberPayment.financial_year_id' => $billFinancialYearId,'MemberPayment.member_transfer' => $billTransfer,'MemberPayment.payment_date >=' => $this->request->query['receipt_from'],'MemberPayment.payment_date <=' => $this->request->query['receipt_to'],'MemberPayment.bill_type'=>$billType),'order'=>array('MemberPayment.id'=>'desc')));
                     } else {
-                        $memberPaymentDetails = $this->Member->MemberPayment->find('all', array('conditions' => array('MemberPayment.member_id' => $bill['MemberBillSummary']['member_id'],'MemberPayment.financial_year_id' => $financialYearId,'MemberPayment.bill_type'=>$billType),'order'=>array('MemberPayment.id'=>'desc')));
+                        $memberPaymentDetails = $this->Member->MemberPayment->find('all', array('conditions' => array('MemberPayment.member_id' => $billMemberId,'MemberPayment.financial_year_id' => $billFinancialYearId,'MemberPayment.member_transfer' => $billTransfer,'MemberPayment.bill_type'=>$billType),'order'=>array('MemberPayment.id'=>'desc')));
                     }
                 }
 
-                $printBillDetails[$bill['MemberBillSummary']['member_id']]['receipts'] = $memberPaymentDetails;
+                $printBillDetails[$billKey]['receipts'] = $memberPaymentDetails;
             }
         }
-        
+
         $receiptPeriod = array('From'=>$this->request->query['receipt_from'],'To'=>$this->request->query['receipt_to']);
         $wordsFunction  = ($this->request->query['words_type'] == "English")?"numberTowordsEnglish":"numberTowordsMarathi";
 
@@ -7630,11 +7685,7 @@ if($billGeneratedMonths==4){
 
         $response['memberrole'] = $this->Session->read('Auth.User.role');
 
-
-
         return new CakeResponse(array('body' => json_encode($response), 'status' => 200));
-
-
 
     }
 
@@ -7677,16 +7728,6 @@ if($billGeneratedMonths==4){
 
 
             $billSummaryId = (isset($this->request->data['MemberBillSummary']['id']) && !empty($this->request->data['MemberBillSummary']['id'])) ? $this->request->data['MemberBillSummary']['id'] : '';
-
-
-
-            
-
-
-
-            
-
-
 
             $this->loadModel('MemberBillSettlement');
 
@@ -7768,20 +7809,11 @@ if($billGeneratedMonths==4){
 
 
 
-            $billSummary = $this->MemberBillSummary->find('first', array('conditions' => $conditionsArr1, 'fields' => array('MemberBillSummary.month','MemberBillSummary.member_id')));
-
-
-
-            
-
-
+            $billSummary = $this->MemberBillSummary->find('first', array('conditions' => $conditionsArr1, 'fields' => array('MemberBillSummary.month','MemberBillSummary.member_id','MemberBillSummary.bill_no')));
 
             $this->MemberBillSummary->id = $billSummaryId;
 
-
-
-            if ($this->MemberBillSummary->delete()){            
-
+            if ($this->MemberBillSummary->delete()){
 
 
                 $billMonth = $billSummary['MemberBillSummary']['month'];
@@ -8160,6 +8192,7 @@ if($billGeneratedMonths==4){
         // if ($this->RequestHandler->isAjax()) {
             $this->autoRender = false;
             $postData['id'] = isset($this->request->data['MemberBillSummary']['id']) ? $this->request->data['MemberBillSummary']['id'] : '';
+
             $postData['discount'] = isset($this->request->data['MemberBillSummary']['discount']) ? $this->request->data['MemberBillSummary']['discount'] : '';
             $postData['principal_adjusted'] = isset($this->request->data['MemberBillSummary']['principal_adjusted']) ? $this->request->data['MemberBillSummary']['principal_adjusted'] : 0.00;
             $postData['interest_adjusted'] = isset($this->request->data['MemberBillSummary']['interest_adjusted']) ? $this->request->data['MemberBillSummary']['interest_adjusted'] : 0.00;
@@ -8237,7 +8270,13 @@ if($billGeneratedMonths==4){
                                 
                                 $memberBillSummaryDetails[$billSummaryCounter]['MemberBillSummary']['monthly_principal_amount'] = $memberBillSummaryDetails[$billSummaryCounter]['MemberBillSummary']['monthly_amount'] - $memberBillSummaryDetails[$billSummaryCounter]['MemberBillSummary']['discount'];
                                 $memberBillSummaryDetails[$billSummaryCounter]['MemberBillSummary']['monthly_bill_amount'] = $memberBillSummaryDetails[$billSummaryCounter]['MemberBillSummary']['monthly_principal_amount'] + $memberBillSummaryDetails[$billSummaryCounter]['MemberBillSummary']['interest_on_due_amount'] + $memberBillSummaryDetails[$billSummaryCounter]['MemberBillSummary']['tax_total'];
-                                $amountPayable = $memberBillSummaryDetails[$billSummaryCounter]['MemberBillSummary']['op_due_amount'] + $memberBillSummaryDetails[$billSummaryCounter]['MemberBillSummary']['monthly_bill_amount']+$jvAdjustment;
+                                // Was $jvAdjustment, which is only ever assigned inside
+          // calculateMembersRegularBillByTariff() - never in this function. On PHP 5/7
+          // that read as null and the sum happened to work; on PHP 8 it warns and
+          // amount_payable degrades, which is why bill edit "worked before, not now".
+          // $jvDebitedAmt is the variable this function actually maintains (see the
+          // jv_adjustment and principal_balance assignments above and below).
+          $amountPayable = $memberBillSummaryDetails[$billSummaryCounter]['MemberBillSummary']['op_due_amount'] + $memberBillSummaryDetails[$billSummaryCounter]['MemberBillSummary']['monthly_bill_amount']+$jvDebitedAmt;
                                 $memberBillSummaryDetails[$billSummaryCounter]['MemberBillSummary']['amount_payable'] = $amountPayable;
                                 
                                 if(!empty($latestTransferNo)){
@@ -9120,6 +9159,13 @@ if($billGeneratedMonths==4){
 
     public function generateSupplementaryMemberBills(){
         $this->layout = false;
+        // This is an AJAX/JSON endpoint. A stray PHP notice or warning printed
+        // before the JSON breaks JSON.parse on the client - and because the caller
+        // has no error handler, the loader then spins forever with no bill shown.
+        // Keep the output pure JSON and give a heavy run time to finish.
+        @ini_set('display_errors', '0');
+        error_reporting(0);
+        @set_time_limit(600);
         $response = array();
         $response['error'] = 1;
         $this->financialYearId = $this->Util->getFinancialYear();
@@ -9128,6 +9174,7 @@ if($billGeneratedMonths==4){
         $societyId = $this->Session->read('Auth.User.id');
         if ($this->RequestHandler->isAjax()) {
             $this->autoRender = false;
+            try {
             $this->Member->Behaviors->attach('Containable');
 
             $memberListWithTransferStatus = $this->SocietyBill->memberTransferList($societyId);
@@ -9157,10 +9204,17 @@ if($billGeneratedMonths==4){
                 }
             }
             else {
-                $individualIds = array_keys($this->request->data['SupplementaryBillGenerate']['suplementary_amount']);
-                $idLabels = (count($individualIds)>1)?'Member.id IN':'Member.id';
-            if (isset($this->request->data['MemberBillGenerate']['bill_generated_date']) && !empty($this->request->data['MemberBillGenerate']['bill_generated_date']) && !empty($this->request->data['MemberBillGenerate']['bill_type'])) {
-                $societyMemberLists = $this->Member->find('all', array('fields' => array('Member.id', 'Member.building_id', 'Member.wing_id', 'Member.unit_type', 'Member.area', 'Member.flat_no', 'Member.op_principal', 'Member.op_interest', 'Member.supplementary_principal', 'Member.supplementary_penality', 'Member.supplementary_interest', 'Member.supplementary_tax'), 'conditions' => array('Member.society_id' => $societyId, 'Member.status' => Configure::read('Active')), 'recursive' => 0));
+                // Only members with an amount actually entered get a supplementary
+                // bill. Skipping the empty rows both matches what was filled in and
+                // stops the whole society being fetched, billed and processed - which
+                // was also why generation crawled.
+                $suppAmounts = isset($this->request->data['SupplementaryBillGenerate']['suplementary_amount']) ? $this->request->data['SupplementaryBillGenerate']['suplementary_amount'] : array();
+                $individualIds = array();
+                foreach ($suppAmounts as $__mId => $__amt) {
+                    if ($__amt !== '' && $__amt !== null && (float)$__amt > 0) { $individualIds[] = $__mId; }
+                }
+            if (!empty($individualIds) && isset($this->request->data['MemberBillGenerate']['bill_generated_date']) && !empty($this->request->data['MemberBillGenerate']['bill_generated_date']) && !empty($this->request->data['MemberBillGenerate']['bill_type'])) {
+                $societyMemberLists = $this->Member->find('all', array('fields' => array('Member.id', 'Member.building_id', 'Member.wing_id', 'Member.unit_type', 'Member.area', 'Member.flat_no', 'Member.op_principal', 'Member.op_interest', 'Member.supplementary_principal', 'Member.supplementary_penality', 'Member.supplementary_interest', 'Member.supplementary_tax', 'Member.member_transfer'), 'conditions' => array('Member.society_id' => $societyId, 'Member.status' => Configure::read('Active'), 'Member.id' => $individualIds), 'recursive' => 0));
                 if (count($societyMemberLists) > 0) {
                     foreach ($societyMemberLists as $details) {
                         $billNo = $this->SocietyBill->memberBillsUniqueNumber();
@@ -9186,6 +9240,13 @@ if($billGeneratedMonths==4){
             $this->loadModel('MemberBillAppliedParameter');
             $this->MemberBillAppliedParameter->saveAll($this->appliedParmaOnBill);
         }
+            } catch (\Throwable $__e) {
+                // Return the real failure as JSON instead of a 500 (which the client
+                // can only report as "failed or timed out"). \Throwable also catches
+                // fatal Errors on PHP 7+ - a null method call, a type error, etc. -
+                // deep in the supplementary calculation.
+                $response = array('error' => 1, 'error_message' => 'Generation error: ' . $__e->getMessage() . ' @ ' . basename($__e->getFile()) . ':' . $__e->getLine());
+            }
     }
         return new CakeResponse(array('body' => json_encode($response), 'status' => 200));
     }
@@ -9573,7 +9634,12 @@ if($billGeneratedMonths==4){
                     $condtitionArr = array('MemberBillGenerate.society_id' => $societyLoginId, 'MemberBillGenerate.month' => $billMonth, 'MemberBillGenerate.ledger_head_id' => $societyLedgerHeadId, 'MemberBillGenerate.member_id' => $memberID,'MemberBillGenerate.financial_year_id' => $this->financialYearId);
                     
                     if ($this->MemberBillGenerate->hasAny($condtitionArr)) {
-                        $this->MemberBillGenerate->updateAll(array('MemberBillGenerate.amount' => "'$ledgerData[amount]'", 'MemberBillGenerate.igst_total' => "$igstTaxAmount", 'MemberBillGenerate.cgst_total' => "$cgstTaxAmount", 'MemberBillGenerate.sgst_total' => "$sgstTaxAmount", 'MemberBillGenerate.tax_total' => "$tax_total"), array('MemberBillGenerate.society_id' => $societyLoginId, 'MemberBillGenerate.month' => $billMonth, 'MemberBillGenerate.ledger_head_id' => $societyLedgerHeadId, 'MemberBillGenerate.member_id' => $memberID, 'MemberBillGenerate.bill_type' => $billType));
+                        // financial_year_id must be in the WHERE, not only in the hasAny
+                        // check above: without it this matched the same month in every
+                        // year, so editing one year's charge rewrote that charge on the
+                        // member's bill for every year. The summary updateAll below is
+                        // already scoped this way.
+                        $this->MemberBillGenerate->updateAll(array('MemberBillGenerate.amount' => "'$ledgerData[amount]'", 'MemberBillGenerate.igst_total' => "$igstTaxAmount", 'MemberBillGenerate.cgst_total' => "$cgstTaxAmount", 'MemberBillGenerate.sgst_total' => "$sgstTaxAmount", 'MemberBillGenerate.tax_total' => "$tax_total"), array('MemberBillGenerate.society_id' => $societyLoginId, 'MemberBillGenerate.month' => $billMonth, 'MemberBillGenerate.ledger_head_id' => $societyLedgerHeadId, 'MemberBillGenerate.member_id' => $memberID, 'MemberBillGenerate.bill_type' => $billType, 'MemberBillGenerate.financial_year_id' => $this->financialYearId));
                     } else {
                         $count++;
                         $billGenerateData[$count]['id'] = null;
@@ -9980,9 +10046,8 @@ if($billGeneratedMonths==4){
 
 
 
+
     public function delete_generated_bills($billGeneratedId = null) {
-
-
 
         if (!$this->MemberBillSummary->exists($billGeneratedId)) {
 
@@ -10178,19 +10243,32 @@ if($billGeneratedMonths==4){
  
         $from_date = isset($postData['MemberBillSummary']['from_date']) ?$postData['MemberBillSummary']['from_date'] : '';
         $to_date = isset($postData['MemberBillSummary']['to_date']) ? $postData['MemberBillSummary']['to_date'] : '';
-        $from_date =  $this->Session->read('date.from_date');
-        $to_date =  $this->Session->read('date.to_date');
-        if(isset($from_date) && isset($to_date)){
 
-            //$query = "call delete_generated_bills($financialYearId,$societyLoginId,'$from_date','$to_date')";
-            //$this->SocietyBill->callProcedures($query);
-    	   $this->deleteSocietyMemberIdentifications($societyLoginId);
-           $this->deleteSocietyMemberBillGenerateData($from_date,$to_date,$societyLoginId);
-           $this->deleteSocietyMemberBillSummaryData($from_date,$to_date,$societyLoginId);
-           $this->deleteSocietyMemberPaymentData($from_date,$to_date,$societyLoginId);
-           $this->deleteSocietyMemberJournalData($from_date,$to_date,$societyLoginId);
+        // Only fall back to the range last listed on screen when the form did not
+        // carry one. This used to overwrite the posted dates unconditionally, so
+        // the period the user picked was discarded and the last listed range was
+        // always what got deleted.
+        if ($from_date === '') { $from_date = (string)$this->Session->read('date.from_date'); }
+        if ($to_date === '')   { $to_date   = (string)$this->Session->read('date.to_date'); }
 
+        // isset() cannot guard this - both variables always exist by now. An empty
+        // string would leave every `date >= ''` comparison matching, wiping the
+        // entire financial year, so require a real range instead.
+        if ($from_date === '' || $to_date === '') {
+            $this->Session->setFlash(__('Select a From and To date before deleting bills.'), 'error');
+            $this->redirect(array('action' => 'society_generated_bills'));
+            return;
         }
+
+        // NOTE: deleteSocietyMemberIdentifications() takes no date range - it clears
+        // every member identification for the society for the whole financial year,
+        // regardless of the period selected above. Left as-is because narrowing it
+        // changes what a transfer record means; raise before relying on this action.
+        $this->deleteSocietyMemberIdentifications($societyLoginId);
+        $this->deleteSocietyMemberBillGenerateData($from_date,$to_date,$societyLoginId);
+        $this->deleteSocietyMemberBillSummaryData($from_date,$to_date,$societyLoginId);
+        $this->deleteSocietyMemberPaymentData($from_date,$to_date,$societyLoginId);
+        $this->deleteSocietyMemberJournalData($from_date,$to_date,$societyLoginId);
 
         $this->layout = false;
         $this->redirect(array('action' => 'society_generated_bills'));
@@ -10327,11 +10405,7 @@ if($billGeneratedMonths==4){
 
         if($lastBillGeneratedId != ''){
 
-
-
             $lastBillGeneratedData = $this->MemberBillSummary->find('first', array('conditions' => array('MemberBillSummary.id' => $lastBillGeneratedId, 'MemberBillSummary.society_id' => $societyLoginId), 'recursive' => -1));
-
-
 
         }
 
@@ -12416,6 +12490,144 @@ if($billGeneratedMonths==4){
     
 
 
+
+   /*
+    * Bulk version of the single bill's Update: the Member Bill Difference report
+    * posts the checked rows here, one per member+financial-year+bill-type, and
+    * each is run through the same recalculation the modal's Update button uses
+    * (updateMemberBillSummaryById in its recalc-only mode - it does not touch the
+    * charges, only recomputes the Dr/Cr balances that were out of step).
+    *
+    * Scoped to the logged-in society: the recalc's own conditions filter on
+    * society_id, so a member from another society cannot be reached from here.
+    */
+   public function bulk_recalculate_member_bills() {
+       $this->autoRender = false;
+       $this->layout = false;
+       // The report sends these in small batches, but each member's recalc is
+       // heavy; lift the default 30s cap so a slow batch is not cut off midway.
+       @set_time_limit(120);
+       $response = array('error' => 1, 'message' => 'No rows to update');
+
+       $rows = isset($this->request->data['rows']) ? $this->request->data['rows'] : '';
+       if (empty($rows)) {
+           return new CakeResponse(array('body' => json_encode($response), 'status' => 200));
+       }
+
+       $societyLoginId = $this->societyloginID;
+       $done = 0; $failed = 0; $seen = array();
+       foreach (explode(',', $rows) as $tuple) {
+           $tuple = trim($tuple);
+           if ($tuple === '' || isset($seen[$tuple])) { continue; }
+           $seen[$tuple] = true;
+
+           $parts = explode(':', $tuple);
+           if (count($parts) < 3) { continue; }
+           $memberId = (int)$parts[0];
+           $financialYearId = (int)$parts[1];
+           // Only the two real bill types; anything else is ignored rather than
+           // passed through to a query.
+           $billType = ($parts[2] === 'sup') ? 'sup' : 'reg';
+           if ($memberId <= 0 || $financialYearId <= 0) { continue; }
+
+           // The difference is a stale monthly_amount: a charge was edited on the
+           // bill after it was generated, so the summary still holds the old figure
+           // and Dr != Cr. The single bill's Update button clears this by re-running
+           // updateMemberTarrifDetails (which rewrites monthly_amount from the charge
+           // rows); the recalc-only path below skips that step, so reproduce just the
+           // sync first. The recalc then rebuilds monthly_bill_amount and the running
+           // balances from the corrected figures, exactly as the single Update does.
+           $this->syncSummaryAmountFromCharges($memberId, $societyLoginId, $billType, $financialYearId);
+
+           $ok = $this->updateMemberBillSummaryById(true, $memberId, $societyLoginId, $billType, $financialYearId);
+           if ($ok) { $done++; } else { $failed++; }
+       }
+
+       $response['error'] = ($done > 0) ? 0 : 1;
+       $response['message'] = $done . ' recalculated' . ($failed ? (', ' . $failed . ' failed') : '');
+       return new CakeResponse(array('body' => json_encode($response), 'status' => 200));
+   }
+
+   /**
+    * Rewrite each of the member's bill summaries so monthly_amount and tax_total
+    * equal the sum of that month's charge rows (member_bill_generates) - the exact
+    * figures the difference report totals into Cr. This is the piece of the single
+    * bill's Update (updateMemberTarrifDetails) that the recalc-only path omits;
+    * without it a charge edited after bill generation leaves Dr != Cr for good.
+    * Only monthly_amount and tax_total are rewritten - interest, discount and the
+    * adjustments are left untouched - and the caller's recalc then rebuilds
+    * monthly_bill_amount and the running balances from these values, the same way
+    * clicking Update on the single bill does.
+    */
+   private function syncSummaryAmountFromCharges($memberId, $societyLoginId, $billType, $financialYearId) {
+       $this->loadModel('MemberBillSummary');
+       $this->loadModel('MemberBillGenerate');
+
+       // Scope to the same transfer number the recalc uses, so the old owner's rows
+       // of a transferred flat are not rewritten from the current owner's charges.
+       $latestTransferNo = $this->getLatestTranferredId($memberId);
+
+       $summaries = $this->MemberBillSummary->find('all', array(
+           'conditions' => array(
+               'MemberBillSummary.member_id' => $memberId,
+               'MemberBillSummary.society_id' => $societyLoginId,
+               'MemberBillSummary.bill_type' => $billType,
+               'MemberBillSummary.financial_year_id' => $financialYearId,
+               'MemberBillSummary.member_transfer' => $latestTransferNo
+           ),
+           'fields' => array('MemberBillSummary.id', 'MemberBillSummary.month', 'MemberBillSummary.monthly_amount', 'MemberBillSummary.tax_total'),
+           'recursive' => -1
+       ));
+       if (empty($summaries)) { return; }
+
+       // Charge totals per month, grouped exactly as the report groups Cr (member +
+       // month + financial year + bill type). Months with no charge rows do not
+       // appear here, so a bill without charges is left as-is rather than zeroed.
+       $chargeTotals = $this->MemberBillGenerate->find('all', array(
+           'conditions' => array(
+               'MemberBillGenerate.member_id' => $memberId,
+               'MemberBillGenerate.society_id' => $societyLoginId,
+               'MemberBillGenerate.bill_type' => $billType,
+               'MemberBillGenerate.financial_year_id' => $financialYearId
+           ),
+           'fields' => array(
+               'MemberBillGenerate.month',
+               'COALESCE(SUM(MemberBillGenerate.amount),0) AS contri',
+               'COALESCE(SUM(MemberBillGenerate.tax_total),0) AS gst'
+           ),
+           'group' => array('MemberBillGenerate.month'),
+           'recursive' => -1
+       ));
+       $byMonth = array();
+       foreach ($chargeTotals as $ct) {
+           $byMonth[(string)$ct['MemberBillGenerate']['month']] = array(
+               'contri' => (float)$ct[0]['contri'],
+               'gst' => (float)$ct[0]['gst']
+           );
+       }
+
+       foreach ($summaries as $s) {
+           $month = (string)$s['MemberBillSummary']['month'];
+           if (!isset($byMonth[$month])) { continue; }
+
+           $contri = $byMonth[$month]['contri'];
+           $gst    = $byMonth[$month]['gst'];
+           $curAmt = (float)$s['MemberBillSummary']['monthly_amount'];
+           $curTax = (float)$s['MemberBillSummary']['tax_total'];
+
+           // Already in sync within half a paisa (the report's own threshold) -
+           // nothing to write.
+           if (abs($contri - $curAmt) < 0.005 && abs($gst - $curTax) < 0.005) { continue; }
+
+           $this->MemberBillSummary->updateAll(
+               array(
+                   'MemberBillSummary.monthly_amount' => "'" . number_format($contri, 2, '.', '') . "'",
+                   'MemberBillSummary.tax_total' => "'" . number_format($gst, 2, '.', '') . "'"
+               ),
+               array('MemberBillSummary.id' => (int)$s['MemberBillSummary']['id'])
+           );
+       }
+   }
 
    public function update_member_bills_future(){
 

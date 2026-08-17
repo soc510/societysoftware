@@ -127,8 +127,20 @@ error_reporting(0);
                                                     $ledgerTotalArray['closing']['credit'] += $headDetails['closing']['credit'];
                                                     $ledgerTotalArray['closing']['debit'] += $headDetails['closing']['debit'];
                                                  ?>
-                                                <tr>
-                                                    <td><?php echo $headDetails['details']['title'];?></td>
+                                                <?php
+                                                // Mark the bank and cash ledger rows (light tint + a [Bank]/[Cash]
+                                                // tag) so, when the trial balance does not tie, it is easy to scan
+                                                // those rows - the usual source of a bank/cash difference.
+                                                $__lhId = isset($headDetails['details']['id']) ? (int)$headDetails['details']['id'] : 0;
+                                                $__isBank = !empty($bankLedgerHeadIds[$__lhId]);
+                                                $__isCash = (!$__isBank && !empty($cashLedgerHeadIds[$__lhId]));
+                                                $__rowStyle = $__isBank ? 'background-color:#e7f1ff;' : ($__isCash ? 'background-color:#e9f7ef;' : '');
+                                                ?>
+                                                <tr style="<?php echo $__rowStyle; ?>">
+                                                    <td><?php echo $headDetails['details']['title'];
+                                                        if ($__isBank) { echo ' <span style="color:#2e6da4;font-weight:bold;font-size:11px;">[Bank]</span>'; }
+                                                        elseif ($__isCash) { echo ' <span style="color:#1e7e34;font-weight:bold;font-size:11px;">[Cash]</span>'; }
+                                                    ?></td>
                                                     <td id="<?php echo $headCatDetails['category_id'];?>" class="text-center border-top-bottom-bold">
 
                                                     <!----------------Today Add------------------------>
@@ -196,19 +208,40 @@ error_reporting(0);
                                                     <td style="font-weight:bold;" colspan="7"></td>
                                                 </tr>-->
                                             <?php } ?>    
-                                            <tfoot id=""> 
-                                                <tr>                                                                       
-                                                    <tr>
-													<?php /*if($societyId == 22) { $grandTotalArray['transactions']['credit'] += 97.63; $grandTotalArray['closing']['credit'] +=97.63; }*/ ?>
+                                            <tfoot id="">
+                                                <?php
+                                                // A trial balance must tie: inside Opening, Transaction and Closing the
+                                                // Dr grand total has to equal the Cr grand total. Flag any column whose
+                                                // Dr and Cr differ (in red) so the imbalance cannot be missed, and print
+                                                // the exact difference below it.
+                                                $gtOpDr = isset($grandTotalArray['opening']['debit']) ? $grandTotalArray['opening']['debit'] : 0;
+                                                $gtOpCr = isset($grandTotalArray['opening']['credit']) ? $grandTotalArray['opening']['credit'] : 0;
+                                                $gtTrDr = isset($grandTotalArray['transactions']['debit']) ? $grandTotalArray['transactions']['debit'] : 0;
+                                                $gtTrCr = isset($grandTotalArray['transactions']['credit']) ? $grandTotalArray['transactions']['credit'] : 0;
+                                                $gtClDr = isset($grandTotalArray['closing']['debit']) ? $grandTotalArray['closing']['debit'] : 0;
+                                                $gtClCr = isset($grandTotalArray['closing']['credit']) ? $grandTotalArray['closing']['credit'] : 0;
+                                                $mismatchStyle = 'color:#d9534f;background-color:#ffdddd;';
+                                                $opMis = abs($gtOpDr - $gtOpCr) >= 0.01;
+                                                $trMis = abs($gtTrDr - $gtTrCr) >= 0.01;
+                                                $clMis = abs($gtClDr - $gtClCr) >= 0.01;
+                                                ?>
+                                                <tr>
                                                     <td style="font-weight:bold;" class="border-bottom-bold">Grand Total:</td>
-                                                    <td style="font-weight:bold;" class="text-center border-top-bottom-bold"><?php if(!empty($grandTotalArray['opening']['debit'])) { echo number_format($grandTotalArray['opening']['debit'],2); }?></td>
-                                                    <td style="font-weight:bold;" class="text-center border-top-bottom-bold"><?php if(!empty($grandTotalArray['opening']['credit'])) { echo number_format($grandTotalArray['opening']['credit'],2); }?></td>
-                                                    <td style="font-weight:bold;" class="text-center border-top-bottom-bold"><?php if(!empty($grandTotalArray['transactions']['debit'])) { echo number_format($grandTotalArray['transactions']['debit'],2); }?></td>
-                                                    <td style="font-weight:bold;" class="text-center border-top-bottom-bold"><?php if(!empty($grandTotalArray['transactions']['credit'])) { echo number_format($grandTotalArray['transactions']['credit'],2); }?></td>
-                                                    <td style="font-weight:bold;" class="text-center border-top-bottom-bold"><?php if(!empty($grandTotalArray['closing']['debit'])) { echo number_format($grandTotalArray['closing']['debit'],2); }?></td>
-                                                    <td style="font-weight:bold;" class="text-center border-top-bottom-bold"><?php if(!empty($grandTotalArray['closing']['credit'])) { echo number_format($grandTotalArray['closing']['credit'],2); }?></td>
+                                                    <td style="font-weight:bold;<?php echo $opMis ? $mismatchStyle : ''; ?>" class="text-center border-top-bottom-bold"><?php if(!empty($gtOpDr)) { echo number_format($gtOpDr,2); }?></td>
+                                                    <td style="font-weight:bold;<?php echo $opMis ? $mismatchStyle : ''; ?>" class="text-center border-top-bottom-bold"><?php if(!empty($gtOpCr)) { echo number_format($gtOpCr,2); }?></td>
+                                                    <td style="font-weight:bold;<?php echo $trMis ? $mismatchStyle : ''; ?>" class="text-center border-top-bottom-bold"><?php if(!empty($gtTrDr)) { echo number_format($gtTrDr,2); }?></td>
+                                                    <td style="font-weight:bold;<?php echo $trMis ? $mismatchStyle : ''; ?>" class="text-center border-top-bottom-bold"><?php if(!empty($gtTrCr)) { echo number_format($gtTrCr,2); }?></td>
+                                                    <td style="font-weight:bold;<?php echo $clMis ? $mismatchStyle : ''; ?>" class="text-center border-top-bottom-bold"><?php if(!empty($gtClDr)) { echo number_format($gtClDr,2); }?></td>
+                                                    <td style="font-weight:bold;<?php echo $clMis ? $mismatchStyle : ''; ?>" class="text-center border-top-bottom-bold"><?php if(!empty($gtClCr)) { echo number_format($gtClCr,2); }?></td>
                                                 </tr>
+                                                <?php if ($opMis || $trMis || $clMis) { ?>
+                                                <tr>
+                                                    <td style="font-weight:bold;color:#d9534f;" class="border-bottom-bold">Difference (Dr - Cr):</td>
+                                                    <td colspan="2" style="font-weight:bold;<?php echo $opMis ? $mismatchStyle : ''; ?>" class="text-center border-top-bottom-bold"><?php echo $opMis ? number_format($gtOpDr - $gtOpCr, 2) : ''; ?></td>
+                                                    <td colspan="2" style="font-weight:bold;<?php echo $trMis ? $mismatchStyle : ''; ?>" class="text-center border-top-bottom-bold"><?php echo $trMis ? number_format($gtTrDr - $gtTrCr, 2) : ''; ?></td>
+                                                    <td colspan="2" style="font-weight:bold;<?php echo $clMis ? $mismatchStyle : ''; ?>" class="text-center border-top-bottom-bold"><?php echo $clMis ? number_format($gtClDr - $gtClCr, 2) : ''; ?></td>
                                                 </tr>
+                                                <?php } ?>
                                             </tfoot>
                                             </tbody>   
                                         </table> 
@@ -216,6 +249,17 @@ error_reporting(0);
                                 </div> 
                             </div>  
                             </div>  
+                            <?php /* Only a screen helper (outside the print block): when the balance
+                                     does not tie, tell the user how to narrow the date range down to
+                                     the entry that causes it. */ ?>
+                            <?php if (!empty($trMis) || !empty($clMis) || !empty($opMis)) { ?>
+                            <div style="margin-top:10px;padding:10px 14px;border:1px solid #f0c0c0;background:#fff6f6;color:#a94442;font-size:13px;line-height:1.6;">
+                                <b>Difference (<?php echo number_format(($trMis ? ($gtTrDr - $gtTrCr) : ($gtClDr - $gtClCr)), 2); ?>) kaise locate karein:</b><br>
+                                1. Upar <b>For the Period</b> aur <b>To</b> me ek-ek month ki dates daal kar Submit karein.<br>
+                                2. Jis month me Grand Total <span style="background:#ffdddd;padding:0 3px;">red</span> (Dr &ne; Cr) aaye, difference usi month ki kisi entry me hai.<br>
+                                3. Us month ke andar din-wise (ya bank/cash-wise, upar tagged rows) narrow karke us din ki <b>Payment Entry / Journal Voucher / Receipt</b> me ek-tarfa ya galat-amount wali entry theek karein &mdash; balance apne aap tie ho jayega.
+                            </div>
+                            <?php } ?>
                             <br>
                             <center>
                                 <button type="button" class="btn btn-success btn-icon left-icon" onclick="printAllReports('print_trial_balance');"><i class="fa fa-print"></i><span> Print</span></button>

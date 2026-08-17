@@ -10,11 +10,6 @@ App::uses('AppController', 'Controller');
  * @property SessionComponent $Session
  */
 
-   use Cake\Core\Plugin;
-   use Cake\Routing\RouteBuilder;
-   use Cake\Routing\Router;
-
-
 class ResellersController extends AppController {
 
     /**
@@ -282,7 +277,179 @@ class ResellersController extends AppController {
   
   public function getRawQueryResult($sql){
     $db = ConnectionManager::getDataSource('default');
-    return $db->query($sql);       
+    return $db->query($sql);
   }
+
+    public function manage_users() {
+        $this->loadModel('User');
+        $this->loadModel('ResellerSubUser');
+        $resellerId = $this->Session->read('Auth.User.id');
+
+        $subUsers = $this->ResellerSubUser->find('all', array(
+            'conditions' => array('ResellerSubUser.reseller_id' => $resellerId),
+            'contain' => array('User'),
+            'order' => array('ResellerSubUser.created' => 'DESC')
+        ));
+
+        if (empty($subUsers)) {
+            $subUserIds = array();
+            $subUsers = array();
+        } else {
+            $subUserIds = array_map(function($s) { return $s['ResellerSubUser']['user_id']; }, $subUsers);
+        }
+
+        $userMap = array();
+        if (!empty($subUserIds)) {
+            $users = $this->User->find('all', array(
+                'conditions' => array('User.id' => $subUserIds),
+                'fields' => array('User.id', 'User.username', 'User.status'),
+                'recursive' => -1
+            ));
+            foreach ($users as $u) {
+                $userMap[$u['User']['id']] = $u['User'];
+            }
+        }
+
+        $this->set(compact('subUsers', 'userMap'));
+    }
+
+    public function add_user() {
+        $this->loadModel('User');
+        $this->loadModel('ResellerSubUser');
+        $resellerId = $this->Session->read('Auth.User.id');
+
+        if ($this->request->is('post')) {
+            $username = trim($this->request->data['User']['username']);
+            $password = $this->request->data['User']['password'];
+
+            if (empty($username) || empty($password)) {
+                $this->Session->setFlash(__('Username and Password are required.'), 'error');
+                return $this->redirect(array('action' => 'add_user'));
+            }
+
+            $existing = $this->User->find('first', array(
+                'conditions' => array('User.username' => $username),
+                'recursive' => -1
+            ));
+            if (!empty($existing)) {
+                $this->Session->setFlash(__('This username already exists. Please choose a different username.'), 'error');
+                return $this->redirect(array('action' => 'add_user'));
+            }
+
+            $this->User->create();
+            $userData = array('User' => array(
+                'username' => $username,
+                'password' => $password,
+                'role' => 'SubReseller',
+                'access_level' => 3,
+                'added_by' => $resellerId,
+                'cdate' => date('Y-m-d H:i:s'),
+                'udate' => date('Y-m-d H:i:s'),
+                'status' => 1
+            ));
+
+            if ($this->User->save($userData)) {
+                $newUserId = $this->User->getLastInsertID();
+
+                $this->ResellerSubUser->create();
+                $permData = array('ResellerSubUser' => array(
+                    'reseller_id' => $resellerId,
+                    'user_id' => $newUserId,
+                    'can_add' => isset($this->request->data['Permission']['can_add']) ? 1 : 0,
+                    'can_edit' => isset($this->request->data['Permission']['can_edit']) ? 1 : 0,
+                    'can_delete' => isset($this->request->data['Permission']['can_delete']) ? 1 : 0,
+                    'status' => 1,
+                    'created' => date('Y-m-d H:i:s'),
+                    'modified' => date('Y-m-d H:i:s')
+                ));
+                $this->ResellerSubUser->save($permData);
+
+                $this->Session->setFlash(__('User created successfully.'), 'success');
+                return $this->redirect(array('action' => 'manage_users'));
+            } else {
+                $this->Session->setFlash(__('Failed to create user. Please try again.'), 'error');
+            }
+        }
+    }
+
+    public function edit_user($id = null) {
+        $this->loadModel('User');
+        $this->loadModel('ResellerSubUser');
+        $resellerId = $this->Session->read('Auth.User.id');
+
+        if (empty($id)) {
+            $this->Session->setFlash(__('Invalid user.'), 'error');
+            return $this->redirect(array('action' => 'manage_users'));
+        }
+
+        $subUser = $this->ResellerSubUser->find('first', array(
+            'conditions' => array('ResellerSubUser.id' => $id, 'ResellerSubUser.reseller_id' => $resellerId),
+            'recursive' => -1
+        ));
+        if (empty($subUser)) {
+            $this->Session->setFlash(__('User not found.'), 'error');
+            return $this->redirect(array('action' => 'manage_users'));
+        }
+
+        $userData = $this->User->find('first', array(
+            'conditions' => array('User.id' => $subUser['ResellerSubUser']['user_id']),
+            'fields' => array('User.id', 'User.username', 'User.status'),
+            'recursive' => -1
+        ));
+
+        if ($this->request->is(array('post', 'put'))) {
+            $updateData = array();
+            if (!empty($this->request->data['User']['password'])) {
+                $updateData['User']['password'] = $this->request->data['User']['password'];
+            }
+            if (isset($this->request->data['User']['status'])) {
+                $updateData['User']['status'] = $this->request->data['User']['status'];
+            }
+            $updateData['User']['udate'] = date('Y-m-d H:i:s');
+
+            if (!empty($updateData)) {
+                $this->User->id = $subUser['ResellerSubUser']['user_id'];
+                $this->User->save($updateData);
+            }
+
+            $this->ResellerSubUser->id = $id;
+            $permData = array('ResellerSubUser' => array(
+                'can_add' => isset($this->request->data['Permission']['can_add']) ? 1 : 0,
+                'can_edit' => isset($this->request->data['Permission']['can_edit']) ? 1 : 0,
+                'can_delete' => isset($this->request->data['Permission']['can_delete']) ? 1 : 0,
+                'modified' => date('Y-m-d H:i:s')
+            ));
+            $this->ResellerSubUser->save($permData);
+
+            $this->Session->setFlash(__('User updated successfully.'), 'success');
+            return $this->redirect(array('action' => 'manage_users'));
+        }
+
+        $this->set(compact('subUser', 'userData'));
+    }
+
+    public function delete_user($id = null) {
+        $this->loadModel('User');
+        $this->loadModel('ResellerSubUser');
+        $resellerId = $this->Session->read('Auth.User.id');
+
+        $subUser = $this->ResellerSubUser->find('first', array(
+            'conditions' => array('ResellerSubUser.id' => $id, 'ResellerSubUser.reseller_id' => $resellerId),
+            'recursive' => -1
+        ));
+        if (empty($subUser)) {
+            $this->Session->setFlash(__('User not found.'), 'error');
+            return $this->redirect(array('action' => 'manage_users'));
+        }
+
+        $this->User->id = $subUser['ResellerSubUser']['user_id'];
+        $this->User->saveField('status', 0);
+
+        $this->ResellerSubUser->id = $id;
+        $this->ResellerSubUser->saveField('status', 0);
+
+        $this->Session->setFlash(__('User deactivated successfully.'), 'success');
+        return $this->redirect(array('action' => 'manage_users'));
+    }
 
 }

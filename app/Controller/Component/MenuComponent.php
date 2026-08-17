@@ -131,6 +131,13 @@ class MenuComponent extends Component {
                     //)
 
                     ),
+                    'Add User' => array(
+
+                        'link' => Router::url(array('controller' => 'resellers', 'action' => 'manage_users'), true),
+
+                        'icon' => '<i class="zmdi zmdi-account-add mr-20"></i>',
+                    ),
+
                     'Audit reports' => array(
 
                         'link' => Router::url(array('controller' => 'resellers', 'action' => 'audit_report'), true),
@@ -198,7 +205,7 @@ class MenuComponent extends Component {
                             Router::url(array('controller' => 'societys', 'action' => 'tenant_member_identitys'), true) => 'Tenant Member Identity',
                             Router::url(array('controller' => 'societys_members', 'action' => 'member_payments'), true) => 'Member Payments',
 			                Router::url(array('controller' => 'societys_members', 'action' => 'add_member_payment_from_xls'), true) => 'Import Member Payments',
-                            Router::url(array('controller' => 'societys_society', 'action' => 'add_society_payment_from_xls'), true) => 'Import Society Payments',
+                            Router::url(array('controller' => 'societys', 'action' => 'add_society_payment_from_xls'), true) => 'Import Society Payments',
                             Router::url(array('controller' => 'society_bills', 'action' => 'society_generated_bills'), true) => 'All Generated Bills',
                             Router::url(array('controller' => 'societys_members', 'action' => 'member_logins'), true) => 'Create Member Logins',
                             Router::url(array('controller' => 'societys', 'action' => 'update_opening_balance'), true) => 'Update Opening Balance'
@@ -237,8 +244,8 @@ class MenuComponent extends Component {
                         'submenu' => array(
                             Router::url(array('controller' => 'utility', 'action' => 'update_bill_date'), true) => 'update bill dates',
                         )
-                    ),     
-                                        
+                    ),
+
                     'Bill Print' => array('icon' => '<i class="zmdi zmdi-account mr-20"></i></i>', 'sublink' => Router::url(array('controller' => 'societys', 'action' => 'dashboard'), true),
                         'submenu' => array(
                             Router::url(array('controller' => 'reports', 'action' => 'bill_with_receipt_tabular'), true) => 'Bill With Receipt Tabular',
@@ -248,7 +255,7 @@ class MenuComponent extends Component {
                             Router::url(array('controller' => 'account_reports', 'action' => 'bill_with_interest_gst'), true) => 'Bill With Interest Gst',
                             Router::url(array('controller' => 'account_reports', 'action' => 'bill_summary_with_prev_data'), true) => 'Bill Summary With Prev Data',
                             Router::url(array('controller' => 'reports', 'action' => 'bill_with_receipt'), true) => 'Bill Receipt'
-                            
+
                         )
                     )
             ));
@@ -285,7 +292,7 @@ class MenuComponent extends Component {
                             Router::url(array('controller' => 'societys', 'action' => 'tenant_member_identitys'), true) => 'Tenant Member Identity',
                             Router::url(array('controller' => 'societys_members', 'action' => 'member_payments'), true) => 'Member Payments',
 			                Router::url(array('controller' => 'societys_members', 'action' => 'add_member_payment_from_xls'), true) => 'Import Member Payments',
-                            Router::url(array('controller' => 'societys_society', 'action' => 'add_society_payment_from_xls'), true) => 'Import Society Payments',
+                            Router::url(array('controller' => 'societys', 'action' => 'add_society_payment_from_xls'), true) => 'Import Society Payments',
                             Router::url(array('controller' => 'society_bills', 'action' => 'society_generated_bills'), true) => 'All Generated Bills',
                             Router::url(array('controller' => 'societys_members', 'action' => 'member_logins'), true) => 'Create Member Logins',
                            Router::url(array('controller' => 'societys', 'action' => 'update_opening_balance'), true) => 'Update Opening Balance'
@@ -314,7 +321,7 @@ class MenuComponent extends Component {
                             Router::url(array('controller' => 'utility', 'action' => 'update_bill_date'), true) => 'update bill dates',
                         )
                     ),
-                    
+
                     'Bill Print' => array('icon' => '<i class="zmdi zmdi-account mr-20"></i></i>', 'sublink' => Router::url(array('controller' => 'societys', 'action' => 'dashboard'), true),
                         'submenu' => array(
                             Router::url(array('controller' => 'reports', 'action' => 'bill_with_receipt_tabular'), true) => 'Bill With Receipt Tabular',
@@ -324,7 +331,7 @@ class MenuComponent extends Component {
                             Router::url(array('controller' => 'account_reports', 'action' => 'bill_with_interest_gst'), true) => 'Bill With Interest Gst',
                             Router::url(array('controller' => 'account_reports', 'action' => 'bill_summary_with_prev_data'), true) => 'Bill Summary With Prev Data',
                             Router::url(array('controller' => 'reports', 'action' => 'bill_with_receipt'), true) => 'Bill Receipt'
-                            
+
                         )
                     ),
                     /*'PrintBill' => array(

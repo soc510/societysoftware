@@ -23,11 +23,11 @@
                                         <div class="col-md-3 nopadding">
                                             <div class="society-report-form-field-box"> 
                                                 <div class="society-report-form-box-label">Bill Type &nbsp;</div>                                                                     
-                                                <select class="society-report-form-box-field-dropdown" id="" name="data[MemberPayment][bill_type]" required="">
-                                                    <option value="">Select Bill Type</option>  
+                                                <select class="society-report-form-box-field-dropdown" id="" name="data[MemberPayment][bill_type]">
+                                                    <option value="">Select Bill Type</option>
                                                     <option value="Both" <?php if(isset($postData['MemberPayment']['bill_type']) && $postData['MemberPayment']['bill_type'] == 'Both') { echo 'selected';}?>>Both</option>
                                                     <option value="Regular" <?php if(isset($postData['MemberPayment']['bill_type']) && $postData['MemberPayment']['bill_type'] == 'Regular') { echo 'selected';}?>>Regular</option>
-                                                    <option value="Supplementary" <?php if(isset($postData['MemberPayment']['bill_type']) && $postData['MemberPayment']['bill_type'] == 'Supplementary') { echo 'selected';}?>>Supplementary</option>                                                  
+                                                    <option value="Supplementary" <?php if(isset($postData['MemberPayment']['bill_type']) && $postData['MemberPayment']['bill_type'] == 'Supplementary') { echo 'selected';}?>>Supplementary</option>
                                                 </select> 
                                             </div>
                                         </div>  
@@ -95,7 +95,7 @@
                                 <h5 class="text-center"><?php echo isset($societyDetails['Society']['society_name']) ? $societyDetails['Society']['society_name'] : ''; ?></h5>
                                 <div class="report-address-heading"><?php echo isset($societyDetails['Society']['registration_no']) ? $societyDetails['Society']['registration_no'] : ''; ?></div>
                                 <div class="report-address-heading"><?php echo isset($societyDetails['Society']['address']) ? $societyDetails['Society']['address'] : ''; ?></div>
-                                <div class="member-passbook-heading">Member Passbook AS on Date 31/03/2018</div>
+                                <div class="member-passbook-heading">Member Passbook <?php if(isset($postData['MemberPayment']['payment_date']) && !empty($postData['MemberPayment']['payment_date'])) { echo 'AS on Date ' . date('d/m/Y', strtotime($postData['MemberPayment']['payment_date'])); } ?></div>
 
                                 <div class="table-wrap1">
                                     <table id="" class="table table-bordered padding-td-none padding-th-none">

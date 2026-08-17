@@ -36,7 +36,7 @@ class SocietysController extends AppController {
 
      */
 
-    public $components = array('Paginator', 'Session', 'RequestHandler', 'Util', 'SocietyBill');
+    public $components = array('Paginator', 'Session', 'RequestHandler', 'Util', 'SocietyBill', 'PhpExcel');
 
     public $helpers = array('Js');
 
@@ -82,7 +82,14 @@ class SocietysController extends AppController {
         $this->loadModel('MemberPayment');
         $this->loadModel('SocietyPayment');
 
-        $this->loadAllNavigationModals();
+        $lightNavActions = array('society_payments');
+        if (!$this->RequestHandler->isAjax()) {
+            if(in_array($this->action, $lightNavActions)){
+                $this->SocietyBill->loadAllNavigationModalsDropdowns();
+            } else {
+                $this->loadAllNavigationModals();
+            }
+        }
 
 
 
@@ -1305,7 +1312,31 @@ class SocietysController extends AppController {
 
             }
 
-            
+            if(!empty($requestData['SocietyParameter']['signature_image']['name'])){
+
+                $signatureFileData = $requestData['SocietyParameter']['signature_image'];
+
+                $signatureFileType = $this->getFileType($signatureFileData['name']);
+
+                if(!in_array($signatureFileType,['jpg','jpeg','png'])){
+
+                    $this->Session->setFlash(__('Signature file format type is not valid.'), 'error');
+
+                    $this->redirect(array('controller' => 'societys', 'action' => 'society_parameter'));
+
+                }
+
+                else{
+
+                    $signatureFilePath = $this->uploadFile($signatureFileData,$societyLoginID,$societyName,'society_signature','signature');
+
+                    $this->request->data['SocietyParameter']['signature_image_path'] = $signatureFilePath;
+
+                }
+
+            }
+
+
 
             if ($this->SocietyParameter->save($this->request->data)) {
                 $id = isset($this->request->data['SocietyParameter']['id']) ? $this->request->data['SocietyParameter']['id'] : 0;
@@ -1349,7 +1380,15 @@ class SocietysController extends AppController {
 
                     $this->request->data['SocietyParameter']['scanner_image_path']=strchr($filepath,'payment_scanner');
 
-                }                
+                }
+
+                $signatureFilepath = isset($this->request->data['SocietyParameter']['signature_image_path']) ? $this->request->data['SocietyParameter']['signature_image_path'] : '';
+
+                if(!empty($signatureFilepath)){
+
+                    $this->request->data['SocietyParameter']['signature_image_path']=strchr($signatureFilepath,'society_signature');
+
+                }
 
             }
 
@@ -1371,15 +1410,15 @@ class SocietysController extends AppController {
 
     
 
-    public function uploadFile($fileData,$societyLoginID,$societyName){
+    public function uploadFile($fileData,$societyLoginID,$societyName,$uploadFolderName = 'payment_scanner',$fileNameSuffix = 'paymentscanner'){
 
-        $folderPath =  WWW_ROOT.'img/payment_scanner/'.$societyName."_".$societyLoginID."/";
+        $folderPath =  WWW_ROOT.'img/'.$uploadFolderName.'/'.$societyName."_".$societyLoginID."/";
 
-        
+
 
         if(!is_dir($folderPath)){
 
-            mkdir("$folderPath");
+            mkdir("$folderPath", 0755, true);
 
             chmod("$folderPath", 0755);
 
@@ -1397,7 +1436,7 @@ class SocietysController extends AppController {
 
             $type = $this->getFileType($fileName);
 
-            $newFileName = $folderPath.$societyName."_".$rand."_paymentscanner.$type";// $fileName;
+            $newFileName = $folderPath.$societyName."_".$rand."_".$fileNameSuffix.".$type";// $fileName;
 
 
 
@@ -1543,6 +1582,40 @@ class SocietysController extends AppController {
 
 
 
+    /**
+     * Switch the logged-in society's active financial year from the header
+     * dropdown. Only a year the society is actually assigned to (society_year_mapping)
+     * is accepted; the session is updated exactly as the reseller's "Proceed" does,
+     * then we return to the page the user was on.
+     */
+    public function change_financial_year($yearId = null) {
+        $societyId = $this->societyloginID;
+        $yearId = (int)$yearId;
+        if ($societyId && $yearId > 0) {
+            $this->loadModel('SocietyFinancialYearMapping');
+            $this->loadModel('FinancialYearMaster');
+            $assigned = $this->SocietyFinancialYearMapping->find('first', array('conditions' => array('SocietyFinancialYearMapping.society_id' => $societyId, 'SocietyFinancialYearMapping.year_id' => $yearId, 'SocietyFinancialYearMapping.is_active' => 1), 'recursive' => -1));
+            if (!empty($assigned)) {
+                $fy = $this->FinancialYearMaster->find('first', array('conditions' => array('FinancialYearMaster.id' => $yearId, 'FinancialYearMaster.is_active' => 1), 'recursive' => -1));
+                if (!empty($fy)) {
+                    $fromDate = $fy['FinancialYearMaster']['year_start_date'];
+                    $toDate = $fy['FinancialYearMaster']['year_end_date'];
+                    $this->Session->write('Auth.year_id', $fy['FinancialYearMaster']['id']);
+                    $this->Session->write('Auth.year_start_date', $fromDate);
+                    $this->Session->write('Auth.year_end_date', $toDate);
+                    $this->Session->write('Auth.formated_year_start_date', date('d/m/Y', strtotime($fromDate)));
+                    $this->Session->write('Auth.formated_year_end_date', date('d/m/Y', strtotime($toDate)));
+                    $this->Session->write('Auth.start_year', date('Y', strtotime($fromDate)));
+                    $this->Session->write('Auth.end_year', date('Y', strtotime($toDate)));
+                    $this->Session->write('Auth.financial_years_arr', array($fromDate, $toDate));
+                    $this->Session->setFlash(__('Financial year changed to %s.', $fy['FinancialYearMaster']['year']), 'success');
+                }
+            }
+        }
+        return $this->redirect($this->referer(array('controller' => 'societys', 'action' => 'dashboard')));
+    }
+
+
      public function society_ledger_heads() {
 
 	//$this->setDatabase('database201819');
@@ -1553,14 +1626,60 @@ class SocietysController extends AppController {
 
         $societyLedgerHeadsLists = $this->SocietyLedgerHeads->find('all', array('conditions' => array('SocietyLedgerHeads.society_id' => $societyLoginID, 'SocietyLedgerHeads.status' => Configure::read('Active')), 'fields' => array('SocietyLedgerHeads.id', 'SocietyLedgerHeads.title', 'AccountHead.title', 'AccountCategory.title', 'SocietyHeadSubCategory.title'), 'order' => array('SocietyLedgerHeads.title' => 'asc')));
 
+        $openingBalanceMap = $this->SocietyBill->getSocietyLedgerOpClosingBalSocietyWise($societyLoginID);
 
+        // Ledger heads referenced by any bill, voucher, payment, tariff, bank or
+        // opening balance must not be deletable - the list hides the delete button
+        // for these, and the delete action itself refuses them.
+        $usedLedgerHeadIds = $this->getUsedLedgerHeadIds($societyLoginID);
 
-	//echo '<pre>';
+        $this->set(compact('societyLedgerHeadsLists', 'usedLedgerHeadIds', 'openingBalanceMap'));
 
-	//print_r($societyLedgerHeadsLists); exit;
+    }
 
-        $this->set(compact('societyLedgerHeadsLists'));
-
+    /**
+     * Returns [ledgerHeadId => true] for every ledger head of the society that is
+     * referenced somewhere it must not be orphaned from: generated bills, journal
+     * vouchers (debit or credit), society payments, other incomes, member tariffs,
+     * bank accounts, cash withdrawals, tariff orders, opening balances and
+     * supplementary tariffs. One UNION keeps it to a single round trip and each
+     * society-scoped leg uses the society_id index; supplementary_bill_tariffs has
+     * no society_id, but its ids only ever match this society's own rows.
+     */
+    private function getUsedLedgerHeadIds($societyLoginID) {
+        $this->loadModel('SocietyLedgerHeads');
+        $sid = (int)$societyLoginID;
+        $sql = "SELECT ledger_head_id AS lid FROM member_bill_generates WHERE society_id = $sid AND ledger_head_id > 0
+            UNION SELECT jv_debit_ledger_head_id FROM journal_vouchers WHERE society_id = $sid AND jv_debit_ledger_head_id > 0
+            UNION SELECT jv_credit_ledger_head_id FROM journal_vouchers WHERE society_id = $sid AND jv_credit_ledger_head_id > 0
+            UNION SELECT ledger_head_id FROM society_payments WHERE society_id = $sid AND ledger_head_id > 0
+            UNION SELECT ledger_head_id FROM society_other_incomes WHERE society_id = $sid AND ledger_head_id > 0
+            UNION SELECT ledger_head_id FROM member_tariffs WHERE society_id = $sid AND ledger_head_id > 0
+            UNION SELECT bank_ledger_head_id FROM society_banks WHERE society_id = $sid AND bank_ledger_head_id > 0
+            UNION SELECT bank_ledger_head_id FROM cash_withdraws WHERE society_id = $sid AND bank_ledger_head_id > 0
+            UNION SELECT bank_to_ledger_head_id FROM cash_withdraws WHERE society_id = $sid AND bank_to_ledger_head_id > 0
+            UNION SELECT ledger_head_id FROM society_tariff_orders WHERE society_id = $sid AND ledger_head_id > 0
+            UNION SELECT ledger_head_id FROM society_ledger_heads_opening_year_wise WHERE society_id = $sid AND ledger_head_id > 0 AND (COALESCE(op_credit,0) <> 0 OR COALESCE(op_debit,0) <> 0 OR COALESCE(balance_amount,0) <> 0)
+            UNION SELECT ledger_head_id FROM society_bank_head_opening_year_wise WHERE society_id = $sid AND ledger_head_id > 0
+            UNION SELECT ledger_head_id FROM supplementary_bill_tariffs WHERE ledger_head_id > 0";
+        $rows = $this->SocietyLedgerHeads->query($sql);
+        $used = array();
+        if (!empty($rows)) {
+            foreach ($rows as $r) {
+                // Aliased UNION column normally comes back under [0]['lid']; scan the
+                // other groups too so a different driver/result shape still works.
+                $val = isset($r[0]['lid']) ? $r[0]['lid'] : null;
+                if ($val === null && is_array($r)) {
+                    foreach ($r as $sub) {
+                        if (is_array($sub) && isset($sub['lid'])) { $val = $sub['lid']; break; }
+                    }
+                }
+                if ($val !== null && (int)$val > 0) {
+                    $used[(int)$val] = true;
+                }
+            }
+        }
+        return $used;
     }
 
 
@@ -1804,6 +1923,11 @@ class SocietysController extends AppController {
                 'is_rebate_applicable' => $this->request->data['SocietyLedgerHeads']['is_rebate_applicable'],
 
                 'is_interest_free' => $this->request->data['SocietyLedgerHeads']['is_interest_free'],
+
+                // An unchecked checkbox is not posted, so default to 0. Without this
+                // is_supplementary_bill was missing from the update entirely, so
+                // unchecking "Is Supplementary Bill" never saved - the old value stayed.
+                'is_supplementary_bill' => isset($this->request->data['SocietyLedgerHeads']['is_supplementary_bill']) ? $this->request->data['SocietyLedgerHeads']['is_supplementary_bill'] : 0,
 
                 'udate' => $this->Util->getDateTime()
 
@@ -2129,13 +2253,23 @@ class SocietysController extends AppController {
         $societyPaymentData = [];
         
         $this->loadModel('SocietyPayment');        
+        $conditions = array('SocietyPayment.society_id' => $societyLoginID,'SocietyPayment.status'=>Configure::read('Active'),'SocietyPayment.financial_year_id' => $financialYearId);
+        if($this->request->is('post') && isset($this->request->data['Filter'])){
+            $filterData = $this->request->data['Filter'];
+            if(!empty($filterData['from_date'])){
+                $conditions['SocietyPayment.payment_date >='] = $filterData['from_date'];
+            }
+            if(!empty($filterData['to_date'])){
+                $conditions['SocietyPayment.payment_date <='] = $filterData['to_date'];
+            }
+        }
         $societyPayments = $this->SocietyPayment->find('all',array('fields'=>array('SocietyPayment.id','SocietyPayment.particulars',
         'SocietyPayment.bill_voucher_number',
-        'SocietyPayment.payment_date','SocietyPayment.cheque_date','SocietyPayment.payment_type',
+        'SocietyPayment.payment_date','SocietyPayment.cheque_date','SocietyPayment.cheque_reference_number','SocietyPayment.payment_type',
         'SocietyLedgerHeads.account_category_id','SocietyLedgerHeads.title',
         'SocietyPayment.amount','SocietyPayment.total_amount','SocietyPayment.tax_amount',
-        'SocietyPayment.financial_year_id'),
-        'conditions' => array('SocietyPayment.society_id' => $societyLoginID,'SocietyPayment.status'=>Configure::read('Active'),'SocietyPayment.financial_year_id' => $financialYearId),
+        'SocietyPayment.financial_year_id','SocietyPayment.debited_date'),
+        'conditions' => $conditions,
         'order'=>array('SocietyPayment.payment_date' => 'desc'))); 
         
         if(!empty($societyPayments)){
@@ -2337,34 +2471,511 @@ class SocietysController extends AppController {
             if($this->Util->isDateInCurrentFinancialYear($paymentDate)){
 
                     
-                if ($this->SocietyPayment->save($this->request->data)) {  
-                        
+                if ($this->SocietyPayment->save($this->request->data)) {
+                    if($this->RequestHandler->isAjax()){
+                        $this->autoRender = false;
+                        echo json_encode(array('error'=>0,'error_message'=>'Society Payment saved successfully.'));
+                        return;
+                    }
                     $this->Session->setFlash(__('Society Payment saved successfully.'), 'success');
-                    
-    
                     $this->redirect(array('controller' => 'societys', 'action' => 'society_payments'));
-    
                 } else {
-    
+                    if($this->RequestHandler->isAjax()){
+                        $this->autoRender = false;
+                        echo json_encode(array('error'=>1,'error_message'=>'The SocietyPayment could not be saved.'));
+                        return;
+                    }
                     $this->Session->setFlash(__('The SocietyPayment could not be saved .'), 'error');
                 }
             }
             else {
-
+                if($this->RequestHandler->isAjax()){
+                    $this->autoRender = false;
+                    echo json_encode(array('error'=>1,'error_message'=>'The SocietyPayment could not be saved due payment Date.'));
+                    return;
+                }
                 $this->Session->setFlash(__('The SocietyPayment could not be saved due payment Date .'), 'error');
             }
 
         }
         $societyExpenseLedgerHeadsTdsLists = $this->SocietyLedgerHeads->find('list', [
         'fields' => ['id', 'title'],
-         'conditions' => ['tds_type'=> 1],
-        // Add any conditions, order, or other parameters as needed
+        // Scope to this society (and active heads) - without society_id the TDS Bank
+        // dropdown listed every society's TDS Payable head, so the same "TDS Payable"
+        // appeared many times and heads from other societies were selectable.
+         'conditions' => ['SocietyLedgerHeads.tds_type' => 1, 'SocietyLedgerHeads.society_id' => $this->societyloginID, 'SocietyLedgerHeads.status' => Configure::read('Active')],
     ]);
         $this->set(compact('societyExpenseLedgerHeadsLists', 'societyBankBalanceHeadsLists','societyExpenseLedgerHeadsTdsLists'));
 
     }
 
+    private function _parseExcelDate($dateValue) {
+        if (empty($dateValue)) return '';
+        $dateValue = trim($dateValue);
 
+        if (is_numeric($dateValue) && $dateValue > 25000) {
+            $unixDate = PHPExcel_Shared_Date::ExcelToPHP($dateValue);
+            return date('Y-m-d', $unixDate);
+        }
+
+        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $dateValue)) {
+            return $dateValue;
+        }
+
+        if (strstr($dateValue, '/')) {
+            $parts = explode('/', $dateValue);
+            if (count($parts) == 3) {
+                list($dd, $mm, $yy) = $parts;
+                if (strlen($yy) != 4) {
+                    $dt = DateTime::createFromFormat('y', $yy);
+                    $yy = $dt ? $dt->format('Y') : '20' . $yy;
+                }
+                if ($mm > 12) { $tmp = $dd; $dd = $mm; $mm = $tmp; }
+                return $yy . '-' . str_pad($mm, 2, '0', STR_PAD_LEFT) . '-' . str_pad($dd, 2, '0', STR_PAD_LEFT);
+            }
+        }
+
+        if (strstr($dateValue, '-')) {
+            $parts = explode('-', $dateValue);
+            if (count($parts) == 3) {
+                list($dd, $mm, $yy) = $parts;
+                if (strlen($yy) != 4) {
+                    $dt = DateTime::createFromFormat('y', $yy);
+                    $yy = $dt ? $dt->format('Y') : '20' . $yy;
+                }
+                if ($mm > 12) { $tmp = $dd; $dd = $mm; $mm = $tmp; }
+                return $yy . '-' . str_pad($mm, 2, '0', STR_PAD_LEFT) . '-' . str_pad($dd, 2, '0', STR_PAD_LEFT);
+            }
+        }
+
+        $ts = strtotime($dateValue);
+        if ($ts !== false) {
+            return date('Y-m-d', $ts);
+        }
+
+        return '';
+    }
+
+    public function add_society_payment_from_xls() {
+        set_time_limit(0);
+        $societyLoginID = $this->societyloginID;
+        $financialYearId = $this->Util->getFinancialYear();
+
+        $societyBankLists = $this->SocietyBill->societyBankBalanceHeadsLists();
+        $societyCashLists = $this->SocietyBill->societyCashBalanceHeadsLists();
+        $societyExpenseLedgerHeadsLists = $this->SocietyBill->societyAllLedgerHeadsLists();
+
+        if (!empty($this->request->data['data']['file']['name'])) {
+            $fileName = preg_replace('/[^A-Za-z0-9_\-\.]/', '_', $this->request->data['data']['file']['name']);
+            $uploadPath = sys_get_temp_dir() . '/';
+            $uploadFile = $uploadPath . $fileName;
+            move_uploaded_file($this->request->data['data']['file']['tmp_name'], $uploadFile);
+
+            $data = $this->PhpExcel->loadWorksheet($uploadFile);
+            $activeSheet = $data->getActiveSheet();
+            $sheetData = $activeSheet->toArray(null, true, true, true);
+
+            $headers = $sheetData[1];
+
+            $mapping = array(
+                'DebitTo'       => 'ledger_head_title',
+                'PaymentDate'   => 'payment_date',
+                'PaymentType'   => 'payment_type',
+                'PaymentBy'     => 'payment_by_name',
+                'Amount'        => 'amount',
+                'TaxAmount'     => 'tax_amount',
+                'Particulars'   => 'particulars',
+                'ChequeNo'      => 'cheque_reference_number',
+                'ChequeDate'    => 'cheque_date',
+                'VoucherNo'     => 'bill_voucher_number',
+                'Notes'         => 'notes'
+            );
+
+            $dateColumns = array();
+            foreach ($headers as $key => $value) {
+                if ($value === null) { unset($headers[$key]); continue; }
+                $trimmed = trim($value);
+                if (!empty($mapping[$trimmed])) {
+                    $headers[$key] = $mapping[$trimmed];
+                    if ($mapping[$trimmed] == 'payment_date' || $mapping[$trimmed] == 'cheque_date') {
+                        $dateColumns[$key] = $mapping[$trimmed];
+                    }
+                } else {
+                    unset($headers[$key]);
+                }
+            }
+
+            foreach ($sheetData as $rowIdx => $rowData) {
+                if ($rowIdx == 1) continue;
+                foreach ($dateColumns as $colKey => $fieldName) {
+                    $rawVal = $activeSheet->getCell($colKey . $rowIdx)->getValue();
+                    if (is_numeric($rawVal) && $rawVal > 25000) {
+                        $unixDate = PHPExcel_Shared_Date::ExcelToPHP($rawVal);
+                        $sheetData[$rowIdx][$colKey] = date('d/m/Y', $unixDate);
+                    }
+                }
+            }
+            unset($sheetData[1]);
+
+            $ledgerHeadsByTitle = array_flip($societyExpenseLedgerHeadsLists);
+
+            $bankByTitle = array();
+            if (!empty($societyBankLists)) {
+                $bankByTitle = array_flip($societyBankLists);
+            }
+            $cashByTitle = array();
+            if (!empty($societyCashLists)) {
+                $cashByTitle = array_flip($societyCashLists);
+            }
+            $allByTitle = $bankByTitle + $cashByTitle;
+
+            $this->loadModel('SocietyParameter');
+            $checkSocietyParameters = $this->SocietyParameter->find('first', array(
+                'conditions' => array('SocietyParameter.society_id' => $societyLoginID)
+            ));
+
+            if (empty($checkSocietyParameters['SocietyParameter'])) {
+                $this->Session->setFlash(__('Society parameters not configured. Cannot save payments.'), 'error');
+                $this->set(compact('societyBankLists', 'societyCashLists', 'societyExpenseLedgerHeadsLists'));
+                return;
+            }
+
+            $addedPayment = 0;
+            $failedCnt = 0;
+            $failedReasons = array();
+            $failedRows = array();
+            $billVoucherNumber = $this->SocietyBill->billVoucherNumber();
+
+            if (!empty($sheetData)) {
+                foreach ($sheetData as $index => $row) {
+                    if (empty($row))
+                        continue;
+
+                    $allEmpty = true;
+                    foreach ($row as $val) {
+                        if ($val !== null && trim($val) !== '') { $allEmpty = false; break; }
+                    }
+                    if ($allEmpty) continue;
+
+                    $aData = array();
+                    foreach ($row as $column => $value) {
+                        if (!empty($headers[$column]))
+                            $aData[$headers[$column]] = $value;
+                    }
+
+                    if (empty($aData['ledger_head_title']) || empty($aData['amount']) || empty($aData['payment_date'])) {
+                        $failedCnt++;
+                        $missing = array();
+                        if (empty($aData['ledger_head_title'])) $missing[] = 'DebitTo';
+                        if (empty($aData['amount'])) $missing[] = 'Amount';
+                        if (empty($aData['payment_date'])) $missing[] = 'PaymentDate';
+                        $failedReasons[] = 'Row ' . $index . ': Missing ' . implode(', ', $missing);
+                        $failedRows[] = array('row' => $index, 'reason' => 'Missing ' . implode(', ', $missing), 'data' => $aData);
+                        continue;
+                    }
+
+                    $ledgerTitle = trim($aData['ledger_head_title']);
+                    if (!isset($ledgerHeadsByTitle[$ledgerTitle])) {
+                        $this->SocietyLedgerHeads = ClassRegistry::init('SocietyLedgerHeads');
+                        $this->SocietyLedgerHeads->create();
+                        $newLedger = $this->SocietyLedgerHeads->save(array('SocietyLedgerHeads' => array(
+                            'title' => $ledgerTitle,
+                            'short_code' => strtoupper(substr(preg_replace('/[^A-Za-z]/', '', $ledgerTitle), 0, 10)),
+                            'account_category_id' => 4,
+                            'account_head_id' => 4,
+                            'society_id' => $societyLoginID,
+                            'financial_year_id' => $financialYearId,
+                            'opening_amount' => 0,
+                            'cdate' => date('Y-m-d H:i:s'),
+                            'status' => Configure::read('Active')
+                        )));
+                        if ($newLedger) {
+                            $newId = $this->SocietyLedgerHeads->id;
+                            $ledgerHeadsByTitle[$ledgerTitle] = $newId;
+                            $societyExpenseLedgerHeadsLists[$newId] = $ledgerTitle;
+                        } else {
+                            $failedCnt++;
+                            $failedReasons[] = 'Row ' . $index . ': Could not create ledger head "' . $ledgerTitle . '"';
+                            $failedRows[] = array('row' => $index, 'reason' => 'Could not create ledger head', 'data' => $aData);
+                            continue;
+                        }
+                    }
+
+                    $paymentType = isset($aData['payment_type']) ? trim($aData['payment_type']) : 'Bank';
+                    if (!in_array($paymentType, array('Bank', 'Cash'))) {
+                        $paymentType = 'Bank';
+                    }
+
+                    $paymentByLedgerId = 0;
+                    if (!empty($aData['payment_by_name'])) {
+                        $byName = trim($aData['payment_by_name']);
+                        if ($paymentType == 'Bank' && isset($bankByTitle[$byName])) {
+                            $paymentByLedgerId = $bankByTitle[$byName];
+                        } elseif ($paymentType == 'Cash' && isset($cashByTitle[$byName])) {
+                            $paymentByLedgerId = $cashByTitle[$byName];
+                        } elseif (isset($allByTitle[$byName])) {
+                            $paymentByLedgerId = $allByTitle[$byName];
+                        }
+                    }
+                    if (empty($paymentByLedgerId)) {
+                        if ($paymentType == 'Bank' && !empty($bankByTitle)) {
+                            $paymentByLedgerId = reset($bankByTitle);
+                        } elseif ($paymentType == 'Cash' && !empty($cashByTitle)) {
+                            $paymentByLedgerId = reset($cashByTitle);
+                        }
+                    }
+
+                    $paymentDate = $this->_parseExcelDate($aData['payment_date']);
+                    if (empty($paymentDate)) {
+                        $failedCnt++;
+                        $failedReasons[] = 'Row ' . $index . ': Invalid PaymentDate "' . $aData['payment_date'] . '"';
+                        $failedRows[] = array('row' => $index, 'reason' => 'Invalid PaymentDate', 'data' => $aData);
+                        continue;
+                    }
+
+                    if (!$this->Util->isDateInCurrentFinancialYear($paymentDate)) {
+                        $failedCnt++;
+                        $failedReasons[] = 'Row ' . $index . ': PaymentDate ' . $paymentDate . ' not in current financial year';
+                        $aData['parsed_payment_date'] = $paymentDate;
+                        $failedRows[] = array('row' => $index, 'reason' => 'Date not in current financial year', 'data' => $aData);
+                        continue;
+                    }
+
+                    $chequeDate = $this->_parseExcelDate(isset($aData['cheque_date']) ? $aData['cheque_date'] : '');
+
+                    $paymentAmount = floatval($aData['amount']);
+                    $taxAmount = isset($aData['tax_amount']) ? floatval($aData['tax_amount']) : 0.00;
+                    $totalAmount = $paymentAmount - $taxAmount;
+
+                    $saveData = array('SocietyPayment' => array(
+                        'ledger_head_id'           => $ledgerHeadsByTitle[$ledgerTitle],
+                        'payment_date'             => $paymentDate,
+                        'payment_type'             => $paymentType,
+                        'payment_by_ledger_id'     => $paymentByLedgerId,
+                        'amount'                   => $paymentAmount,
+                        'tax_amount'               => $taxAmount,
+                        'total_amount'             => $totalAmount,
+                        'cheque_reference_number'  => isset($aData['cheque_reference_number']) ? $aData['cheque_reference_number'] : '',
+                        'cheque_date'              => $chequeDate,
+                        'bill_voucher_number'      => !empty($aData['bill_voucher_number']) ? $aData['bill_voucher_number'] : $billVoucherNumber,
+                        'particulars'              => isset($aData['particulars']) ? $aData['particulars'] : '',
+                        'notes'                    => isset($aData['notes']) ? $aData['notes'] : '',
+                        'society_id'               => $societyLoginID,
+                        'financial_year_id'        => $financialYearId,
+                        'cdate'                    => date('Y-m-d H:i:s'),
+                        'udate'                    => date('Y-m-d H:i:s')
+                    ));
+
+                    $this->SocietyPayment->create();
+                    if ($this->SocietyPayment->save($saveData)) {
+                        $addedPayment++;
+                        $billVoucherNumber++;
+                    } else {
+                        $failedCnt++;
+                        $failedReasons[] = 'Row ' . $index . ': Database save failed';
+                        $failedRows[] = array('row' => $index, 'reason' => 'Database save failed', 'data' => $aData);
+                    }
+                }
+            }
+
+            $errorDetail = '';
+            if (!empty($failedReasons)) {
+                $errorDetail = ' Errors: ' . implode(' | ', array_slice($failedReasons, 0, 5));
+                if (count($failedReasons) > 5) {
+                    $errorDetail .= ' ... and ' . (count($failedReasons) - 5) . ' more';
+                }
+            }
+
+            if (empty($failedCnt) && $addedPayment > 0) {
+                $this->Session->setFlash(__($addedPayment . ' payment(s) imported successfully.'), 'success');
+                $this->redirect(array('action' => 'society_payments'));
+            } elseif (!empty($failedCnt)) {
+                $msg = !empty($addedPayment)
+                    ? $addedPayment . ' payment(s) saved, ' . $failedCnt . ' record(s) failed.'
+                    : 'No payments could be saved. ' . $failedCnt . ' record(s) failed.';
+                $this->Session->setFlash(__($msg), 'error');
+                $this->set('failedRows', $failedRows);
+                $this->set('failedCount', $failedCnt);
+                $this->set('savedCount', $addedPayment);
+            }
+
+            @unlink($uploadFile);
+        }
+        $this->set(compact('societyBankLists', 'societyCashLists', 'societyExpenseLedgerHeadsLists'));
+    }
+
+    public function downloadSampleFileForSocietyPayment() {
+        $societyLoginID = $this->societyloginID;
+        $societyExpenseLedgerHeadsLists = $this->SocietyBill->societyAllLedgerHeadsLists();
+        $societyBankLists = $this->SocietyBill->societyBankBalanceHeadsLists();
+        $societyCashLists = $this->SocietyBill->societyCashBalanceHeadsLists();
+
+        $allByNames = array();
+        if (!empty($societyBankLists)) {
+            foreach ($societyBankLists as $title) {
+                $allByNames[] = $title;
+            }
+        }
+        if (!empty($societyCashLists)) {
+            foreach ($societyCashLists as $title) {
+                if (!in_array($title, $allByNames)) {
+                    $allByNames[] = $title;
+                }
+            }
+        }
+
+        $this->PhpExcel->createWorksheet()->setDefaultFont('Arial', 9);
+        $this->PhpExcel->createSheet(0);
+        $this->PhpExcel->getDefaultStyle()
+            ->getNumberFormat()
+            ->setFormatCode(PHPExcel_Style_NumberFormat::FORMAT_TEXT);
+        $this->PhpExcel->setActiveSheetIndex(0);
+        $this->PhpExcel->getDefaultStyle()->getAlignment()->setHorizontal(PHPExcel_Style_Alignment::HORIZONTAL_LEFT);
+        $this->PhpExcel->getDefaultStyle()->getAlignment()->setVertical(PHPExcel_Style_Alignment::VERTICAL_CENTER);
+        $this->PhpExcel->getActiveSheet()->freezePane('A2');
+        $this->PhpExcel->getActiveSheet()->setTitle('Society Payment');
+        $this->PhpExcel->getActiveSheet()->getSheetView()->setZoomScale(100);
+
+        $headerRow = array(
+            'DebitTo', 'PaymentDate', 'PaymentType', 'PaymentBy', 'Amount', 'TaxAmount',
+            'Particulars', 'ChequeNo', 'ChequeDate', 'VoucherNo', 'Notes'
+        );
+
+        $this->PhpExcel->setRow(1);
+        $this->PhpExcel->addTableRow($headerRow, array('name' => 'Arial', 'bold' => true, 'size' => 12));
+
+        $lastRow = count($societyExpenseLedgerHeadsLists) + 1;
+        $rowNum = 2;
+        if (!empty($societyExpenseLedgerHeadsLists)) {
+            foreach ($societyExpenseLedgerHeadsLists as $id => $title) {
+                $this->PhpExcel->setActiveSheetIndex(0)->setCellValue('A' . $rowNum, $title);
+                $rowNum++;
+            }
+        }
+
+        $sheet = $this->PhpExcel->getActiveSheet();
+
+        // PaymentDate - date format + validation (Column B)
+        $sheet->getStyle('B2:B' . $lastRow)
+            ->getNumberFormat()
+            ->setFormatCode('DD/MM/YYYY');
+        $dateValidation = $sheet->getCell('B2')->getDataValidation();
+        $dateValidation->setType(PHPExcel_Cell_DataValidation::TYPE_DATE);
+        $dateValidation->setErrorStyle(PHPExcel_Cell_DataValidation::STYLE_STOP);
+        $dateValidation->setAllowBlank(true);
+        $dateValidation->setShowErrorMessage(true);
+        $dateValidation->setErrorTitle('Invalid Date');
+        $dateValidation->setError('Please enter a valid date (DD/MM/YYYY).');
+        $dateValidation->setShowInputMessage(true);
+        $dateValidation->setPromptTitle('Payment Date');
+        $dateValidation->setPrompt('Enter payment date in DD/MM/YYYY format.');
+        for ($r = 3; $r <= $lastRow; $r++) {
+            $sheet->getCell('B' . $r)->setDataValidation(clone $dateValidation);
+        }
+
+        // PaymentType - dropdown Bank/Cash (Column C)
+        $paymentTypeValidation = $sheet->getCell('C2')->getDataValidation();
+        $paymentTypeValidation->setType(PHPExcel_Cell_DataValidation::TYPE_LIST);
+        $paymentTypeValidation->setErrorStyle(PHPExcel_Cell_DataValidation::STYLE_STOP);
+        $paymentTypeValidation->setAllowBlank(true);
+        $paymentTypeValidation->setShowDropDown(true);
+        $paymentTypeValidation->setShowErrorMessage(true);
+        $paymentTypeValidation->setErrorTitle('Invalid Payment Type');
+        $paymentTypeValidation->setError('Please select Bank or Cash.');
+        $paymentTypeValidation->setFormula1('"Bank,Cash"');
+        for ($r = 3; $r <= $lastRow; $r++) {
+            $sheet->getCell('C' . $r)->setDataValidation(clone $paymentTypeValidation);
+        }
+
+        // PaymentBy - dropdown of bank + cash names (Column D)
+        $byNamesStr = implode(',', $allByNames);
+        $paymentByValidation = $sheet->getCell('D2')->getDataValidation();
+        $paymentByValidation->setType(PHPExcel_Cell_DataValidation::TYPE_LIST);
+        $paymentByValidation->setErrorStyle(PHPExcel_Cell_DataValidation::STYLE_STOP);
+        $paymentByValidation->setAllowBlank(true);
+        $paymentByValidation->setShowDropDown(true);
+        $paymentByValidation->setShowErrorMessage(true);
+        $paymentByValidation->setErrorTitle('Invalid Bank/Cash Name');
+        $paymentByValidation->setError('Please select a valid Bank or Cash account name.');
+        $paymentByValidation->setShowInputMessage(true);
+        $paymentByValidation->setPromptTitle('Payment By');
+        $paymentByValidation->setPrompt('Select the Bank or Cash account.');
+        $paymentByValidation->setFormula1('"' . $byNamesStr . '"');
+        for ($r = 3; $r <= $lastRow; $r++) {
+            $sheet->getCell('D' . $r)->setDataValidation(clone $paymentByValidation);
+        }
+
+        // ChequeDate - date format + validation (Column I now)
+        $sheet->getStyle('I2:I' . $lastRow)
+            ->getNumberFormat()
+            ->setFormatCode('DD/MM/YYYY');
+        $chequeDateValidation = $sheet->getCell('I2')->getDataValidation();
+        $chequeDateValidation->setType(PHPExcel_Cell_DataValidation::TYPE_DATE);
+        $chequeDateValidation->setErrorStyle(PHPExcel_Cell_DataValidation::STYLE_STOP);
+        $chequeDateValidation->setAllowBlank(true);
+        $chequeDateValidation->setShowErrorMessage(true);
+        $chequeDateValidation->setErrorTitle('Invalid Date');
+        $chequeDateValidation->setError('Please enter a valid date (DD/MM/YYYY).');
+        $chequeDateValidation->setShowInputMessage(true);
+        $chequeDateValidation->setPromptTitle('Cheque Date');
+        $chequeDateValidation->setPrompt('Enter cheque date in DD/MM/YYYY format.');
+        for ($r = 3; $r <= $lastRow; $r++) {
+            $sheet->getCell('I' . $r)->setDataValidation(clone $chequeDateValidation);
+        }
+
+        $sheet->getColumnDimension('A')->setWidth(30);
+        $sheet->getColumnDimension('B')->setWidth(15);
+        $sheet->getColumnDimension('C')->setWidth(15);
+        $sheet->getColumnDimension('D')->setWidth(20);
+        $sheet->getColumnDimension('E')->setWidth(12);
+        $sheet->getColumnDimension('F')->setWidth(12);
+        $sheet->getColumnDimension('G')->setWidth(20);
+        $sheet->getColumnDimension('H')->setWidth(15);
+        $sheet->getColumnDimension('I')->setWidth(15);
+        $sheet->getColumnDimension('J')->setWidth(12);
+        $sheet->getColumnDimension('K')->setWidth(20);
+
+        // Reference sheet with ledger heads and bank/cash names
+        $this->PhpExcel->createSheet(1);
+        $this->PhpExcel->setActiveSheetIndex(1);
+        $this->PhpExcel->getActiveSheet()->setTitle('Reference');
+        $this->PhpExcel->setActiveSheetIndex(1)->setCellValue('A1', 'Ledger Head Name');
+        $this->PhpExcel->setActiveSheetIndex(1)->setCellValue('B1', 'Bank Accounts');
+        $this->PhpExcel->setActiveSheetIndex(1)->setCellValue('C1', 'Cash Accounts');
+        $this->PhpExcel->getActiveSheet()->getStyle('A1:C1')->getFont()->setBold(true)->setSize(12);
+        $this->PhpExcel->getActiveSheet()->getColumnDimension('A')->setWidth(30);
+        $this->PhpExcel->getActiveSheet()->getColumnDimension('B')->setWidth(25);
+        $this->PhpExcel->getActiveSheet()->getColumnDimension('C')->setWidth(25);
+
+        $refRow = 2;
+        if (!empty($societyExpenseLedgerHeadsLists)) {
+            foreach ($societyExpenseLedgerHeadsLists as $id => $title) {
+                $this->PhpExcel->setActiveSheetIndex(1)->setCellValue('A' . $refRow, $title);
+                $refRow++;
+            }
+        }
+        $refRow = 2;
+        if (!empty($societyBankLists)) {
+            foreach ($societyBankLists as $id => $title) {
+                $this->PhpExcel->setActiveSheetIndex(1)->setCellValue('B' . $refRow, $title);
+                $refRow++;
+            }
+        }
+        $refRow = 2;
+        if (!empty($societyCashLists)) {
+            foreach ($societyCashLists as $id => $title) {
+                $this->PhpExcel->setActiveSheetIndex(1)->setCellValue('C' . $refRow, $title);
+                $refRow++;
+            }
+        }
+
+        $this->PhpExcel->setActiveSheetIndex(0);
+
+        date_default_timezone_set("Asia/Kolkata");
+        $filename = "SampleImportSocietyPayment";
+        $this->PhpExcel->output($filename . ".xlsx");
+        $this->PhpExcel->exit();
+    }
 
     public function cash_withdraws($cashWithdrawId = null) {
         $financialYearId = $this->Util->getFinancialYear();
@@ -2509,6 +3120,16 @@ class SocietysController extends AppController {
         }
 
         $this->request->allowMethod('post', 'delete');
+
+        // A ledger head used anywhere (bills, vouchers, payments, tariffs, bank,
+        // opening balances) must not be removed - deactivating it would orphan
+        // those rows. The list already hides the button for these; this refuses a
+        // direct post as well.
+        $usedLedgerHeadIds = $this->getUsedLedgerHeadIds($societyLoginID);
+        if (isset($usedLedgerHeadIds[(int)$societyHeadId])) {
+            $this->Session->setFlash(__('This ledger head is in use (bills or entries exist) and cannot be deleted.'), 'error');
+            return $this->redirect(array('action' => 'society_ledger_heads'));
+        }
 
         $this->SocietyLedgerHeads->id = $societyHeadId;
 
@@ -3149,9 +3770,11 @@ class SocietysController extends AppController {
             if($memberIdentificationDetails){ 
                 $second_member = $postData['second_member'];
                 $member_trasfer= $count+1;                // for new new status update to +1
-                $new_op_principal   =  isset($this->request->data['MemberIdentification']['op_principal']) ? $this->request->data['MemberIdentification']['op_principal'] : 0;
-                $new_op_interest    =  isset($this->request->data['MemberIdentification']['op_interest']) ? $this->request->data['MemberIdentification']['op_interest'] : 0;
-                $new_op_tax         =  isset($this->request->data['MemberIdentification']['op_tax']) ? $this->request->data['MemberIdentification']['op_tax'] : 0;
+                // Preserve the member's existing opening balance when the form leaves
+                // these blank (isset() was true for an empty field, wiping op_* to 0).
+                $new_op_principal   =  !empty($this->request->data['MemberIdentification']['op_principal']) ? $this->request->data['MemberIdentification']['op_principal'] : $old_op_principal;
+                $new_op_interest    =  !empty($this->request->data['MemberIdentification']['op_interest']) ? $this->request->data['MemberIdentification']['op_interest'] : $old_op_interest;
+                $new_op_tax         =  !empty($this->request->data['MemberIdentification']['op_tax']) ? $this->request->data['MemberIdentification']['op_tax'] : $old_op_tax;
                 $this->Member->updateAll(array('Member.member_name' =>"'$second_member'", 'Member.member_transfer' => "'$member_trasfer'", 'Member.op_principal' => "'$new_op_principal'", 'Member.op_interest' => "'$new_op_interest'", 'Member.op_tax' => "'$new_op_tax'"),array('Member.id'=>$memberId));
                 $this->Session->setFlash(__('Member Information Save Successfully'), 'success');
                 $this->redirect(array('controller' => 'societys', 'action' => 'member_identifications'));                
@@ -3417,7 +4040,12 @@ class SocietysController extends AppController {
 
                                 $postData['cheque_date'] = '';
 
-                                $postData['society_bank_id'] = 'null';
+                                // A cash receipt is still tied to a ledger - the "By" (Cash in Hand)
+                                // dropdown, posted as SocietyOtherIncomeHeader.society_bank_id. The cash
+                                // book, trial balance and balance sheet all match cash receipts by this
+                                // id, so forcing it to null here dropped every cash general receipt from
+                                // the cash figures. Keep the selected ledger, exactly as the Bank branch.
+                                $postData['society_bank_id'] = isset($this->request->data['SocietyOtherIncomeHeader']['society_bank_id']) && $this->request->data['SocietyOtherIncomeHeader']['society_bank_id'] !== '' ? $this->request->data['SocietyOtherIncomeHeader']['society_bank_id'] : 'null';
 
                             }
 

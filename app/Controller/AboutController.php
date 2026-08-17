@@ -3,47 +3,49 @@
 App::uses('AppController', 'Controller');
 
 class AboutController extends AppController { // your controller
-  
+
   public function beforeFilter() {
         parent::beforeFilter();
         //$this->layout = '';
         $this->Auth->allow(['action']);
     }
-	
+
 	//public $components = array('Paginator', 'Session', 'RequestHandler', 'Util', 'SocietyBill');
 
     //public $helpers = array('Js');
 
+
+	
 //    public $societyloginID = '';
-    
-	
+
+
 	public function about(){
-		
+
 	}
-	
+
   /*public $components = array(
     'BotDetect.Captcha' => array(
       'captchaConfig' => 'ExampleCaptcha'
     )
   );*/
-  
+
   public function showCaptcha(){
 	session_start();
-	
+
 	$random = rand(1, 9).rand(1, 9).rand(1, 9);
-	
+
 	$_SESSION['captcha'] = $random;
-	
+
 	$captcha = imagecreatefromjpeg(WWW_ROOT.'img'.DS."captcha.jpg");
 	$color = imagecolorallocate($captcha, 0, 0, 0);
-	$font = WWW_ROOT.'img'.DS.'code.otf'; 
+	$font = WWW_ROOT.'img'.DS.'code.otf';
 	imagettftext($captcha, 20, 0, rand(30, 200), rand(20, 70), $color, $font, $random );
 	imagepng($captcha);
 	imagedestroy($captcha);
 	exit;
   }
   public function generateCaptcha(){
-	  
+
 $captcha_code = '';
 $captcha_image_height = 25;
 $captcha_image_width = 70;
@@ -65,7 +67,7 @@ $captcha_noise_color = "0x142864";
 
 
 $count = 0;
-while ($count < $total_characters_on_image) { 
+while ($count < $total_characters_on_image) {
 $captcha_code .= substr(
 	$possible_captcha_letters,
 	mt_rand(0, strlen($possible_captcha_letters)-1),
@@ -135,7 +137,7 @@ $text_box = imagettfbbox(
 	0,
 	$captcha_font,
 	$captcha_code
-	); 
+	);
 $x = ($captcha_image_width - $text_box[4])/2;
 $y = ($captcha_image_height - $text_box[5])/2;
 imagettftext(
@@ -151,7 +153,7 @@ imagettftext(
 
 /* Show captcha image in the html page */
 // defining the image type to be shown in browser widow
-header('Content-Type: image/jpeg'); 
+header('Content-Type: image/jpeg');
 imagejpeg($captcha_image); //showing the image
 imagedestroy($captcha_image); //destroying the image instance
 $_SESSION['captcha'] = $captcha_code;

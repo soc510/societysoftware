@@ -19,7 +19,7 @@ if ($db != 'default'){
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header modal-header-bg">
-                <button type="button" class="close"><a href="<?php echo Router::url(array('controller' =>'societys','action' =>'dashboard')); ?>">&times;</a></button>
+                <button type="button" class="close" data-dismiss="modal">&times;</button>
                 <h6 class="modal-title modal-title-color">Account Master / Ledger Heads</h6>
             </div>
             <!--<ul class="pager">
@@ -129,7 +129,7 @@ if ($db != 'default'){
                                 <input type="checkbox" name="ledger_heads_is_interest_free" id="ledger_heads_is_interest_free" <?php echo isset($societyLedgerHeadsDetails['SocietyLedgerHeads']['is_interest_free']) && $societyLedgerHeadsDetails['SocietyLedgerHeads']['is_interest_free'] == 1 ? 'checked' :''; ?>> interest Free?<br>
                                 <div class="modal-ledger-form-btn">
                                     <button type="button" class="btn btn-success btn-anim btns" onclick="addUpdateSocietyLedgerHeads();"><i class="icon-rocket"></i><span class="btn-text"> Update</span></button>                            
-                                    <a type="button" data-toggle="tooltip" data-original-title="Go to dashboard" class="btn btn-success btn-anim btns" href="<?php echo Router::url(array('controller' =>'societys','action' =>'dashboard')); ?>"><i class="icon-rocket"></i><span class="btn-text">Cancel</span></a>
+                                    <a type="button" data-toggle="tooltip" data-original-title="Close" class="btn btn-success btn-anim btns" href="javascript:void(0);" data-dismiss="modal"><i class="icon-rocket"></i><span class="btn-text">Cancel</span></a>
                                     <a type="button" data-toggle="tooltip" data-original-title="Print Friendly" class="btn btn-success btn-anim btns" href="javascript:void(0);" onclick="printFlatShopReports('print_ledger_heads','print_ledger_heads_section');"><i class="fa fa-print"></i><span class="btn-text">Print Friendly</span></a>  
                                 </div>
                             </div> 
@@ -183,35 +183,27 @@ if ($db != 'default'){
                                         </thead>
                                         <tbody id="ledger_details">
                                             <?php
-                                            $societyLedgerHeadsDetails = []; // added just to remove from by default loading anything
-                                            if(isset($societyLedgerHeadsDetails['txn_type']) && $societyLedgerHeadsDetails['txn_type'] == 'debit') {
-                                                $openingDebit = $societyLedgerHeadsDetails['SocietyLedgerHeads']['opening_amount'];
-                                                $openingCredit = 0;
-                                                $openingBalance = $openingDebit;
-                                                $posReg = ' Dr.';
-                                            } else if(isset($societyLedgerHeadsDetails['txn_type']) && $societyLedgerHeadsDetails['txn_type'] == 'credit') {
-                                                $openingCredit = $societyLedgerHeadsDetails['SocietyLedgerHeads']['opening_amount'];
-                                                $openingDebit = 0;
-                                                $openingBalance = $openingCredit;
-                                                $posReg = ' Cr.';
-                                            }
+                                            $openingDebit = 0;
+                                            $openingCredit = 0;
+                                            $openingBalance = 0;
+                                            $posReg = '';
                                             ?>
                                             <tr id="">
                                                 <td class="opening-bal"><?php echo $op;?></td>
                                                 <td class="opening-bal">Opening Balance</td>
-                                                <td class="opening-bal"><?php echo $openingDebit;?></td>
-                                                <td class="opening-bal"><?php echo $openingCredit;?></td>
-                                                <td class="opening-bal"><?php echo $openingBalance.''.$posReg;?></td>
+                                                <td class="opening-bal"></td>
+                                                <td class="opening-bal"></td>
+                                                <td class="opening-bal"></td>
                                             </tr>
 
-                                            
-                                            <?php if(isset($societyLedgerHeadsDetails['ledgerPaymentData'])) {
+
+                                            <?php if(isset($societyLedgerHeadsDetails['ledgerPaymentData']) && !empty($societyLedgerHeadsDetails['ledgerPaymentData'])) {
                                             $particularNote = 'To Payment';
-                                            
-                                            if($societyLedgerHeadsDetails['SocietyLedgerHeads']['is_in_bill_charges'] == 1) {
+
+                                            if(isset($societyLedgerHeadsDetails['SocietyLedgerHeads']['is_in_bill_charges']) && $societyLedgerHeadsDetails['SocietyLedgerHeads']['is_in_bill_charges'] == 1) {
                                                 $particularNote = 'By Bill';
                                             }
-                                            
+
                                             $indBalance = $openingBalance;
 
                                             foreach($societyLedgerHeadsDetails['ledgerPaymentData'] as $paymentData) {

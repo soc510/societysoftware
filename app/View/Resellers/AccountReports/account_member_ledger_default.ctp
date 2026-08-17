@@ -231,9 +231,15 @@ $drAmunttsum= array();
 $crAmunttsum= array();
 $opBalanceSum= array();
 
+// Counting $accountMemberLedgerDetails is not a test for "did anything render":
+// the controller's uasort() takes its array by reference, so PHP auto-creates a
+// stub entry for every member it looks at, bills or not. Only blocks that really
+// carry a Member are drawn, so count those.
+$renderedMemberBlocks = 0;
 if (isset($accountMemberLedgerDetails) && count($accountMemberLedgerDetails) > 0) {
     foreach ($accountMemberLedgerDetails as $MemberLedgerData) {
-    if (isset($MemberLedgerData['Member'])) { 
+    if (isset($MemberLedgerData['Member'])) {
+    $renderedMemberBlocks++;
 ?>
 
 
@@ -502,13 +508,24 @@ if($dueAmuntt[$MemberLedgerData['Member']['id']][$countt] ==0){
 
 //  3.3] JV Credited & Debited
 if (isset($MemberLedgerDetails['payment_date']) && $MemberLedgerDetails['payment_date'] != '' && $postData['MemberBillSummary']['report_type'] != 'sup' &&  $MemberLedgerDetails['types']=='JV') { 
+    // Reset both columns for every JV row, else the previous row's amount
+    // leaks into the other column (a debit row showing a credit and vice versa).
+    $debit = '0.00';
+    $credit = '0.00';
     if($MemberLedgerDetails['type'] == 'Credit') {
         $credit = $MemberLedgerDetails['amount_paid'];
-         $crAmunttsum[$MemberLedgerData['Member']['id']][$countt] = $credit; 
-    } 
+         $crAmunttsum[$MemberLedgerData['Member']['id']][$countt] = $credit;
+        // Credits already reach the Cr. total through $crAmunttsum; only the
+        // running balance still has to be told about them.
+        $indBalance -= $credit;
+    }
     if ($MemberLedgerDetails['type'] == 'Debit') {
         $debit = $MemberLedgerDetails['amount_paid'];
-    }  
+        // A JV debit is a debit like a bill is: it belongs in the Dr. total and
+        // in the running balance, otherwise the Total row is short by this much.
+        $monthlyTotalAmount = $monthlyTotalAmount + $debit;
+        $indBalance += $debit;
+    }
 ?>
     <tr>
         <td><?php echo isset($MemberLedgerDetails['payment_date']) ? $MemberLedgerDetails['payment_date'] : ''; ?></td>
@@ -579,9 +596,22 @@ $countt++;
 
  </tr>
 
-<?php 
+<?php
 }
 }
+}
+if ($renderedMemberBlocks === 0) {
+    // Nothing matched. Say why instead of rendering an empty table: an "Old
+    // Member" run only has rows for members that were actually transferred.
+    $emptyColspan = (isset($postData['MemberBillSummary']['report_type']) && $postData['MemberBillSummary']['report_type'] == 'Summary') ? 14 : 8;
+    $emptyMessage = (isset($postData['MemberBillSummary']['member_record']) && $postData['MemberBillSummary']['member_record'] == 'Old')
+        ? 'No old member records found. A unit appears here only after its member has been transferred (Member Identification / Transfer).'
+        : 'No records found for the selected criteria.';
+?>
+ <tr>
+    <td colspan="<?php echo $emptyColspan; ?>" class="text-center"><?php echo $emptyMessage; ?></td>
+ </tr>
+<?php
 }
 
 

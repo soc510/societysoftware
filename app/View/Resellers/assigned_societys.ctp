@@ -63,8 +63,25 @@
                $('#assigned_finacial_year_id').find('option').remove();
                $('#assigned_finacial_year_id').append("<option value='-1'>select Year</option>");
                if(yearData.length > 0) {
+                   // Default the dropdown to the year today falls in (else the latest
+                   // assigned year), so switching a society lands on its current year
+                   // instead of "Select Year". It stays changeable.
+                   function pad(n){ return n < 10 ? '0'+n : ''+n; }
+                   var dt = new Date();
+                   var todayStr = dt.getFullYear()+'-'+pad(dt.getMonth()+1)+'-'+pad(dt.getDate());
+                   var currentId = null, latestId = null, latestStart = '';
+                   $.each(yearData, function(idx, obj){
+                       var fy = obj.FinancialYearMaster;
+                       var s = (fy.year_start_date || '').substr(0,10);
+                       var e = (fy.year_end_date || '').substr(0,10);
+                       if (s && e && todayStr >= s && todayStr <= e) { currentId = fy.id; }
+                       if (s > latestStart) { latestStart = s; latestId = fy.id; }
+                   });
+                   if (currentId === null) { currentId = latestId; }
                    $.each(yearData,function(idx,obj){
-                       $('#assigned_finacial_year_id').append("<option value="+obj.FinancialYearMaster.id+">"+obj.FinancialYearMaster.year+"</option>");
+                       var yid = obj.FinancialYearMaster.id;
+                       var sel = (currentId !== null && yid == currentId) ? " selected" : "";
+                       $('#assigned_finacial_year_id').append("<option value="+yid+sel+">"+obj.FinancialYearMaster.year+"</option>");
                    });
                }
            }

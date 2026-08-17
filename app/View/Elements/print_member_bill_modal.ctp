@@ -10,11 +10,11 @@
 	6=>array("4" => "April-March"),	
   );
 ?>
-<div class="modal fade" id="" role="dialog">
-    <div class="modal-dialog modal-lg" style="width:20% !important">
+<div class="modal fade" id="print_bill_modal" role="dialog">
+    <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header modal-header-bg">
-                <button type="button" class="close"><a href="<?php echo Router::url(array('controller' =>'societys','action' =>'dashboard')); ?>">&times;</a></button>
+                <button type="button" class="close" data-dismiss="modal">&times;</button>
                 <h6 class="modal-title modal-title-color">Print Bill</h6>
             </div>
             <div class="modal-body modal-body-bg">
@@ -147,6 +147,15 @@
                                 </select>
                             </div>
                         </div>  
+                        <div class="col-md-2 padding-1">
+                            <div class="form-group">
+                                <label for="member_record" class="control-label">Member Record</label>
+                                <select name="member_record" id="member_record" class="form-control">
+                                    <option value="Current">Current Member</option>
+                                    <option value="Old">Old Member</option>
+                                </select>
+                            </div>
+                        </div>
                         <div class="col-md-2 padding-1">
                             <div class="form-group">
                                 <label for="bill_type" class="control-label">Bill Format Type</label>

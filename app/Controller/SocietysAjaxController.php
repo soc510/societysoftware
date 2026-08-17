@@ -1155,9 +1155,80 @@ print_r($memberBills);
 }
 
 
+public function updateAllOpeningBalances() {
+    $this->layout = false;
+    $response = array('error' => 1, 'error_message' => 'Opening Balances could not be updated.');
+
+    if ($this->RequestHandler->isAjax()) {
+        $this->autoRender = false;
+        $this->loadModel('SocietyLedgerHeads');
+        $societyLoginID = $this->Session->read('Auth.User.id');
+        $financialYearId = $this->Session->read('Auth.year_id') - 1;
+        $balances = isset($this->request->data['balances']) ? $this->request->data['balances'] : array();
+
+        if (!empty($balances)) {
+            App::import('model', 'LedgerHeadOpeningModel');
+            $ledgerHeadOpening = new LedgerHeadOpeningModel();
+
+            $ledgerHeads = $this->SocietyLedgerHeads->find('all', array(
+                'conditions' => array('SocietyLedgerHeads.society_id' => $societyLoginID, 'SocietyLedgerHeads.status' => Configure::read('Active')),
+                'fields' => array('SocietyLedgerHeads.id', 'SocietyLedgerHeads.account_category_id'),
+                'recursive' => -1
+            ));
+            $categoryMap = array();
+            foreach ($ledgerHeads as $lh) {
+                $categoryMap[$lh['SocietyLedgerHeads']['id']] = $lh['SocietyLedgerHeads']['account_category_id'];
+            }
+
+            foreach ($balances as $ledgerHeadId => $amount) {
+                $ledgerHeadId = (int)$ledgerHeadId;
+                $amount = floatval($amount);
+                $accountCategoryId = isset($categoryMap[$ledgerHeadId]) ? $categoryMap[$ledgerHeadId] : 0;
+
+                $existingData = $ledgerHeadOpening->find('first', array(
+                    'conditions' => array('ledger_head_id' => $ledgerHeadId, 'society_id' => $societyLoginID, 'financial_year_id' => $financialYearId),
+                    'recursive' => -1
+                ));
+
+                $opCredit = 0;
+                $opDebit = 0;
+                if ($accountCategoryId == 2) {
+                    $opDebit = $amount;
+                } else if ($accountCategoryId == 1) {
+                    $opCredit = $amount;
+                }
+
+                if (!empty($existingData)) {
+                    $ledgerHeadOpening->id = $existingData['LedgerHeadOpeningModel']['id'];
+                    $ledgerHeadOpening->save(array(
+                        'balance_amount' => $amount,
+                        'op_credit' => $opCredit,
+                        'op_debit' => $opDebit
+                    ));
+                } else {
+                    $ledgerHeadOpening->create();
+                    $ledgerHeadOpening->save(array(
+                        'financial_year_id' => $financialYearId,
+                        'society_id' => $societyLoginID,
+                        'ledger_head_id' => $ledgerHeadId,
+                        'account_category_id' => $accountCategoryId,
+                        'balance_amount' => $amount,
+                        'op_credit' => $opCredit,
+                        'op_debit' => $opDebit,
+                        'created_at' => date('Y-m-d H:i:s')
+                    ));
+                }
+            }
+            $response['error'] = 0;
+            $response['error_message'] = 'All Opening Balances updated successfully.';
+        }
+    }
+    return new CakeResponse(array('body' => json_encode($response), 'status' => 200));
+}
+
 public function add_society_ledger_heads() {
 
-        $this->layout = false; //Update add Society/Login 
+        $this->layout = false; //Update add Society/Login
 
         $response['error'] = 1;
 
@@ -1229,13 +1300,25 @@ public function add_society_ledger_heads() {
 
             $societyMemberId = isset($this->request->data['societyMemberId']) ? $this->request->data['societyMemberId'] : 0;
 
-            $societyMemberDetails = $this->Member->find('first', array('conditions' => array('Member.id' => $societyMemberId, 
-            'Member.society_id' => $societyId, 'Member.status' => Configure::read('Active'))));
+            $societyMemberDetails = $this->Member->find('first', array('conditions' => array('Member.id' => $societyMemberId,
+            'Member.society_id' => $societyId, 'Member.status' => Configure::read('Active')), 'recursive' => 0));
 ;
             $this->loadModel('ChequeReturnData');
 
             $returnedCheckDetails = [];
             $member_transfer = isset($societyMemberDetails['Member']['member_transfer'])?$societyMemberDetails['Member']['member_transfer']:0;
+            // Optional override: the "Old Member Bill" tab asks for a previous
+            // owner's ledger by passing that owner's transfer number for the same
+            // member id. Absent -> the current occupant, unchanged.
+            if (isset($this->request->data['oldMember']) && $this->request->data['oldMember'] == '1' && $member_transfer >= 1) {
+                $member_transfer = $member_transfer - 1;
+                // Show the previous owner's name, not the current occupant's.
+                $this->loadModel('MemberIdentification');
+                $__oldIdent = $this->MemberIdentification->find('first', array('conditions' => array('MemberIdentification.member_id' => $societyMemberId, 'MemberIdentification.society_id' => $this->Session->read('Auth.User.id')), 'order' => array('MemberIdentification.flat_no' => 'asc')));
+                if (!empty($__oldIdent['MemberIdentification']['third_member'])) {
+                    $societyMemberDetails['Member']['member_name'] = $__oldIdent['MemberIdentification']['third_member'];
+                }
+            }
             
             $chequeRetCond = array('member_id'=> $societyMemberId,'society_id'=>$societyId,'financial_year_id'=>$financialyearId);    
             $condition = array('MemberBillSummary.society_id' => $this->Session->read('Auth.User.id'), 
@@ -1247,22 +1330,34 @@ public function add_society_ledger_heads() {
             
 
 
-            $returnedCheckDetails = $this->ChequeReturnData->find('all',array('conditions' =>$chequeRetCond ));
+            $returnedCheckDetails = $this->ChequeReturnData->find('all',array('conditions' =>$chequeRetCond, 'recursive' => -1));
 
-            $memberTransfered = (new SocietyBillsController)->checkMemberTransferred($societyMemberId); 
+            $memberTransfered = $this->MemberIdentification->hasAny(array('MemberIdentification.member_id' => $societyMemberId)); 
 
             $societyMemberBillPaymentData = array();
 
-            $memberBillSummary = $this->Member->MemberBillSummary->find('all', array('conditions' => $condition,'order' => array('MemberBillSummary.id' => 'asc')));
+            $memberBillSummary = $this->Member->MemberBillSummary->find('all', array('conditions' => $condition,'order' => array('MemberBillSummary.id' => 'asc'), 'recursive' => -1));
 
             $noPaymentIdsArr = [];
 
-            if (isset($memberBillSummary) && count($memberBillSummary) > 0) {        
+            $allMemberPayments = $this->Member->MemberPayment->find('all', array('conditions' => $conditionPayment, 'recursive' => -1));
+
+            $this->loadModel('MemberBillSettlement');
+            $billSummaryIds = array_map(function($b) { return $b['MemberBillSummary']['id']; }, $memberBillSummary);
+            $allSettlements = array();
+            $paymentIdsArr = array();
+            if (!empty($billSummaryIds)) {
+                $allSettlementsRaw = $this->MemberBillSettlement->find('all', array('conditions' => array('MemberBillSettlement.bill_summary_id' => $billSummaryIds, 'MemberBillSettlement.member_id' => $societyMemberId), 'recursive' => -1));
+                foreach ($allSettlementsRaw as $s) {
+                    $allSettlements[] = $s['MemberBillSettlement'];
+                    $paymentIdsArr[] = $s['MemberBillSettlement']['payment_id'];
+                }
+            }
+
+            if (isset($memberBillSummary) && count($memberBillSummary) > 0) {
                 $summaryCounter = 0;
 
-                $settlementArray = array();
-
-                $paymentIdsArr = array();
+                $settlementArray = $allSettlements;
 
                 $noPaymentIdsArr = array();
 
@@ -1270,17 +1365,8 @@ public function add_society_ledger_heads() {
 
                     if (isset($billData['MemberBillSummary'])) {
 
-                        $this->loadModel('MemberBillSettlement');
-                        $condition = array('MemberBillSettlement.bill_summary_id' => $billData['MemberBillSummary']['id'], 'MemberBillSettlement.member_id' => $societyMemberId);
-                        $memberBillSettlement = $this->MemberBillSettlement->find('all', array('conditions' => $condition));
-
-                        foreach($memberBillSettlement as $settlementData) {
-                            $settlementArray[] = $settlementData['MemberBillSettlement'];
-                            $paymentIdsArr[] = $settlementData['MemberBillSettlement']['payment_id'];
-                        }
-
                         $societyMemberBillPaymentData[$summaryCounter]['MemberBillSummary'] = $billData['MemberBillSummary'];
-                        
+
                         //Change date format
                         $societyMemberBillPaymentData[$summaryCounter]['MemberBillSummary']['bill_generated_date'] = date('d/m/Y',strtotime($societyMemberBillPaymentData[$summaryCounter]['MemberBillSummary']['bill_generated_date']));
                         $monthName = date("F", mktime(0, 0, 0, $societyMemberBillPaymentData[$summaryCounter]['MemberBillSummary']['month'], 10));
@@ -1300,18 +1386,18 @@ public function add_society_ledger_heads() {
 
 
 
-                        $paymentMadeBillNo = isset($billData['MemberBillSummary']['bill_no']) ? $billData['MemberBillSummary']['bill_no'] : '';                        
+                        $paymentMadeBillNo = isset($billData['MemberBillSummary']['bill_no']) ? $billData['MemberBillSummary']['bill_no'] : '';
                         $membersChqueNo = [];
 
-                        if ($this->Member->MemberPayment->hasAny($conditionPayment)) {
+                        if (!empty($allMemberPayments)) {
 
-                            $memberPaymentDetails = $this->Member->MemberPayment->find('all', array('conditions' => $conditionPayment));
+                            $memberPaymentDetails = $allMemberPayments;
 
                             if (isset($memberPaymentDetails) && count($memberPaymentDetails) > 0) {
 
                                 $paymentCounter = 0;
 
-                                foreach ($memberPaymentDetails as $paymentData) {    
+                                foreach ($memberPaymentDetails as $paymentData) {
                                     $billType = $paymentData['MemberPayment']['bill_type'] == 'sup' ? ' - supplementary' :  '';
                                     if(in_array($paymentData['MemberPayment']['id'],$noPaymentIdsArr)) continue;
                                     $formattedDate = date('d/m/Y',strtotime($paymentData['MemberPayment']['payment_date']));
@@ -1358,7 +1444,7 @@ public function add_society_ledger_heads() {
 
                                     }
 
-                                }                                 
+                                }
 
 
 
@@ -1392,11 +1478,11 @@ public function add_society_ledger_heads() {
 
 
 
-            $societyMemberNextId = $this->Member->find('first', array('fields' => array('Member.id'), 'conditions' => array('Member.id >' => $societyMemberDetails['Member']['id'], 'Member.society_id' => $this->Session->read('Auth.User.id'), 'Member.status' => Configure::read('Active')), 'order' => array('Member.id' => 'asc')));
+            $societyMemberNextId = $this->Member->find('first', array('fields' => array('Member.id'), 'conditions' => array('Member.id >' => $societyMemberDetails['Member']['id'], 'Member.society_id' => $this->Session->read('Auth.User.id'), 'Member.status' => Configure::read('Active')), 'order' => array('Member.id' => 'asc'), 'recursive' => -1));
 
 
 
-            $societyMemberPreviousId = $this->Member->find('first', array('fields' => array('Member.id'),'conditions' => array('Member.id <' => $societyMemberDetails['Member']['id'], 'Member.society_id' => $this->Session->read('Auth.User.id'), 'Member.status' => Configure::read('Active')), 'order' => array('Member.id' => 'desc')));
+            $societyMemberPreviousId = $this->Member->find('first', array('fields' => array('Member.id'),'conditions' => array('Member.id <' => $societyMemberDetails['Member']['id'], 'Member.society_id' => $this->Session->read('Auth.User.id'), 'Member.status' => Configure::read('Active')), 'order' => array('Member.id' => 'desc'), 'recursive' => -1));
 
 
 
@@ -1438,7 +1524,7 @@ public function add_society_ledger_heads() {
 
 //echo "MemberTR".$societyMemberDetails['Member']['member_transfer'];
 
-            $openingBalance = $this->SocietyBill->getMemberClosingBalanceData($societyMemberDetails['Member']['id'],$societyMemberDetails['Member']['member_transfer']);       
+            $openingBalance = $this->SocietyBill->getMemberClosingBalanceData($societyMemberDetails['Member']['id'],$member_transfer);       
        
             if(isset($openingBalance['reg'])){
                 $societyMemberDetails['Member']['op_principal'] = !empty($openingBalance['reg']['op_principal']) ?  $openingBalance['reg']['op_principal'] : 0.00;
@@ -1461,15 +1547,12 @@ public function add_society_ledger_heads() {
 
             $filteredIdsArr = array_diff($paymentIdsArr, $noPaymentIdsArr);
 
-            $conditionMembPayment = array('MemberPayment.society_id' => $this->Session->read('Auth.User.id'), 'MemberPayment.member_id' => $societyMemberId, 
-            'MemberPayment.id' => $filteredIdsArr, 'MemberPayment.member_transfer' => $member_transfer,'MemberPayment.financial_year_id' => $financialyearId);                 
+            $conditionMembPayment = array('MemberPayment.society_id' => $this->Session->read('Auth.User.id'), 'MemberPayment.member_id' => $societyMemberId,
+            'MemberPayment.id' => $filteredIdsArr, 'MemberPayment.member_transfer' => $member_transfer,'MemberPayment.financial_year_id' => $financialyearId);
 
+            $memberPaymentArr = $this->Member->MemberPayment->find('all', array('conditions' => $conditionMembPayment, 'recursive' => -1));
 
-            
-            
-            if ($this->Member->MemberPayment->hasAny($conditionMembPayment)) {
-
-                    $memberPaymentArr = $this->Member->MemberPayment->find('all', array('conditions' => $conditionMembPayment));//print_r($memberPaymentArr);
+            if (!empty($memberPaymentArr)) {
 
                     if (isset($memberPaymentArr) && count($memberPaymentArr) > 0) {
 
@@ -1557,7 +1640,7 @@ public function add_society_ledger_heads() {
 
 
 
-        $journalVoucherMemberPaymentData = $this->SocietyBill->getJournalVoucherCreaditDebitDataByMemberId($societyMemberId,$societyMemberDetails['Member']['member_transfer']);
+        $journalVoucherMemberPaymentData = $this->SocietyBill->getJournalVoucherCreaditDebitDataByMemberId($societyMemberId,$member_transfer);
 
 
         if (!empty($journalVoucherMemberPaymentData)){
@@ -1573,6 +1656,11 @@ public function add_society_ledger_heads() {
                 //$paymentCounter = 0; //commented by shobha
 
                 foreach ($journalVoucherMemberPaymentData as $jvData){
+                    // Only this member-generation's JV rows belong in the current
+                    // occupant's ledger. An old owner (member_transfer < current) shares
+                    // the same member id, so without this filter the old owner's JV
+                    // entries leak in and the balance nets to zero.
+                    if (isset($jvData['JournalVoucher']['member_transfer']) && $jvData['JournalVoucher']['member_transfer'] != $member_transfer) { continue; }
 
                     if ($jvData['JournalVoucher']['jv_credit_member_head_id'] != '' && $jvData['JournalVoucher']['jv_credit_member_head_id'] == $societyMemberId) {
 
@@ -2932,11 +3020,23 @@ public function getAllMemberTariffDetails(){
 
                 foreach($dataArr as $paymentID =>$chequeData){
 
-                    if($recieptType == "Receipt"){                        
+                    if($recieptType == "Receipt"){
 
                         $this->MemberPayment->id = $paymentID;
 
                         $this->MemberPayment->saveField('credited_date',$chequeData['cleared_date']);
+
+                        if(isset($chequeData['cheque_date']) && !empty($chequeData['cheque_date'])){
+
+                            $this->MemberPayment->saveField('cheque_date',$chequeData['cheque_date']);
+
+                        }
+
+                        if(isset($chequeData['cheque_number'])){
+
+                            $this->MemberPayment->saveField('cheque_reference_number',$chequeData['cheque_number']);
+
+                        }
 
                         $response['error'] = 0;
 
@@ -2948,15 +3048,39 @@ public function getAllMemberTariffDetails(){
 
                         $this->SocietyPayment->saveField('debited_date',$chequeData['cleared_date']);
 
+                        if(isset($chequeData['cheque_date']) && !empty($chequeData['cheque_date'])){
+
+                            $this->SocietyPayment->saveField('cheque_date',$chequeData['cheque_date']);
+
+                        }
+
+                        if(isset($chequeData['cheque_number'])){
+
+                            $this->SocietyPayment->saveField('cheque_reference_number',$chequeData['cheque_number']);
+
+                        }
+
                         $response['error'] = 0;
 
                         $response['error_message'] = 'Cheque Cleared Dates have been updated successfully.';
 
-                    }  else if($recieptType == "General"){                        
+                    }  else if($recieptType == "General"){
 
                         $this->SocietyOtherIncome->id = $paymentID;
 
                         $this->SocietyOtherIncome->saveField('credited_date',$chequeData['cleared_date']);
+
+                        if(isset($chequeData['cheque_date']) && !empty($chequeData['cheque_date'])){
+
+                            $this->SocietyOtherIncome->saveField('cheque_date',$chequeData['cheque_date']);
+
+                        }
+
+                        if(isset($chequeData['cheque_number'])){
+
+                            $this->SocietyOtherIncome->saveField('cheque_no',$chequeData['cheque_number']);
+
+                        }
 
                         $response['error'] = 0;
 
@@ -2974,7 +3098,27 @@ public function getAllMemberTariffDetails(){
 
     }
 
-
+    public function updateSocietyPaymentField() {
+        $this->layout = false;
+        $response['error'] = 1;
+        $response['error_message'] = 'Could not update.';
+        if ($this->request->is('ajax')) {
+            $this->autoRender = false;
+            $this->loadModel('SocietyPayment');
+            $id = isset($this->request->data['id']) ? $this->request->data['id'] : null;
+            $field = isset($this->request->data['field']) ? $this->request->data['field'] : null;
+            $value = isset($this->request->data['value']) ? $this->request->data['value'] : '';
+            $allowedFields = array('payment_date','cheque_date','debited_date','cheque_reference_number','amount','tax_amount','total_amount');
+            if($id && $field && in_array($field, $allowedFields)){
+                $this->SocietyPayment->id = $id;
+                if($this->SocietyPayment->saveField($field, $value)){
+                    $response['error'] = 0;
+                    $response['error_message'] = 'Updated successfully.';
+                }
+            }
+        }
+        return new CakeResponse(array('body' => json_encode($response), 'status' => 200));
+    }
 
     public function bank_reconciliation() {
 
@@ -3056,9 +3200,15 @@ public function getAllMemberTariffDetails(){
 
                     $ledgerHeadDetails = $this->SocietyLedgerHeads->find('first', array('conditions' => array('SocietyLedgerHeads.id' => $this->request->data['society_bank_id'], 'SocietyLedgerHeads.society_id' => $societyLoginID)));
 
-                    $openingBalance = $ledgerHeadDetails['SocietyLedgerHeads']['opening_amount'];
-
                     $bankName = $ledgerHeadDetails['SocietyLedgerHeads']['title'];
+
+                    $financialYearId = $this->Util->getFinancialYear();
+                    $openingData = $this->SocietyBill->getSocietyLedgerOpClosingBal($societyLoginID, $this->request->data['society_bank_id']);
+                    if (!empty($openingData) && !empty($openingData['balance_amount'])) {
+                        $openingBalance = $openingData['balance_amount'];
+                    } else {
+                        $openingBalance = isset($ledgerHeadDetails['SocietyLedgerHeads']['opening_amount']) ? $ledgerHeadDetails['SocietyLedgerHeads']['opening_amount'] : 0;
+                    }
 
                 }
 
@@ -4379,6 +4529,244 @@ function getOpeningBalanceForthePeriod($date, $societyId, $ledgerHeadId) {
 
         return ($db == 'default') ? "01/04/20222" : "01/04/2099"; */
 
+    }
+
+    public function get_general_receipt_details() {
+
+        $this->layout = false;
+
+        $this->autoRender = false;
+
+        $response = array('error' => 1, 'error_message' => 'General receipt details could not be loaded.', 'data' => array());
+
+        if ($this->request->is('ajax')) {
+
+            $this->loadModel('SocietyOtherIncome');
+
+            $societyLoginID = $this->Session->read('Auth.User.id');
+
+            $generalReceiptId = isset($this->request->data['general_receipt_id']) ? $this->request->data['general_receipt_id'] : 0;
+
+            $generalReceiptData = $this->SocietyOtherIncome->find('first', array('conditions' => array('SocietyOtherIncome.id' => $generalReceiptId, 'SocietyOtherIncome.society_id' => $societyLoginID), 'recursive' => -1));
+
+            if (!empty($generalReceiptData)) {
+
+                $receiptData = $generalReceiptData['SocietyOtherIncome'];
+
+                foreach (array('payment_date', 'cheque_date') as $dateField) {
+
+                    if (!isset($receiptData[$dateField]) || $receiptData[$dateField] == '0000-00-00') {
+
+                        $receiptData[$dateField] = '';
+
+                    }
+
+                }
+
+                $response['error'] = 0;
+
+                $response['error_message'] = '';
+
+                $response['data'] = $receiptData;
+
+            } else {
+
+                $response['error_message'] = 'Requested general receipt is not found.';
+
+            }
+
+        }
+
+        return new CakeResponse(array('body' => json_encode($response), 'status' => 200));
+
+    }
+
+    public function update_general_receipt() {
+
+        $this->layout = false;
+
+        $this->autoRender = false;
+
+        $response = array('error' => 1, 'error_message' => 'The general receipt could not be updated. Please, try again.');
+
+        if ($this->request->is('ajax')) {
+
+            $this->loadModel('SocietyOtherIncome');
+
+            $societyLoginID = $this->Session->read('Auth.User.id');
+
+            $requestData = isset($this->request->data['SocietyOtherIncome']) ? $this->request->data['SocietyOtherIncome'] : array();
+
+            $generalReceiptId = isset($requestData['id']) ? $requestData['id'] : 0;
+
+            $generalReceiptData = $this->SocietyOtherIncome->find('first', array('conditions' => array('SocietyOtherIncome.id' => $generalReceiptId, 'SocietyOtherIncome.society_id' => $societyLoginID), 'recursive' => -1));
+
+            if (empty($generalReceiptData)) {
+
+                $response['error_message'] = 'Requested general receipt is not found.';
+
+                return new CakeResponse(array('body' => json_encode($response), 'status' => 200));
+
+            }
+
+            if (empty($requestData['ledger_head_id'])) {
+
+                $response['error_message'] = 'Please select the head in Received By.';
+
+                return new CakeResponse(array('body' => json_encode($response), 'status' => 200));
+
+            }
+
+            $paymentDate = isset($requestData['payment_date']) ? $requestData['payment_date'] : '';
+
+            if (empty($paymentDate) || !$this->Util->isDateInCurrentFinancialYear($paymentDate)) {
+
+                $response['error_message'] = 'Payment date should be within the current financial year.';
+
+                return new CakeResponse(array('body' => json_encode($response), 'status' => 200));
+
+            }
+
+            $postData = array();
+
+            $postData['id'] = $generalReceiptData['SocietyOtherIncome']['id'];
+
+            $postData['ledger_head_id'] = $requestData['ledger_head_id'];
+
+            $postData['payment_mode'] = isset($requestData['payment_mode']) ? trim($requestData['payment_mode']) : '';
+
+            $postData['amount_paid'] = isset($requestData['amount_paid']) && $requestData['amount_paid'] !== '' ? $requestData['amount_paid'] : '0.00';
+
+            $postData['tds_amount'] = isset($requestData['tds_amount']) && $requestData['tds_amount'] !== '' ? $requestData['tds_amount'] : '0.00';
+
+            $postData['net_amount'] = isset($requestData['net_amount']) && $requestData['net_amount'] !== '' ? $requestData['net_amount'] : '0.00';
+
+            $postData['tds_bank_id'] = isset($requestData['tds_bank_id']) ? $requestData['tds_bank_id'] : '';
+
+            $postData['title'] = isset($requestData['title']) ? $requestData['title'] : '';
+
+            $postData['description'] = isset($requestData['description']) ? $requestData['description'] : '';
+
+            $postData['payment_date'] = $paymentDate;
+
+            if ($postData['payment_mode'] == 'Bank') {
+
+                $postData['society_bank_id'] = isset($requestData['society_bank_id']) && $requestData['society_bank_id'] !== '' ? $requestData['society_bank_id'] : 0;
+
+                $postData['cheque_no'] = isset($requestData['cheque_no']) && $requestData['cheque_no'] !== '' ? $requestData['cheque_no'] : 0;
+
+                $postData['cheque_date'] = isset($requestData['cheque_date']) && $requestData['cheque_date'] != '' ? $requestData['cheque_date'] : null;
+
+                $postData['general_bank_name'] = isset($requestData['general_bank_name']) ? $requestData['general_bank_name'] : '';
+
+            } else {
+
+                $postData['society_bank_id'] = 0;
+
+                $postData['cheque_no'] = 0;
+
+                $postData['cheque_date'] = null;
+
+                $postData['general_bank_name'] = '';
+
+            }
+
+            $postData['udate'] = $this->Util->getDateTime();
+
+            $this->SocietyOtherIncome->id = $postData['id'];
+
+            if ($this->SocietyOtherIncome->save(array('SocietyOtherIncome' => $postData), false, array_keys($postData))) {
+
+                $response['error'] = 0;
+
+                $response['error_message'] = 'The general receipt has been updated.';
+
+            }
+
+        }
+
+        return new CakeResponse(array('body' => json_encode($response), 'status' => 200));
+
+    }
+
+    public function saveFailedPayments() {
+        $this->autoRender = false;
+        if (!$this->request->is('post')) {
+            return new CakeResponse(array('body' => json_encode(array('status' => 'error', 'message' => 'Invalid request')), 'status' => 400));
+        }
+
+        $societyLoginID = $this->Session->read('Auth.User.id');
+        $financialYearId = $this->Util->getFinancialYear();
+
+        $input = json_decode(file_get_contents('php://input'), true);
+        $rows = isset($input['rows']) ? $input['rows'] : (isset($this->request->data['rows']) ? $this->request->data['rows'] : array());
+
+        $this->loadModel('SocietyPayment');
+        $this->loadModel('SocietyLedgerHeads');
+
+        $societyExpenseLedgerHeadsLists = $this->SocietyBill->societyAllLedgerHeadsLists();
+        $ledgerHeadsByTitle = array_flip($societyExpenseLedgerHeadsLists);
+        $societyBankLists = $this->SocietyBill->societyBankBalanceHeadsLists();
+        $societyCashLists = $this->SocietyBill->societyCashBalanceHeadsLists();
+        $bankByTitle = !empty($societyBankLists) ? array_flip($societyBankLists) : array();
+        $cashByTitle = !empty($societyCashLists) ? array_flip($societyCashLists) : array();
+
+        $billVoucherNumber = $this->SocietyBill->billVoucherNumber();
+        $saved = 0;
+        $failed = 0;
+
+        foreach ($rows as $r) {
+            $ledgerTitle = trim($r['debit_to']);
+            if (!isset($ledgerHeadsByTitle[$ledgerTitle])) {
+                $failed++;
+                continue;
+            }
+            $paymentDate = $r['payment_date'];
+            if (empty($paymentDate)) { $failed++; continue; }
+
+            $paymentType = !empty($r['payment_type']) ? $r['payment_type'] : 'Bank';
+            $paymentByLedgerId = 0;
+            if ($paymentType == 'Bank' && !empty($bankByTitle)) {
+                $paymentByLedgerId = reset($bankByTitle);
+            } elseif ($paymentType == 'Cash' && !empty($cashByTitle)) {
+                $paymentByLedgerId = reset($cashByTitle);
+            }
+
+            $amount = floatval($r['amount']);
+            $taxAmount = isset($r['tax_amount']) ? floatval($r['tax_amount']) : 0;
+            $totalAmount = $amount - $taxAmount;
+
+            $chequeDate = !empty($r['cheque_date']) ? $r['cheque_date'] : null;
+
+            $saveData = array('SocietyPayment' => array(
+                'ledger_head_id'           => $ledgerHeadsByTitle[$ledgerTitle],
+                'payment_date'             => $paymentDate,
+                'payment_type'             => $paymentType,
+                'payment_by_ledger_id'     => $paymentByLedgerId,
+                'amount'                   => $amount,
+                'tax_amount'               => $taxAmount,
+                'total_amount'             => $totalAmount,
+                'cheque_reference_number'  => isset($r['cheque_no']) ? $r['cheque_no'] : '',
+                'cheque_date'              => $chequeDate,
+                'bill_voucher_number'      => !empty($r['voucher_no']) ? $r['voucher_no'] : $billVoucherNumber,
+                'particulars'              => isset($r['particulars']) ? $r['particulars'] : '',
+                'notes'                    => isset($r['notes']) ? $r['notes'] : '',
+                'society_id'               => $societyLoginID,
+                'financial_year_id'        => $financialYearId,
+                'cdate'                    => date('Y-m-d H:i:s'),
+                'udate'                    => date('Y-m-d H:i:s')
+            ));
+
+            $this->SocietyPayment->create();
+            if ($this->SocietyPayment->save($saveData)) {
+                $saved++;
+                $billVoucherNumber++;
+            } else {
+                $failed++;
+            }
+        }
+
+        return new CakeResponse(array('body' => json_encode(array('status' => 'success', 'saved' => $saved, 'failed' => $failed)), 'status' => 200));
     }
 
 }
