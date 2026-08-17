@@ -3108,7 +3108,7 @@ public function getAllMemberTariffDetails(){
             $id = isset($this->request->data['id']) ? $this->request->data['id'] : null;
             $field = isset($this->request->data['field']) ? $this->request->data['field'] : null;
             $value = isset($this->request->data['value']) ? $this->request->data['value'] : '';
-            $allowedFields = array('payment_date','cheque_date','debited_date','cheque_reference_number');
+            $allowedFields = array('payment_date','cheque_date','debited_date','cheque_reference_number','amount','tax_amount','total_amount');
             if($id && $field && in_array($field, $allowedFields)){
                 $this->SocietyPayment->id = $id;
                 if($this->SocietyPayment->saveField($field, $value)){

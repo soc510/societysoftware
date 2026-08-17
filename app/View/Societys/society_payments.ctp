@@ -73,14 +73,21 @@
                                                <td>
                                                    <input type="date" class="form-control input-sm inline-edit" data-id="<?php echo $payId; ?>" data-field="debited_date" value="<?php echo (isset($payment['SocietyPayment']['debited_date']) && $payment['SocietyPayment']['debited_date'] != '0000-00-00') ? $payment['SocietyPayment']['debited_date'] : ''; ?>" style="width:130px;">
                                                </td>
-                                               <td class="text-right"><?php echo isset($payment['SocietyPayment']['amount']) ? $payment['SocietyPayment']['amount'] :'' ; ?></td>
+                                               <td>
+                                                   <input type="number" step="0.01" class="form-control input-sm inline-edit text-right" data-id="<?php echo $payId; ?>" data-field="amount" value="<?php echo isset($payment['SocietyPayment']['amount']) ? $payment['SocietyPayment']['amount'] :'' ; ?>" style="width:100px;">
+                                               </td>
                                                <td>
                                                    <input type="text" class="form-control input-sm inline-edit" data-id="<?php echo $payId; ?>" data-field="cheque_reference_number" value="<?php echo isset($payment['SocietyPayment']['cheque_reference_number']) ? $payment['SocietyPayment']['cheque_reference_number'] :'' ; ?>" style="width:90px;">
                                                </td>
-                                               <td class="text-right"><?php echo isset($payment['SocietyPayment']['tax_amount']) ? $payment['SocietyPayment']['tax_amount'] :'' ; ?></td>
-                                               <td class="text-right"><?php echo isset($payment['SocietyPayment']['total_amount']) ? $payment['SocietyPayment']['total_amount'] :'' ; ?></td>
+                                               <td>
+                                                   <input type="number" step="0.01" class="form-control input-sm inline-edit text-right" data-id="<?php echo $payId; ?>" data-field="tax_amount" id="tax_amt_<?php echo $payId; ?>" value="<?php echo isset($payment['SocietyPayment']['tax_amount']) ? $payment['SocietyPayment']['tax_amount'] :'' ; ?>" style="width:80px;">
+                                               </td>
+                                               <td>
+                                                   <input type="number" step="0.01" class="form-control input-sm text-right" id="total_amt_<?php echo $payId; ?>" value="<?php echo isset($payment['SocietyPayment']['total_amount']) ? $payment['SocietyPayment']['total_amount'] :'' ; ?>" style="width:100px;" readonly>
+                                               </td>
                                                <td><?php echo isset($payment['SocietyPayment']['payment_type']) ? $payment['SocietyPayment']['payment_type'] :'' ; ?></td>
                                                <td class="text-nowrap">
+                                                <button type="button" class="btn btn-success btn-xs" onclick="saveRow('<?php echo $payId; ?>');" title="Save"><i class="fa fa-check"></i></button>
                                                 <?php echo $this->Html->link('<i class="fa fa-pencil text-inverse m-r-10"></i>', array('controller' => 'societys','action' => 'add_society_payments', $payment['SocietyPayment']['id']), array('class' => 'mr-25', 'data-toggle' => 'tooltip', 'data-original-title' => 'Edit', 'escape' => false)); ?>
                                                 <?php echo $this->Form->postLink('<i class="fa fa-close text-danger"></i>',array('action' =>'delete_society_payments', $payment['SocietyPayment']['id']),array('class' => 'mr-25','data-toggle' => 'tooltip','data-original-title' => 'Delete', 'escape' => false), __('Are you sure you want to delete # %s?',$payment['SocietyPayment']['id'])); ?>
                                                </td>
@@ -98,9 +105,61 @@
 </div>
 <script>
 $(document).ready(function(){
-    $('.inline-edit').on('change', function(){
+    $(document).on('input', '.inline-edit[data-field="amount"], .inline-edit[data-field="tax_amount"]', function(){
+        var id = $(this).data('id');
+        var row = $(this).closest('tr');
+        var amt = parseFloat(row.find('.inline-edit[data-field="amount"]').val()) || 0;
+        var taxAmt = parseFloat($('#tax_amt_'+id).val()) || 0;
+        var totalAmt = (amt - taxAmt).toFixed(2);
+        $('#total_amt_'+id).val(totalAmt);
+    });
+
+    $(document).on('change', '.inline-edit:not([data-field="amount"]):not([data-field="tax_amount"])', function(){
         var el = $(this);
         var id = el.data('id');
+        var field = el.data('field');
+        var value = el.val();
+        updateField(el, id, field, value);
+    });
+});
+
+function updateField(el, id, field, value){
+    el.css('border-color','#f0ad4e');
+    $.ajax({
+        type: "POST",
+        url: webrootUrl + 'societys_ajax/updateSocietyPaymentField',
+        data: {id: id, field: field, value: value},
+        dataType: 'json',
+        success: function(resp){
+            if(resp.error == 0){
+                el.css('border-color','#5cb85c');
+                setTimeout(function(){ el.css('border-color',''); }, 1500);
+            } else {
+                el.css('border-color','#d9534f');
+                alert(resp.error_message);
+            }
+        },
+        error: function(){
+            el.css('border-color','#d9534f');
+            alert('Error updating field.');
+        }
+    });
+}
+
+function saveRow(id){
+    var row = $('tr').find('.inline-edit[data-id="'+id+'"]').first().closest('tr');
+    var fields = row.find('.inline-edit[data-id="'+id+'"]');
+    var amt = parseFloat(row.find('.inline-edit[data-field="amount"]').val()) || 0;
+    var taxAmt = parseFloat($('#tax_amt_'+id).val()) || 0;
+    var totalAmt = (amt - taxAmt).toFixed(2);
+    $('#total_amt_'+id).val(totalAmt);
+
+    var saveCount = 0;
+    var totalFields = fields.length + 1;
+    var hasError = false;
+
+    fields.each(function(){
+        var el = $(this);
         var field = el.data('field');
         var value = el.val();
         el.css('border-color','#f0ad4e');
@@ -110,19 +169,34 @@ $(document).ready(function(){
             data: {id: id, field: field, value: value},
             dataType: 'json',
             success: function(resp){
+                saveCount++;
                 if(resp.error == 0){
                     el.css('border-color','#5cb85c');
                     setTimeout(function(){ el.css('border-color',''); }, 1500);
                 } else {
+                    hasError = true;
                     el.css('border-color','#d9534f');
-                    alert(resp.error_message);
+                }
+                if(saveCount >= totalFields && !hasError){
+                    alert('Saved successfully!');
                 }
             },
-            error: function(){
-                el.css('border-color','#d9534f');
-                alert('Error updating field.');
-            }
+            error: function(){ hasError = true; el.css('border-color','#d9534f'); saveCount++; }
         });
     });
-});
+
+    $.ajax({
+        type: "POST",
+        url: webrootUrl + 'societys_ajax/updateSocietyPaymentField',
+        data: {id: id, field: 'total_amount', value: totalAmt},
+        dataType: 'json',
+        success: function(resp){
+            saveCount++;
+            if(saveCount >= totalFields && !hasError){
+                alert('Saved successfully!');
+            }
+        },
+        error: function(){ hasError = true; saveCount++; }
+    });
+}
 </script>
