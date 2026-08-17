@@ -113,11 +113,11 @@
                                         </div>
                                         <div class="col-md-2 pull-right">
                                             <label class="control-label" style="color:#fff;background:#e91e63;padding:3px 8px;border-radius:3px;display:block;font-size:12px;">Search By Amount</label>
-                                            <input type="text" class="form-control input-sm" id="amount_filter" placeholder="Amount..." onkeyup="filterTable();" style="border:2px solid #e91e63;">
+                                            <input type="text" class="form-control input-sm" id="amount_filter" placeholder="Amount..." onkeyup="debounceFilter();" style="border:2px solid #e91e63;">
                                         </div>
                                         <div class="col-md-2 pull-right">
                                             <label class="control-label" style="color:#fff;background:#009688;padding:3px 8px;border-radius:3px;display:block;font-size:12px;">Search By Cheque No</label>
-                                            <input type="text" class="form-control input-sm" id="cheque_no_filter" placeholder="Cheque No..." onkeyup="filterTable();" style="border:2px solid #009688;">
+                                            <input type="text" class="form-control input-sm" id="cheque_no_filter" placeholder="Cheque No..." onkeyup="debounceFilter();" style="border:2px solid #009688;">
                                         </div>
                                     </div>
                                     <div class="table-wrap">
@@ -368,24 +368,27 @@
 
         window.location.reload();
     }
+    var filterTimer = null;
+    function debounceFilter(){
+        if(filterTimer) clearTimeout(filterTimer);
+        filterTimer = setTimeout(function(){ filterTable(); }, 300);
+    }
     function filterTable(){
-        var chequeNo = $('#cheque_no_filter').val().trim().toLowerCase();
-        var amount = $('#amount_filter').val().trim();
-        $('#cheque_clear_table tbody tr.data-row').each(function(){
-            var rowChequeInput = $(this).find('td:eq(3) input').val();
-            var rowChequeNo = rowChequeInput ? rowChequeInput.trim().toLowerCase() : '';
-            var rowDeposit = $(this).find('td:eq(6)').text().trim();
-            var rowWithdraw = $(this).find('td:eq(7)').text().trim();
+        var chequeNo = document.getElementById('cheque_no_filter').value.trim().toLowerCase();
+        var amount = document.getElementById('amount_filter').value.trim();
+        var rows = document.querySelectorAll('#cheque_clear_table tbody tr.data-row');
+        for(var i = 0; i < rows.length; i++){
+            var cells = rows[i].cells;
+            var chequeInput = cells[3].querySelector('input');
+            var rowChequeNo = chequeInput ? chequeInput.value.trim().toLowerCase() : '';
+            var rowDeposit = cells[6].textContent.trim();
+            var rowWithdraw = cells[7].textContent.trim();
             var chequeMatch = (chequeNo === '' || rowChequeNo.indexOf(chequeNo) !== -1);
             var amountMatch = true;
             if(amount !== ''){
                 amountMatch = (rowDeposit.indexOf(amount) !== -1 || rowWithdraw.indexOf(amount) !== -1);
             }
-            if(chequeMatch && amountMatch){
-                $(this).show();
-            } else {
-                $(this).hide();
-            }
-        });
+            rows[i].style.display = (chequeMatch && amountMatch) ? '' : 'none';
+        }
     }
 </script>
