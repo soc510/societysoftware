@@ -243,7 +243,6 @@ class MenuComponent extends Component {
                     'Utilities' => array('icon' => '<i class="zmdi zmdi-account mr-20"></i></i>', 'sublink' => Router::url(array('controller' => 'societys', 'action' => 'dashboard'), true),
                         'submenu' => array(
                             Router::url(array('controller' => 'utility', 'action' => 'update_bill_date'), true) => 'update bill dates',
-                            Router::url(array('controller' => 'utility', 'action' => 'lock_file'), true) => 'Lock File',
                         )
                     ),
 
@@ -320,7 +319,6 @@ class MenuComponent extends Component {
                     'Utilities' => array('icon' => '<i class="zmdi zmdi-account mr-20"></i></i>', 'sublink' => Router::url(array('controller' => 'societys', 'action' => 'dashboard'), true),
                         'submenu' => array(
                             Router::url(array('controller' => 'utility', 'action' => 'update_bill_date'), true) => 'update bill dates',
-                            Router::url(array('controller' => 'utility', 'action' => 'lock_file'), true) => 'Lock File',
                         )
                     ),
 
