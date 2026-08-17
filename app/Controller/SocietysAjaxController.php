@@ -3032,6 +3032,12 @@ public function getAllMemberTariffDetails(){
 
                         }
 
+                        if(isset($chequeData['cheque_number'])){
+
+                            $this->MemberPayment->saveField('cheque_reference_number',$chequeData['cheque_number']);
+
+                        }
+
                         $response['error'] = 0;
 
                         $response['error_message'] = 'Cheque Cleared Dates have been updated successfully.';
@@ -3048,6 +3054,12 @@ public function getAllMemberTariffDetails(){
 
                         }
 
+                        if(isset($chequeData['cheque_number'])){
+
+                            $this->SocietyPayment->saveField('cheque_reference_number',$chequeData['cheque_number']);
+
+                        }
+
                         $response['error'] = 0;
 
                         $response['error_message'] = 'Cheque Cleared Dates have been updated successfully.';
@@ -3061,6 +3073,12 @@ public function getAllMemberTariffDetails(){
                         if(isset($chequeData['cheque_date']) && !empty($chequeData['cheque_date'])){
 
                             $this->SocietyOtherIncome->saveField('cheque_date',$chequeData['cheque_date']);
+
+                        }
+
+                        if(isset($chequeData['cheque_number'])){
+
+                            $this->SocietyOtherIncome->saveField('cheque_no',$chequeData['cheque_number']);
 
                         }
 
