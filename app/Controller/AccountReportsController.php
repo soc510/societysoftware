@@ -14011,7 +14011,33 @@ $accountMemberLedgerDetails[$memberId]['MemberBillSummary'][$paymentCounterr]['t
 
 
 		$societyLedgerHeadList = $this->SocietyLedgerHeads->find('all', array('conditions' => array('SocietyLedgerHeads.status' => Configure::read('Active'), 'SocietyLedgerHeads.society_id' => $societyId), 'fields' => array('SocietyLedgerHeads.title', 'SocietyLedgerHeads.id','SocietyLedgerHeads.society_head_sub_category_id','SocietyLedgerHeads.opening_amount','SocietyLedgerHeads.is_rebate_applicable'), 'order' => array('SocietyLedgerHeads.title' => 'asc'), 'recursive' => -1)); 
-        $openingAmount = $this->SocietyBill->getSocietyLedgerOpClosingBal($societyId,$ledgerHeadId);
+        $openingAmount = $this->SocietyBill->getSocietyLedgerOpClosingBal($societyId,isset($ledgerHeadId) ? $ledgerHeadId : null);
+
+		$_interestHeadId = null;
+		$_gstHeadId = null;
+		$_interestFallbackId = null;
+		$_gstFallbackId = null;
+		foreach ($societyLedgerHeadList as $_scanHead) {
+			$_sh = $_scanHead['SocietyLedgerHeads'];
+			$_shSubCatId = $_sh['society_head_sub_category_id'];
+			if (!isset($societyHeadSubCategoryArray[$_shSubCatId])) continue;
+			// removed: sub-category filter — interest/GST heads may be under any sub-category
+			$_tl = strtolower(trim($_sh['title']));
+			if ($_tl == 'interest collection') {
+				$_interestHeadId = $_sh['id'];
+			} elseif ($_interestFallbackId === null && strpos($_tl, 'interest') !== false
+				&& strpos($_tl, 'fdr') === false && strpos($_tl, 'f.d') === false && strpos($_tl, 'accrued') === false
+				&& strpos($_tl, 'income tax') === false && strpos($_tl, 'refund') === false && strpos($_tl, 'received') === false) {
+				$_interestFallbackId = $_sh['id'];
+			}
+			if ($_tl == 'gst collection') {
+				$_gstHeadId = $_sh['id'];
+			} elseif ($_gstFallbackId === null && strpos($_tl, 'gst') !== false && strpos($_tl, 'accrued') === false) {
+				$_gstFallbackId = $_sh['id'];
+			}
+		}
+		if ($_interestHeadId === null) $_interestHeadId = $_interestFallbackId;
+		if ($_gstHeadId === null) $_gstHeadId = $_gstFallbackId;
 
 		foreach ($societyLedgerHeadList as $key => $headDetailsArray) {
 			$headDetails = $headDetailsArray['SocietyLedgerHeads'];
@@ -14139,20 +14165,20 @@ $accountMemberLedgerDetails[$memberId]['MemberBillSummary'][$paymentCounterr]['t
 				$optionsSocietyOtherIncome2[$headDetails['id']]['AND']['SocietyOtherIncome.society_bank_id'] = $headDetails['id'];
 				//print_r([$optionsSocietyOtherIncome,$headDetails['id']]);exit;
 				$bankOtherIncome = $this->SocietyOtherIncome->find('first', array('conditions' => $optionsSocietyOtherIncome2[$headDetails['id']], 'fields' => array('sum(SocietyOtherIncome.amount_paid) as total_amount_credited,payment_mode,society_bank_id')));
-				$bankOtherIncomeTds = $this->SocietyOtherIncome->find('first', array('conditions' => $optionsSocietyOtherIncome2[$headDetails['id']], 'fields' => array('sum(SocietyOtherIncome.tds_amount) as total_tds_amount_credited,payment_mode,society_bank_id')));
-			   
+				$optionsSocietyOtherIncome2WithTds = $optionsSocietyOtherIncome2[$headDetails['id']];
+				$optionsSocietyOtherIncome2WithTds['AND']['SocietyOtherIncome.tds_bank_id >'] = 0;
+				$bankOtherIncomeTds = $this->SocietyOtherIncome->find('first', array('conditions' => $optionsSocietyOtherIncome2WithTds, 'fields' => array('sum(SocietyOtherIncome.tds_amount) as total_tds_amount_credited,payment_mode,society_bank_id')));
+
+				$optionsSocietyOtherIncome21[$headDetails['id']] = $optionsSocietyOtherIncome;
 				$optionsSocietyOtherIncome21[$headDetails['id']]['AND']['SocietyOtherIncome.tds_bank_id'] = $headDetails['id'];
 				$bankOtherIncome21 = $this->SocietyOtherIncome->find('first', array('conditions' => $optionsSocietyOtherIncome21[$headDetails['id']], 'fields' => array('sum(SocietyOtherIncome.tds_amount) as total_tds_amount_credited,payment_mode,society_bank_id')));
 				if (!empty($bankOtherIncome21[0]['total_tds_amount_credited'])) {
-				//  if ($headDetails['society_head_sub_category_id'] == 20 && $headDetails['id'] == $bankOtherIncome['SocietyOtherIncome']['society_bank_id']) {
-				
 					$txnDebit += $bankOtherIncome21[0]['total_tds_amount_credited'];
-				// }
 				}
 				if (!empty($bankOtherIncome[0]['total_amount_credited'])) {
 				 if ($headDetails['society_head_sub_category_id'] == 20 && $headDetails['id'] == $bankOtherIncome['SocietyOtherIncome']['society_bank_id']) {
-				
-					$txnDebit += ($bankOtherIncome[0]['total_amount_credited']-$bankOtherIncomeTds[0]['total_tds_amount_credited']);
+					$tdsToSubtractOI = !empty($bankOtherIncomeTds[0]['total_tds_amount_credited']) ? $bankOtherIncomeTds[0]['total_tds_amount_credited'] : 0;
+					$txnDebit += ($bankOtherIncome[0]['total_amount_credited'] - $tdsToSubtractOI);
 				}
 				}
 
@@ -14163,10 +14189,13 @@ $accountMemberLedgerDetails[$memberId]['MemberBillSummary'][$paymentCounterr]['t
 
 		  
 				$cashOtherIncome = $this->SocietyOtherIncome->find('first', array('conditions' => $optionsSocietyOtherIncomeCash[$headDetails['id']], 'fields' => array('sum(SocietyOtherIncome.amount_paid) as total_amount_credited,payment_mode')));
-				$cashOtherIncomeText = $this->SocietyOtherIncome->find('first', array('conditions' => $optionsSocietyOtherIncomeCash[$headDetails['id']], 'fields' => array('sum(SocietyOtherIncome.tds_amount) as tds_amount_total,payment_mode')));
+				$optionsSocietyOtherIncomeCashWithTds = $optionsSocietyOtherIncomeCash[$headDetails['id']];
+				$optionsSocietyOtherIncomeCashWithTds['AND']['SocietyOtherIncome.tds_bank_id >'] = 0;
+				$cashOtherIncomeText = $this->SocietyOtherIncome->find('first', array('conditions' => $optionsSocietyOtherIncomeCashWithTds, 'fields' => array('sum(SocietyOtherIncome.tds_amount) as tds_amount_total,payment_mode')));
 				if (!empty($cashOtherIncome[0]['total_amount_credited'])) {
 				 if ($headDetails['society_head_sub_category_id'] == 21 ){
-					$txnDebit += ($cashOtherIncome[0]['total_amount_credited']-$cashOtherIncomeText[0]['tds_amount_total']);
+					$tdsToSubtractCash = !empty($cashOtherIncomeText[0]['tds_amount_total']) ? $cashOtherIncomeText[0]['tds_amount_total'] : 0;
+					$txnDebit += ($cashOtherIncome[0]['total_amount_credited'] - $tdsToSubtractCash);
 				}
 				}
 
@@ -14196,8 +14225,11 @@ $accountMemberLedgerDetails[$memberId]['MemberBillSummary'][$paymentCounterr]['t
 				$optionsSociety2[$headDetails['id']] = $optionsSociety;
 				$optionsSociety2[$headDetails['id']]['AND']['SocietyPayment.payment_by_ledger_id'] = $headDetails['id'];
 				$bankHeadPayments = $this->SocietyPayment->find('first', array('conditions' => $optionsSociety2[$headDetails['id']], 'fields' => array('sum(SocietyPayment.total_amount) as total_amount_debited')));
-				$bankHeadPaymentstds = $this->SocietyPayment->find('first', array('conditions' => $optionsSociety2[$headDetails['id']], 'fields' => array('sum(SocietyPayment.tax_amount) as total_tds_amount_credited')));
-				
+				$optionsSociety2WithTds = $optionsSociety2[$headDetails['id']];
+				$optionsSociety2WithTds['AND']['SocietyPayment.tds_account_id >'] = 0;
+				$bankHeadPaymentstds = $this->SocietyPayment->find('first', array('conditions' => $optionsSociety2WithTds, 'fields' => array('sum(SocietyPayment.tax_amount) as total_tds_amount_credited')));
+
+				$optionsSociety22[$headDetails['id']] = $optionsSociety;
 				$optionsSociety22[$headDetails['id']]['AND']['SocietyPayment.tds_account_id'] = $headDetails['id'];
 				$bankHeadPaymentstdsAmount = $this->SocietyPayment->find('first', array('conditions' => $optionsSociety22[$headDetails['id']], 'fields' => array('sum(SocietyPayment.tax_amount) as total_tds_amount_credited')));
 				if (!empty($bankHeadPaymentstdsAmount[0]['total_tds_amount_credited'])) {
@@ -14205,7 +14237,8 @@ $accountMemberLedgerDetails[$memberId]['MemberBillSummary'][$paymentCounterr]['t
 				}
 				//echo '5->'.$headDetails['id'].'->'.$bankHeadPayments[0]['total_amount_debited'].'<br>';
 				if (!empty($bankHeadPayments[0]['total_amount_debited'])) {
-					$txnCredit += ($bankHeadPayments[0]['total_amount_debited']-$bankHeadPaymentstds[0]['total_tds_amount_credited']);
+					$tdsToSubtract = !empty($bankHeadPaymentstds[0]['total_tds_amount_credited']) ? $bankHeadPaymentstds[0]['total_tds_amount_credited'] : 0;
+					$txnCredit += ($bankHeadPayments[0]['total_amount_debited'] - $tdsToSubtract);
 				}
 
 				// For cash balance
@@ -14232,32 +14265,18 @@ $accountMemberLedgerDetails[$memberId]['MemberBillSummary'][$paymentCounterr]['t
 					
 				}
 				 
-				// For Interest collection and GST collection in other income
-				if ($societyHeadSubCategoryArray[$headDetails['society_head_sub_category_id']]['title'] == 'Other Income') {
-					$db = $this->Session->read('Auth.dbConfig');
-					if ($db == 'default') {
-						 $fromDate = $this->getFirstDayFinancialYear();
-						 $toDate = '2020-03-31';
-					} else {
-						 $fromDate = '2018-04-01';
-						 $toDate = '2019-03-31';
+				// Interest collection and GST collection — matched by pre-scanned head ID
+				if ($_interestHeadId !== null && $headDetails['id'] == $_interestHeadId) {
+					$interestBillAmount = $this->MemberBillSummary->find('first', array('conditions' => $optionsMemberBillSummary, 'fields' => array('sum(MemberBillSummary.interest_on_due_amount) as total_interest')));
+					if (!empty($interestBillAmount[0]['total_interest'])) {
+						$txnCredit += $interestBillAmount[0]['total_interest'];
 					}
-					
-					$from_date = (isset($this->request->data['TrialBalance']['payment_date']) && !empty($this->request->data['TrialBalance']['payment_date'])) ? $this->request->data['TrialBalance']['payment_date'] : $fromDate;
-					$to_date = (isset($this->request->data['TrialBalance']['payment_date_to']) && !empty($this->request->data['TrialBalance']['payment_date_to'])) ? $this->request->data['TrialBalance']['payment_date_to'] : $toDate;
-					
-					if ($headDetails['title'] == 'Interest Collection') {
-						$interestBillAmount = $this->MemberBillSummary->find('first', array('conditions' => $optionsMemberBillSummary, 'fields' => array('sum(MemberBillSummary.interest_on_due_amount) as total_interest')));
-						if (!empty($interestBillAmount[0]['total_interest'])) {
-							$txnCredit += $interestBillAmount[0]['total_interest'];
-						}
-					}
-					
-					if (strtolower($headDetails['title']) == strtolower('GST Collection')) {
-						$taxBillAmount = $this->MemberBillGenerate->find('first', array('conditions' => $optionsMemberBillGenerate, 'fields' => array('sum(MemberBillGenerate.tax_total) as total_tax')));
-						if (!empty($taxBillAmount[0]['total_tax'])) {
-							$txnCredit += $taxBillAmount[0]['total_tax'];
-						}
+				}
+
+				if ($_gstHeadId !== null && $headDetails['id'] == $_gstHeadId) {
+					$taxBillAmount = $this->MemberBillGenerate->find('first', array('conditions' => $optionsMemberBillGenerate, 'fields' => array('sum(MemberBillGenerate.tax_total) as total_tax')));
+					if (!empty($taxBillAmount[0]['total_tax'])) {
+						$txnCredit += $taxBillAmount[0]['total_tax'];
 					}
 				}
 		  
@@ -14316,7 +14335,7 @@ $openingMemberBalance = $this->SocietyBill->getMemberOpBalanceSocietyWise($socie
 				$credit = 0;
 
 				 $name = $member['Member']['member_prefix'] . ' ' . $member['Member']['member_name'] . ' (' . $member['Member']['flat_no'] . ')';
-		   
+
 				$details = array('id' => $member['Member']['id'], 'title' => $name);
 
 				//$openingTemp = $member['Member']['op_principal'] + $member['Member']['op_interest'] + $member['Member']['op_tax'];
@@ -14330,10 +14349,10 @@ $openingMemberBalance = $this->SocietyBill->getMemberOpBalanceSocietyWise($socie
 				$opening = array('debit' => $debit, 'credit' => $credit);
 				$postData['TrialBalance'] = isset($postData['TrialBalance']) ? $postData['TrialBalance'] : array();
 				$transactions = $this->getMemberBalance($member['Member']['id'], $societyId, $postData['TrialBalance']);
-			
-				
+
+
 				// echo $member['Member']['id'].'--'.$transactions['debit'].'--'.$transactions['credit'].'<br>';
-				
+
 				$closingAmt = ($opening['debit'] + $transactions['debit']) - ($opening['credit'] + $transactions['credit']);
 				//Advance & Dues From Members
 				if ($closingAmt >= 0) {
@@ -14348,7 +14367,7 @@ $openingMemberBalance = $this->SocietyBill->getMemberOpBalanceSocietyWise($socie
 						'transactions' => $transactions,
 						'closing' => $closing,
 					);
-	   
+
 				} else if ($closingAmt < 0) {
 					$closing = array('credit' => abs($closingAmt), 'debit' => '');
 
@@ -14362,10 +14381,6 @@ $openingMemberBalance = $this->SocietyBill->getMemberOpBalanceSocietyWise($socie
 				}
 			}
 		}
-// exit;
-// echo "<pre>";
-// print_r($trialBalanceHeads);exit;
-  
 		$this->set(compact('postData', 'societyHeadSubCategoryArray', 'trialBalanceHeads', 'societyId'));
 	}
 
@@ -14443,6 +14458,33 @@ $openingMemberBalance = $this->SocietyBill->getMemberOpBalanceSocietyWise($socie
 		mysqli_close();
 		//
 		/* $societyLedgerHeadList = $this->SocietyLedgerHeads->find('all', array('conditions' => array('SocietyLedgerHeads.status' => Configure::read('Active'), 'SocietyLedgerHeads.society_id' => $societyId), 'fields' => array('SocietyLedgerHeads.title', 'SocietyLedgerHeads.id','SocietyLedgerHeads.society_head_sub_category_id','SocietyLedgerHeads.opening_amount','SocietyLedgerHeads.is_rebate_applicable'), 'order' => array('SocietyLedgerHeads.title' => 'asc'), 'recursive' => -1)); */
+
+
+		$_interestHeadId = null;
+		$_gstHeadId = null;
+		$_interestFallbackId = null;
+		$_gstFallbackId = null;
+		foreach ($societyLedgerHeadList as $_scanHead) {
+			$_sh = $_scanHead['SocietyLedgerHeads'];
+			$_shSubCatId = $_sh['society_head_sub_category_id'];
+			if (!isset($societyHeadSubCategoryArray[$_shSubCatId])) continue;
+			// removed: sub-category filter — interest/GST heads may be under any sub-category
+			$_tl = strtolower(trim($_sh['title']));
+			if ($_tl == 'interest collection') {
+				$_interestHeadId = $_sh['id'];
+			} elseif ($_interestFallbackId === null && strpos($_tl, 'interest') !== false
+				&& strpos($_tl, 'fdr') === false && strpos($_tl, 'f.d') === false && strpos($_tl, 'accrued') === false
+				&& strpos($_tl, 'income tax') === false && strpos($_tl, 'refund') === false && strpos($_tl, 'received') === false) {
+				$_interestFallbackId = $_sh['id'];
+			}
+			if ($_tl == 'gst collection') {
+				$_gstHeadId = $_sh['id'];
+			} elseif ($_gstFallbackId === null && strpos($_tl, 'gst') !== false && strpos($_tl, 'accrued') === false) {
+				$_gstFallbackId = $_sh['id'];
+			}
+		}
+		if ($_interestHeadId === null) $_interestHeadId = $_interestFallbackId;
+		if ($_gstHeadId === null) $_gstHeadId = $_gstFallbackId;
 
 		foreach ($societyLedgerHeadList as $key => $headDetailsArray) {
 			$headDetails = $headDetailsArray['SocietyLedgerHeads'];
@@ -14608,27 +14650,15 @@ $openingMemberBalance = $this->SocietyBill->getMemberOpBalanceSocietyWise($socie
 				}
 
 				// For Interest collection and GST collection in other income
-				if ($societyHeadSubCategoryArray[$headDetails['society_head_sub_category_id']]['title'] == 'Other Income') {
-					$db = $this->Session->read('Auth.dbConfig');
-					if ($db == 'default') {
-						$fromDate = $this->getFirstDayFinancialYear();
-						$toDate = '2020-03-31';
-					} else {
-						$fromDate = '2018-04-01';
-						$toDate = '2019-03-31';
+				if ($_interestHeadId !== null && $headDetails['id'] == $_interestHeadId) {
+					$interestBillAmount = $this->MemberBillSummary->find('first', array('conditions' => $optionsMemberBillSummary, 'fields' => array('sum(MemberBillSummary.interest_on_due_amount) as total_interest')));
+					if (!empty($interestBillAmount[0]['total_interest'])) {
+						$txnCredit += $interestBillAmount[0]['total_interest'];
 					}
-					$from_date = (isset($this->request->data['TrialBalance']['payment_date']) && !empty($this->request->data['TrialBalance']['payment_date'])) ? $this->request->data['TrialBalance']['payment_date'] : $fromDate;
-					$to_date = (isset($this->request->data['TrialBalance']['payment_date_to']) && !empty($this->request->data['TrialBalance']['payment_date_to'])) ? $this->request->data['TrialBalance']['payment_date_to'] : $toDate;
-					if ($headDetails['title'] == 'Interest Collection') {
-						$interestBillAmount = $this->MemberBillSummary->find('first', array('conditions' => $optionsMemberBillSummary, 'fields' => array('sum(MemberBillSummary.interest_on_due_amount) as total_interest')));
-						if (!empty($interestBillAmount[0]['total_interest'])) {
-							$txnCredit += $interestBillAmount[0]['total_interest'];
-						}
-					} else if ($headDetails['title'] == 'GST Collection') {
-						$taxBillAmount = $this->MemberBillGenerate->find('first', array('conditions' => $optionsMemberBillGenerate, 'fields' => array('sum(MemberBillGenerate.tax_total) as total_tax')));
-						if (!empty($taxBillAmount[0]['total_tax'])) {
-							$txnCredit += $taxBillAmount[0]['total_tax'];
-						}
+				} else if ($_gstHeadId !== null && $headDetails['id'] == $_gstHeadId) {
+					$taxBillAmount = $this->MemberBillGenerate->find('first', array('conditions' => $optionsMemberBillGenerate, 'fields' => array('sum(MemberBillGenerate.tax_total) as total_tax')));
+					if (!empty($taxBillAmount[0]['total_tax'])) {
+						$txnCredit += $taxBillAmount[0]['total_tax'];
 					}
 				}
 
@@ -15032,6 +15062,33 @@ $openingMemberBalance = $this->SocietyBill->getMemberOpBalanceSocietyWise($socie
 
 
 
+
+
+		$_interestHeadId = null;
+		$_gstHeadId = null;
+		$_interestFallbackId = null;
+		$_gstFallbackId = null;
+		foreach ($societyLedgerHeadList as $_scanHead) {
+			$_sh = $_scanHead['SocietyLedgerHeads'];
+			$_shSubCatId = $_sh['society_head_sub_category_id'];
+			if (!isset($societyHeadSubCategoryArray[$_shSubCatId])) continue;
+			// removed: sub-category filter — interest/GST heads may be under any sub-category
+			$_tl = strtolower(trim($_sh['title']));
+			if ($_tl == 'interest collection') {
+				$_interestHeadId = $_sh['id'];
+			} elseif ($_interestFallbackId === null && strpos($_tl, 'interest') !== false
+				&& strpos($_tl, 'fdr') === false && strpos($_tl, 'f.d') === false && strpos($_tl, 'accrued') === false
+				&& strpos($_tl, 'income tax') === false && strpos($_tl, 'refund') === false && strpos($_tl, 'received') === false) {
+				$_interestFallbackId = $_sh['id'];
+			}
+			if ($_tl == 'gst collection') {
+				$_gstHeadId = $_sh['id'];
+			} elseif ($_gstFallbackId === null && strpos($_tl, 'gst') !== false && strpos($_tl, 'accrued') === false) {
+				$_gstFallbackId = $_sh['id'];
+			}
+		}
+		if ($_interestHeadId === null) $_interestHeadId = $_interestFallbackId;
+		if ($_gstHeadId === null) $_gstHeadId = $_gstFallbackId;
 
 		foreach ($societyLedgerHeadList as $key => $headDetailsArray) {
 
@@ -15708,98 +15765,18 @@ $openingMemberBalance = $this->SocietyBill->getMemberOpBalanceSocietyWise($socie
 
 
 
-				// For Interest collection and GST collection in other income
-
-
-
-				if ($societyHeadSubCategoryArray[$headDetails['society_head_sub_category_id']]['title'] == 'Other Income') {
-
-
-
-					$db = $this->Session->read('Auth.dbConfig');
-
-
-
-					if ($db == 'default') {
-
-
-
-						$fromDate = $this->getFirstDayFinancialYear();
-
-
-
-						$toDate = '2020-03-31';
-
-
-
-					} else {
-
-
-
-						$fromDate = '2018-04-01';
-
-
-
-						$toDate = '2019-03-31';
-
-
-
+				// Interest collection and GST collection — matched by pre-scanned head ID
+				if ($_interestHeadId !== null && $headDetails['id'] == $_interestHeadId) {
+					$interestBillAmount = $this->MemberBillSummary->find('first', array('conditions' => $optionsMemberBillSummary, 'fields' => array('sum(MemberBillSummary.interest_on_due_amount) as total_interest')));
+					if (!empty($interestBillAmount[0]['total_interest'])) {
+						$txnCredit += $interestBillAmount[0]['total_interest'];
 					}
-
-
-
-					$from_date = (isset($this->request->data['TrialBalance']['payment_date']) && !empty($this->request->data['TrialBalance']['payment_date'])) ? $this->request->data['TrialBalance']['payment_date'] : $fromDate;
-
-
-
-					$to_date = (isset($this->request->data['TrialBalance']['payment_date_to']) && !empty($this->request->data['TrialBalance']['payment_date_to'])) ? $this->request->data['TrialBalance']['payment_date_to'] : $toDate;
-
-
-
-					if ($headDetails['title'] == 'Interest Collection') {
-
-
-
-						$interestBillAmount = $this->MemberBillSummary->find('first', array('conditions' => $optionsMemberBillSummary, 'fields' => array('sum(MemberBillSummary.interest_on_due_amount) as total_interest')));
-
-
-
-						if (!empty($interestBillAmount[0]['total_interest'])) {
-
-
-
-							$txnCredit += $interestBillAmount[0]['total_interest'];
-
-
-
-						}
-
-
-
-					} else if ($headDetails['title'] == 'GST Collection') {
-
-
-
-						$taxBillAmount = $this->MemberBillGenerate->find('first', array('conditions' => $optionsMemberBillGenerate, 'fields' => array('sum(MemberBillGenerate.tax_total) as total_tax')));
-
-
-
-						if (!empty($taxBillAmount[0]['total_tax'])) {
-
-
-
-							$txnCredit += $taxBillAmount[0]['total_tax'];
-
-
-
-						}
-
-
-
+				}
+				if ($_gstHeadId !== null && $headDetails['id'] == $_gstHeadId) {
+					$taxBillAmount = $this->MemberBillGenerate->find('first', array('conditions' => $optionsMemberBillGenerate, 'fields' => array('sum(MemberBillGenerate.tax_total) as total_tax')));
+					if (!empty($taxBillAmount[0]['total_tax'])) {
+						$txnCredit += $taxBillAmount[0]['total_tax'];
 					}
-
-
-
 				}
 
 
@@ -16981,6 +16958,33 @@ $openingMemberBalance = $this->SocietyBill->getMemberOpBalanceSocietyWise($socie
 
 
 		$societyLedgerHeadList = $this->SocietyLedgerHeads->find('all', array('conditions' => array('SocietyLedgerHeads.status' => Configure::read('Active'), 'SocietyLedgerHeads.society_id' => $societyId), 'fields' => array('SocietyLedgerHeads.title', 'SocietyLedgerHeads.id', 'SocietyLedgerHeads.society_head_sub_category_id', 'SocietyLedgerHeads.opening_amount', 'SocietyLedgerHeads.is_rebate_applicable'), 'order' => array('SocietyLedgerHeads.title' => 'asc'), 'recursive' => -1));
+
+		$_interestHeadId = null;
+		$_gstHeadId = null;
+		$_interestFallbackId = null;
+		$_gstFallbackId = null;
+		foreach ($societyLedgerHeadList as $_scanHead) {
+			$_sh = $_scanHead['SocietyLedgerHeads'];
+			$_shSubCatId = $_sh['society_head_sub_category_id'];
+			if (!isset($societyHeadSubCategoryArray[$_shSubCatId])) continue;
+			// removed: sub-category filter — interest/GST heads may be under any sub-category
+			$_tl = strtolower(trim($_sh['title']));
+			if ($_tl == 'interest collection') {
+				$_interestHeadId = $_sh['id'];
+			} elseif ($_interestFallbackId === null && strpos($_tl, 'interest') !== false
+				&& strpos($_tl, 'fdr') === false && strpos($_tl, 'f.d') === false && strpos($_tl, 'accrued') === false
+				&& strpos($_tl, 'income tax') === false && strpos($_tl, 'refund') === false && strpos($_tl, 'received') === false) {
+				$_interestFallbackId = $_sh['id'];
+			}
+			if ($_tl == 'gst collection') {
+				$_gstHeadId = $_sh['id'];
+			} elseif ($_gstFallbackId === null && strpos($_tl, 'gst') !== false && strpos($_tl, 'accrued') === false) {
+				$_gstFallbackId = $_sh['id'];
+			}
+		}
+		if ($_interestHeadId === null) $_interestHeadId = $_interestFallbackId;
+		if ($_gstHeadId === null) $_gstHeadId = $_gstFallbackId;
+
 		foreach ($societyLedgerHeadList as $key => $headDetailsArray) {
 			$headDetails = $headDetailsArray['SocietyLedgerHeads'];
 			if (array_key_exists($headDetails['society_head_sub_category_id'], $societyHeadSubCategoryArray)) {
@@ -17142,16 +17146,14 @@ $openingMemberBalance = $this->SocietyBill->getMemberOpBalanceSocietyWise($socie
 
 				// For Interest collection and GST collection in other income
 
-				if ($societyHeadSubCategoryArray[$headDetails['society_head_sub_category_id']]['title'] == 'Other Income') {
-					if ($headDetails['title'] == 'Interest Collection') {
-						$interestBillAmount = $this->MemberBillSummary->find('first', array('conditions' => $optionsMemberBillSummary, 'fields' => array('sum(MemberBillSummary.interest_on_due_amount) as total_interest')));                        if (!empty($interestBillAmount[0]['total_interest'])) {
-							$txnCredit += $interestBillAmount[0]['total_interest'];
-						}
-					} else if ($headDetails['title'] == 'GST Collection') {
-						$taxBillAmount = $this->MemberBillSummary->find('first', array('conditions' => $optionsMemberBillSummary, 'fields' => array('sum(MemberBillSummary.tax_total) as total_tax')));
-						if (!empty($taxBillAmount[0]['total_tax'])) {
-							$txnCredit += $taxBillAmount[0]['total_tax'];
-						}
+				if ($_interestHeadId !== null && $headDetails['id'] == $_interestHeadId) {
+					$interestBillAmount = $this->MemberBillSummary->find('first', array('conditions' => $optionsMemberBillSummary, 'fields' => array('sum(MemberBillSummary.interest_on_due_amount) as total_interest')));                        if (!empty($interestBillAmount[0]['total_interest'])) {
+						$txnCredit += $interestBillAmount[0]['total_interest'];
+					}
+				} else if ($_gstHeadId !== null && $headDetails['id'] == $_gstHeadId) {
+					$taxBillAmount = $this->MemberBillSummary->find('first', array('conditions' => $optionsMemberBillSummary, 'fields' => array('sum(MemberBillSummary.tax_total) as total_tax')));
+					if (!empty($taxBillAmount[0]['total_tax'])) {
+						$txnCredit += $taxBillAmount[0]['total_tax'];
 					}
 				}
 
@@ -17298,6 +17300,33 @@ $openingMemberBalance = $this->SocietyBill->getMemberOpBalanceSocietyWise($socie
 
         $ed = microtime(true);
        
+
+        $_interestHeadId = null;
+        $_gstHeadId = null;
+        $_interestFallbackId = null;
+        $_gstFallbackId = null;
+        foreach ($societyLedgerHeadList as $_scanHead) {
+        	$_sh = $_scanHead['SocietyLedgerHeads'];
+        	$_shSubCatId = $_sh['society_head_sub_category_id'];
+        	if (!isset($societyHeadSubCategoryArray[$_shSubCatId])) continue;
+        	// removed: sub-category filter — interest/GST heads may be under any sub-category
+        	$_tl = strtolower(trim($_sh['title']));
+        	if ($_tl == 'interest collection') {
+        		$_interestHeadId = $_sh['id'];
+        	} elseif ($_interestFallbackId === null && strpos($_tl, 'interest') !== false
+        		&& strpos($_tl, 'fdr') === false && strpos($_tl, 'f.d') === false && strpos($_tl, 'accrued') === false
+        		&& strpos($_tl, 'income tax') === false && strpos($_tl, 'refund') === false && strpos($_tl, 'received') === false) {
+        		$_interestFallbackId = $_sh['id'];
+        	}
+        	if ($_tl == 'gst collection') {
+        		$_gstHeadId = $_sh['id'];
+        	} elseif ($_gstFallbackId === null && strpos($_tl, 'gst') !== false && strpos($_tl, 'accrued') === false) {
+        		$_gstFallbackId = $_sh['id'];
+        	}
+        }
+        if ($_interestHeadId === null) $_interestHeadId = $_interestFallbackId;
+        if ($_gstHeadId === null) $_gstHeadId = $_gstFallbackId;
+
         foreach ($societyLedgerHeadList as $key => $headDetailsArray) {
             $headDetails = $headDetailsArray['SocietyLedgerHeads'];
             if (array_key_exists($headDetails['society_head_sub_category_id'], $societyHeadSubCategoryArray)) {
@@ -17416,15 +17445,13 @@ $openingMemberBalance = $this->SocietyBill->getMemberOpBalanceSocietyWise($socie
                 }
 
                 // For Interest collection and GST collection in other income - query 14
-                if ($societyHeadSubCategoryArray[$headDetails['society_head_sub_category_id']]['title'] == 'Other Income') {
-                    if ($headDetails['title'] == 'Interest Collection') {
-                        if (!empty($ledgerMemberBillData['total_interest']))
-                        	$txnCredit += $ledgerMemberBillData['total_interest'];
+                if ($_interestHeadId !== null && $headDetails['id'] == $_interestHeadId) {
+                    if (!empty($ledgerMemberBillData['total_interest']))
+                    	$txnCredit += $ledgerMemberBillData['total_interest'];
 
-                    } else if ($headDetails['title'] == 'GST Collection') {              
-                    	if (!empty($ledgerMemberBillData['total_tax']))
-                        	$txnCredit += $ledgerMemberBillData['total_tax'];
-                    }
+                } else if ($_gstHeadId !== null && $headDetails['id'] == $_gstHeadId) {              
+                	if (!empty($ledgerMemberBillData['total_tax']))
+                    	$txnCredit += $ledgerMemberBillData['total_tax'];
                 }
 
                 // Rebate head -- rebate head -- see if MemberBillSummary can be combined
@@ -17583,6 +17610,33 @@ $openingMemberBalance = $this->SocietyBill->getMemberOpBalanceSocietyWise($socie
 echo "<pre>";
       //  $ed = microtime(true);
        
+
+        $_interestHeadId = null;
+        $_gstHeadId = null;
+        $_interestFallbackId = null;
+        $_gstFallbackId = null;
+        foreach ($societyLedgerHeadList as $_scanHead) {
+        	$_sh = $_scanHead['SocietyLedgerHeads'];
+        	$_shSubCatId = $_sh['society_head_sub_category_id'];
+        	if (!isset($societyHeadSubCategoryArray[$_shSubCatId])) continue;
+        	// removed: sub-category filter — interest/GST heads may be under any sub-category
+        	$_tl = strtolower(trim($_sh['title']));
+        	if ($_tl == 'interest collection') {
+        		$_interestHeadId = $_sh['id'];
+        	} elseif ($_interestFallbackId === null && strpos($_tl, 'interest') !== false
+        		&& strpos($_tl, 'fdr') === false && strpos($_tl, 'f.d') === false && strpos($_tl, 'accrued') === false
+        		&& strpos($_tl, 'income tax') === false && strpos($_tl, 'refund') === false && strpos($_tl, 'received') === false) {
+        		$_interestFallbackId = $_sh['id'];
+        	}
+        	if ($_tl == 'gst collection') {
+        		$_gstHeadId = $_sh['id'];
+        	} elseif ($_gstFallbackId === null && strpos($_tl, 'gst') !== false && strpos($_tl, 'accrued') === false) {
+        		$_gstFallbackId = $_sh['id'];
+        	}
+        }
+        if ($_interestHeadId === null) $_interestHeadId = $_interestFallbackId;
+        if ($_gstHeadId === null) $_gstHeadId = $_gstFallbackId;
+
         foreach ($societyLedgerHeadList as $key => $headDetailsArray) {
             $headDetails = $headDetailsArray['SocietyLedgerHeads'];
             if (array_key_exists($headDetails['society_head_sub_category_id'], $societyHeadSubCategoryArray)) {
@@ -17703,15 +17757,13 @@ echo "<br>".$headDetails['society_head_sub_category_id'];
                 }
 
                 // For Interest collection and GST collection in other income - query 14
-                if ($societyHeadSubCategoryArray[$headDetails['society_head_sub_category_id']]['title'] == 'Other Income') {
-                    if ($headDetails['title'] == 'Interest Collection') {
-                        if (!empty($ledgerMemberBillData['total_interest']))
-                        	$txnCredit += $ledgerMemberBillData['total_interest'];
+                if ($_interestHeadId !== null && $headDetails['id'] == $_interestHeadId) {
+                    if (!empty($ledgerMemberBillData['total_interest']))
+                    	$txnCredit += $ledgerMemberBillData['total_interest'];
 
-                    } else if ($headDetails['title'] == 'GST Collection') {              
-                    	if (!empty($ledgerMemberBillData['total_tax']))
-                        	$txnCredit += $ledgerMemberBillData['total_tax'];
-                    }
+                } else if ($_gstHeadId !== null && $headDetails['id'] == $_gstHeadId) {              
+                	if (!empty($ledgerMemberBillData['total_tax']))
+                    	$txnCredit += $ledgerMemberBillData['total_tax'];
                 }
 
                 // Rebate head -- rebate head -- see if MemberBillSummary can be combined
@@ -17995,9 +18047,22 @@ echo "<br>".$headDetails['society_head_sub_category_id'];
 		}
 
 		$optionsMemberBillSummary['AND']['MemberBillSummary.member_id'] = $memberId;
-		$memberBillAmount = $this->MemberBillSummary->find('first', array('conditions' => $optionsMemberBillSummary, 'fields' => array('sum(MemberBillSummary.monthly_bill_amount) as total_bill_amount')));
+		$optionsMemberBillGenerate_mb = array('AND' => array('MemberBillGenerate.society_id' => $societyId, 'MemberBillGenerate.member_id' => $memberId));
+		if (isset($postData['payment_date']) && !empty($postData['payment_date']) && !empty($postData['payment_date_to'])) {
+			$optionsMemberBillGenerate_mb['OR']['MemberBillGenerate.bill_generated_date BETWEEN ? and ?'] = array($postData['payment_date'], $postData['payment_date_to']);
+		} else if (isset($postData['payment_date']) && !empty($postData['payment_date'])) {
+			$optionsMemberBillGenerate_mb['AND']['MemberBillGenerate.bill_generated_date'] = $postData['payment_date'];
+		} else if (isset($postData['payment_date_to']) && !empty($postData['payment_date_to'])) {
+			$optionsMemberBillGenerate_mb['AND']['MemberBillGenerate.bill_generated_date'] = $postData['payment_date_to'];
+		}
+		$this->loadModel('MemberBillGenerate');
+		$memberBillAmount = $this->MemberBillGenerate->find('first', array('conditions' => $optionsMemberBillGenerate_mb, 'fields' => array('sum(MemberBillGenerate.amount) as total_bill_amount')));
 		if (!empty($memberBillAmount[0]['total_bill_amount'])) {
 			$debit += $memberBillAmount[0]['total_bill_amount'];
+		}
+		$interestAmount = $this->MemberBillSummary->find('first', array('conditions' => $optionsMemberBillSummary, 'fields' => array('sum(MemberBillSummary.interest_on_due_amount) as total_interest')));
+		if (!empty($interestAmount[0]['total_interest'])) {
+			$debit += $interestAmount[0]['total_interest'];
 		}
 		$optionsJournalVoucherDebit['AND']['JournalVoucher.jv_debit_member_head_id'] = $memberId;
 		$jvDebitPayments = $this->JournalVoucher->find('first', array('conditions' => $optionsJournalVoucherDebit, 'fields' => array('sum(JournalVoucher.jv_amount_debited) as total_amount_debited')));
@@ -23689,6 +23754,33 @@ print_r($taxBillsSummaryDetails);exit;*/
 		$societyLedgerHeadList = $this->SocietyLedgerHeads->find('all', array('conditions' => array('SocietyLedgerHeads.status' => Configure::read('Active'), 'SocietyLedgerHeads.society_id' => $societyId), 'fields' => array('SocietyLedgerHeads.title', 'SocietyLedgerHeads.id','SocietyLedgerHeads.society_head_sub_category_id','SocietyLedgerHeads.opening_amount','SocietyLedgerHeads.is_rebate_applicable'), 'order' => array('SocietyLedgerHeads.title' => 'asc'), 'recursive' => -1)); 
         $openingAmount = $this->SocietyBill->getSocietyLedgerOpClosingBal($societyId,$ledgerHeadId);
 
+
+		$_interestHeadId = null;
+		$_gstHeadId = null;
+		$_interestFallbackId = null;
+		$_gstFallbackId = null;
+		foreach ($societyLedgerHeadList as $_scanHead) {
+			$_sh = $_scanHead['SocietyLedgerHeads'];
+			$_shSubCatId = $_sh['society_head_sub_category_id'];
+			if (!isset($societyHeadSubCategoryArray[$_shSubCatId])) continue;
+			// removed: sub-category filter — interest/GST heads may be under any sub-category
+			$_tl = strtolower(trim($_sh['title']));
+			if ($_tl == 'interest collection') {
+				$_interestHeadId = $_sh['id'];
+			} elseif ($_interestFallbackId === null && strpos($_tl, 'interest') !== false
+				&& strpos($_tl, 'fdr') === false && strpos($_tl, 'f.d') === false && strpos($_tl, 'accrued') === false
+				&& strpos($_tl, 'income tax') === false && strpos($_tl, 'refund') === false && strpos($_tl, 'received') === false) {
+				$_interestFallbackId = $_sh['id'];
+			}
+			if ($_tl == 'gst collection') {
+				$_gstHeadId = $_sh['id'];
+			} elseif ($_gstFallbackId === null && strpos($_tl, 'gst') !== false && strpos($_tl, 'accrued') === false) {
+				$_gstFallbackId = $_sh['id'];
+			}
+		}
+		if ($_interestHeadId === null) $_interestHeadId = $_interestFallbackId;
+		if ($_gstHeadId === null) $_gstHeadId = $_gstFallbackId;
+
 		foreach ($societyLedgerHeadList as $key => $headDetailsArray) {
 			$headDetails = $headDetailsArray['SocietyLedgerHeads'];
 
@@ -23816,20 +23908,20 @@ print_r($taxBillsSummaryDetails);exit;*/
 				$optionsSocietyOtherIncome2[$headDetails['id']]['AND']['SocietyOtherIncome.society_bank_id'] = $headDetails['id'];
 				//print_r([$optionsSocietyOtherIncome,$headDetails['id']]);exit;
 				$bankOtherIncome = $this->SocietyOtherIncome->find('first', array('conditions' => $optionsSocietyOtherIncome2[$headDetails['id']], 'fields' => array('sum(SocietyOtherIncome.amount_paid) as total_amount_credited,payment_mode,society_bank_id')));
-				$bankOtherIncomeTds = $this->SocietyOtherIncome->find('first', array('conditions' => $optionsSocietyOtherIncome2[$headDetails['id']], 'fields' => array('sum(SocietyOtherIncome.tds_amount) as total_tds_amount_credited,payment_mode,society_bank_id')));
-			   
+				$optionsSocietyOtherIncome2WithTds = $optionsSocietyOtherIncome2[$headDetails['id']];
+				$optionsSocietyOtherIncome2WithTds['AND']['SocietyOtherIncome.tds_bank_id >'] = 0;
+				$bankOtherIncomeTds = $this->SocietyOtherIncome->find('first', array('conditions' => $optionsSocietyOtherIncome2WithTds, 'fields' => array('sum(SocietyOtherIncome.tds_amount) as total_tds_amount_credited,payment_mode,society_bank_id')));
+
+				$optionsSocietyOtherIncome21[$headDetails['id']] = $optionsSocietyOtherIncome;
 				$optionsSocietyOtherIncome21[$headDetails['id']]['AND']['SocietyOtherIncome.tds_bank_id'] = $headDetails['id'];
 				$bankOtherIncome21 = $this->SocietyOtherIncome->find('first', array('conditions' => $optionsSocietyOtherIncome21[$headDetails['id']], 'fields' => array('sum(SocietyOtherIncome.tds_amount) as total_tds_amount_credited,payment_mode,society_bank_id')));
 				if (!empty($bankOtherIncome21[0]['total_tds_amount_credited'])) {
-				//  if ($headDetails['society_head_sub_category_id'] == 20 && $headDetails['id'] == $bankOtherIncome['SocietyOtherIncome']['society_bank_id']) {
-				
 					$txnDebit += $bankOtherIncome21[0]['total_tds_amount_credited'];
-				// }
 				}
 				if (!empty($bankOtherIncome[0]['total_amount_credited'])) {
 				 if ($headDetails['society_head_sub_category_id'] == 20 && $headDetails['id'] == $bankOtherIncome['SocietyOtherIncome']['society_bank_id']) {
-				
-					$txnDebit += ($bankOtherIncome[0]['total_amount_credited']-$bankOtherIncomeTds[0]['total_tds_amount_credited']);
+					$tdsToSubtractOI = !empty($bankOtherIncomeTds[0]['total_tds_amount_credited']) ? $bankOtherIncomeTds[0]['total_tds_amount_credited'] : 0;
+					$txnDebit += ($bankOtherIncome[0]['total_amount_credited'] - $tdsToSubtractOI);
 				}
 				}
 
@@ -23840,10 +23932,13 @@ print_r($taxBillsSummaryDetails);exit;*/
 
 		  
 				$cashOtherIncome = $this->SocietyOtherIncome->find('first', array('conditions' => $optionsSocietyOtherIncomeCash[$headDetails['id']], 'fields' => array('sum(SocietyOtherIncome.amount_paid) as total_amount_credited,payment_mode')));
-				$cashOtherIncomeText = $this->SocietyOtherIncome->find('first', array('conditions' => $optionsSocietyOtherIncomeCash[$headDetails['id']], 'fields' => array('sum(SocietyOtherIncome.tds_amount) as tds_amount_total,payment_mode')));
+				$optionsSocietyOtherIncomeCashWithTds = $optionsSocietyOtherIncomeCash[$headDetails['id']];
+				$optionsSocietyOtherIncomeCashWithTds['AND']['SocietyOtherIncome.tds_bank_id >'] = 0;
+				$cashOtherIncomeText = $this->SocietyOtherIncome->find('first', array('conditions' => $optionsSocietyOtherIncomeCashWithTds, 'fields' => array('sum(SocietyOtherIncome.tds_amount) as tds_amount_total,payment_mode')));
 				if (!empty($cashOtherIncome[0]['total_amount_credited'])) {
 				 if ($headDetails['society_head_sub_category_id'] == 21 ){
-					$txnDebit += ($cashOtherIncome[0]['total_amount_credited']-$cashOtherIncomeText[0]['tds_amount_total']);
+					$tdsToSubtractCash = !empty($cashOtherIncomeText[0]['tds_amount_total']) ? $cashOtherIncomeText[0]['tds_amount_total'] : 0;
+					$txnDebit += ($cashOtherIncome[0]['total_amount_credited'] - $tdsToSubtractCash);
 				}
 				}
 
@@ -23873,8 +23968,11 @@ print_r($taxBillsSummaryDetails);exit;*/
 				$optionsSociety2[$headDetails['id']] = $optionsSociety;
 				$optionsSociety2[$headDetails['id']]['AND']['SocietyPayment.payment_by_ledger_id'] = $headDetails['id'];
 				$bankHeadPayments = $this->SocietyPayment->find('first', array('conditions' => $optionsSociety2[$headDetails['id']], 'fields' => array('sum(SocietyPayment.total_amount) as total_amount_debited')));
-				$bankHeadPaymentstds = $this->SocietyPayment->find('first', array('conditions' => $optionsSociety2[$headDetails['id']], 'fields' => array('sum(SocietyPayment.tax_amount) as total_tds_amount_credited')));
-				
+				$optionsSociety2WithTds = $optionsSociety2[$headDetails['id']];
+				$optionsSociety2WithTds['AND']['SocietyPayment.tds_account_id >'] = 0;
+				$bankHeadPaymentstds = $this->SocietyPayment->find('first', array('conditions' => $optionsSociety2WithTds, 'fields' => array('sum(SocietyPayment.tax_amount) as total_tds_amount_credited')));
+
+				$optionsSociety22[$headDetails['id']] = $optionsSociety;
 				$optionsSociety22[$headDetails['id']]['AND']['SocietyPayment.tds_account_id'] = $headDetails['id'];
 				$bankHeadPaymentstdsAmount = $this->SocietyPayment->find('first', array('conditions' => $optionsSociety22[$headDetails['id']], 'fields' => array('sum(SocietyPayment.tax_amount) as total_tds_amount_credited')));
 				if (!empty($bankHeadPaymentstdsAmount[0]['total_tds_amount_credited'])) {
@@ -23882,7 +23980,8 @@ print_r($taxBillsSummaryDetails);exit;*/
 				}
 				//echo '5->'.$headDetails['id'].'->'.$bankHeadPayments[0]['total_amount_debited'].'<br>';
 				if (!empty($bankHeadPayments[0]['total_amount_debited'])) {
-					$txnCredit += ($bankHeadPayments[0]['total_amount_debited']-$bankHeadPaymentstds[0]['total_tds_amount_credited']);
+					$tdsToSubtract = !empty($bankHeadPaymentstds[0]['total_tds_amount_credited']) ? $bankHeadPaymentstds[0]['total_tds_amount_credited'] : 0;
+					$txnCredit += ($bankHeadPayments[0]['total_amount_debited'] - $tdsToSubtract);
 				}
 
 				// For cash balance
@@ -23910,31 +24009,17 @@ print_r($taxBillsSummaryDetails);exit;*/
 				}
 				 
 				// For Interest collection and GST collection in other income
-				if ($societyHeadSubCategoryArray[$headDetails['society_head_sub_category_id']]['title'] == 'Other Income') {
-					$db = $this->Session->read('Auth.dbConfig');
-					if ($db == 'default') {
-						 $fromDate = $this->getFirstDayFinancialYear();
-						 $toDate = '2020-03-31';
-					} else {
-						 $fromDate = '2018-04-01';
-						 $toDate = '2019-03-31';
+				if ($_interestHeadId !== null && $headDetails['id'] == $_interestHeadId) {
+					$interestBillAmount = $this->MemberBillSummary->find('first', array('conditions' => $optionsMemberBillSummary, 'fields' => array('sum(MemberBillSummary.interest_on_due_amount) as total_interest')));
+					if (!empty($interestBillAmount[0]['total_interest'])) {
+						$txnCredit += $interestBillAmount[0]['total_interest'];
 					}
-					
-					$from_date = (isset($this->request->data['TrialBalance']['payment_date']) && !empty($this->request->data['TrialBalance']['payment_date'])) ? $this->request->data['TrialBalance']['payment_date'] : $fromDate;
-					$to_date = (isset($this->request->data['TrialBalance']['payment_date_to']) && !empty($this->request->data['TrialBalance']['payment_date_to'])) ? $this->request->data['TrialBalance']['payment_date_to'] : $toDate;
-					
-					if ($headDetails['title'] == 'Interest Collection') {
-						$interestBillAmount = $this->MemberBillSummary->find('first', array('conditions' => $optionsMemberBillSummary, 'fields' => array('sum(MemberBillSummary.interest_on_due_amount) as total_interest')));
-						if (!empty($interestBillAmount[0]['total_interest'])) {
-							$txnCredit += $interestBillAmount[0]['total_interest'];
-						}
-					}
-					
-					if (strtolower($headDetails['title']) == strtolower('GST Collection')) {
-						$taxBillAmount = $this->MemberBillGenerate->find('first', array('conditions' => $optionsMemberBillGenerate, 'fields' => array('sum(MemberBillGenerate.tax_total) as total_tax')));
-						if (!empty($taxBillAmount[0]['total_tax'])) {
-							$txnCredit += $taxBillAmount[0]['total_tax'];
-						}
+				}
+
+				if ($_gstHeadId !== null && $headDetails['id'] == $_gstHeadId) {
+					$taxBillAmount = $this->MemberBillGenerate->find('first', array('conditions' => $optionsMemberBillGenerate, 'fields' => array('sum(MemberBillGenerate.tax_total) as total_tax')));
+					if (!empty($taxBillAmount[0]['total_tax'])) {
+						$txnCredit += $taxBillAmount[0]['total_tax'];
 					}
 				}
 		  
@@ -24022,6 +24107,33 @@ print_r($taxBillsSummaryDetails);exit;*/
 
        
        
+
+        $_interestHeadId = null;
+        $_gstHeadId = null;
+        $_interestFallbackId = null;
+        $_gstFallbackId = null;
+        foreach ($societyLedgerHeadList as $_scanHead) {
+        	$_sh = $_scanHead['SocietyLedgerHeads'];
+        	$_shSubCatId = $_sh['society_head_sub_category_id'];
+        	if (!isset($societyHeadSubCategoryArray[$_shSubCatId])) continue;
+        	// removed: sub-category filter — interest/GST heads may be under any sub-category
+        	$_tl = strtolower(trim($_sh['title']));
+        	if ($_tl == 'interest collection') {
+        		$_interestHeadId = $_sh['id'];
+        	} elseif ($_interestFallbackId === null && strpos($_tl, 'interest') !== false
+        		&& strpos($_tl, 'fdr') === false && strpos($_tl, 'f.d') === false && strpos($_tl, 'accrued') === false
+        		&& strpos($_tl, 'income tax') === false && strpos($_tl, 'refund') === false && strpos($_tl, 'received') === false) {
+        		$_interestFallbackId = $_sh['id'];
+        	}
+        	if ($_tl == 'gst collection') {
+        		$_gstHeadId = $_sh['id'];
+        	} elseif ($_gstFallbackId === null && strpos($_tl, 'gst') !== false && strpos($_tl, 'accrued') === false) {
+        		$_gstFallbackId = $_sh['id'];
+        	}
+        }
+        if ($_interestHeadId === null) $_interestHeadId = $_interestFallbackId;
+        if ($_gstHeadId === null) $_gstHeadId = $_gstFallbackId;
+
         foreach ($societyLedgerHeadList as $key => $headDetailsArray) {
             $headDetails = $headDetailsArray['SocietyLedgerHeads'];
             if (array_key_exists($headDetails['society_head_sub_category_id'], $societyHeadSubCategoryArray)) {
@@ -24139,15 +24251,13 @@ print_r($taxBillsSummaryDetails);exit;*/
                 }
 
                 // For Interest collection and GST collection in other income - query 14
-                if ($societyHeadSubCategoryArray[$headDetails['society_head_sub_category_id']]['title'] == 'Other Income') {
-                    if ($headDetails['title'] == 'Interest Collection') {
-                        if (!empty($ledgerMemberBillData['total_interest']))
-                        	$txnCredit += $ledgerMemberBillData['total_interest'];
+                if ($_interestHeadId !== null && $headDetails['id'] == $_interestHeadId) {
+                    if (!empty($ledgerMemberBillData['total_interest']))
+                    	$txnCredit += $ledgerMemberBillData['total_interest'];
 
-                    } else if ($headDetails['title'] == 'GST Collection') {              
-                    	if (!empty($ledgerMemberBillData['total_tax']))
-                        	$txnCredit += $ledgerMemberBillData['total_tax'];
-                    }
+                } else if ($_gstHeadId !== null && $headDetails['id'] == $_gstHeadId) {              
+                	if (!empty($ledgerMemberBillData['total_tax']))
+                    	$txnCredit += $ledgerMemberBillData['total_tax'];
                 }
 
                 // Rebate head -- rebate head -- see if MemberBillSummary can be combined
