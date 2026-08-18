@@ -20883,10 +20883,40 @@ function account_balance_sheet() {
 				$societyHeadSubCategory[$accountCategory][$headCategory]['heads'][$ledgerHeadId]['txnAmount'] = $txnAmount;
 			}
 
-			$societyMemberListsForDuesReport = $this->Member->find('all', array('contain' => array('Society', 'Building', 'Wing'), 'conditions' => array('Member.society_id' => $societyLoginID, 'Member.status' => Configure::read('Active')), 'order' => array('Member.id' => 'asc')));
+			$_unbanked = $this->SocietyOtherIncome->find('first', array(
+				'conditions' => array(
+					'SocietyOtherIncome.society_id' => $societyLoginID,
+					'SocietyOtherIncome.payment_date >=' => $from_date,
+					'SocietyOtherIncome.payment_date <=' => $to_date,
+					'OR' => array(
+						array('SocietyOtherIncome.society_bank_id' => 0),
+						array('SocietyOtherIncome.society_bank_id IS NULL'),
+					),
+				),
+				'fields' => array('sum(SocietyOtherIncome.amount_paid) as unbanked_total'),
+			));
+			if (!empty($_unbanked[0]['unbanked_total'])) {
+				$_unbankedAmt = $_unbanked[0]['unbanked_total'];
+				$_added = false;
+				if (isset($societyHeadSubCategory['Asset']['Cash Balance'])) {
+					foreach ($societyHeadSubCategory['Asset']['Cash Balance']['heads'] as $_cid => &$_chead) {
+						$_chead['txnAmount'] += $_unbankedAmt;
+						$_added = true;
+						break;
+					}
+					unset($_chead);
+				}
+				if (!$_added && isset($societyHeadSubCategory['Asset']['Bank Balances'])) {
+					foreach ($societyHeadSubCategory['Asset']['Bank Balances']['heads'] as $_bid => &$_bhead) {
+						$_bhead['txnAmount'] -= $_unbankedAmt;
+						$_added = true;
+						break;
+					}
+					unset($_bhead);
+				}
+			}
 
-           // echo "<pre>";
-           // print_r($societyMemberListsForDuesReport);die;
+			$societyMemberListsForDuesReport = $this->Member->find('all', array('contain' => array('Society', 'Building', 'Wing'), 'conditions' => array('Member.society_id' => $societyLoginID, 'Member.status' => Configure::read('Active')), 'order' => array('Member.id' => 'asc')));
 
 			$accountDuesMemberSummary = array();
 			$openingAmount = 0;
@@ -21401,11 +21431,41 @@ function account_balance_sheet_test() {
 				
 				$societyHeadSubCategory[$accountCategory][$headCategory]['heads'][$ledgerHeadId]['txnAmount'] = $txnAmount;
 			}
-          //  echo "<pre>";print_r($societyHeadSubCategory);die;exit;
-			$societyMemberListsForDuesReport = $this->Member->find('all', array('contain' => array('Society', 'Building', 'Wing'), 'conditions' => array('Member.society_id' => $societyLoginID, 'Member.status' => Configure::read('Active')), 'order' => array('Member.id' => 'asc')));
 
-           // echo "<pre>";
-           // print_r($societyMemberListsForDuesReport);die;
+			$_unbanked = $this->SocietyOtherIncome->find('first', array(
+				'conditions' => array(
+					'SocietyOtherIncome.society_id' => $societyLoginID,
+					'SocietyOtherIncome.payment_date >=' => $from_date,
+					'SocietyOtherIncome.payment_date <=' => $to_date,
+					'OR' => array(
+						array('SocietyOtherIncome.society_bank_id' => 0),
+						array('SocietyOtherIncome.society_bank_id IS NULL'),
+					),
+				),
+				'fields' => array('sum(SocietyOtherIncome.amount_paid) as unbanked_total'),
+			));
+			if (!empty($_unbanked[0]['unbanked_total'])) {
+				$_unbankedAmt = $_unbanked[0]['unbanked_total'];
+				$_added = false;
+				if (isset($societyHeadSubCategory['Asset']['Cash Balance'])) {
+					foreach ($societyHeadSubCategory['Asset']['Cash Balance']['heads'] as $_cid => &$_chead) {
+						$_chead['txnAmount'] += $_unbankedAmt;
+						$_added = true;
+						break;
+					}
+					unset($_chead);
+				}
+				if (!$_added && isset($societyHeadSubCategory['Asset']['Bank Balances'])) {
+					foreach ($societyHeadSubCategory['Asset']['Bank Balances']['heads'] as $_bid => &$_bhead) {
+						$_bhead['txnAmount'] -= $_unbankedAmt;
+						$_added = true;
+						break;
+					}
+					unset($_bhead);
+				}
+			}
+
+			$societyMemberListsForDuesReport = $this->Member->find('all', array('contain' => array('Society', 'Building', 'Wing'), 'conditions' => array('Member.society_id' => $societyLoginID, 'Member.status' => Configure::read('Active')), 'order' => array('Member.id' => 'asc')));
 
 			$accountDuesMemberSummary = array();
 			$openingAmount = 0;
