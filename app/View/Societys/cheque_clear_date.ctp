@@ -133,7 +133,7 @@
                                                         <th>Cleared Date</th>
                                                         <th>Deposit</th>
                                                         <th>Withdraw</th>
-                                                        <th style="width:40px;text-align:center;"><input type="checkbox" id="select_all" onclick="toggleSelectAll(this);"></th>
+                                                        <th style="width:60px;text-align:center;"><button type="button" class="btn btn-xs btn-primary" onclick="selectAllCheckboxes();" style="padding:2px 6px;font-size:11px;">All</button></th>
                                                     </tr>
                                                 </thead>
                                                 <tbody>
@@ -158,7 +158,7 @@
                                                             <td><input type="date" class="form-control" name="data[ClearChequePayment][<?php echo isset($finalData['id']) ? $finalData['id'] : '';  ?>][cleared_date]" id="cleared_date_<?php echo isset($finalData['id']) ? $finalData['id'] : '';  ?>" value="<?php echo (isset($finalData['cleared_date']) && $finalData['cleared_date'] != '0000-00-00') ? $utilObj->getFormatDate($finalData['cleared_date']) :'' ; ?>" ></td>
                                                             <td><?php echo isset($finalData['deposit']) ? $finalData['deposit'] :'';  ?></td>
                                                             <td><?php echo isset($finalData['withdrawal']) ? $finalData['withdrawal'] :'';  ?></td>
-                                                            <td style="text-align:center;"><input type="checkbox" class="row-checkbox" data-id="<?php echo isset($finalData['id']) ? $finalData['id'] : '';  ?>" onclick="toggleRowCheckbox();"></td>
+                                                            <td style="text-align:center;"><input type="checkbox" class="row-checkbox" data-id="<?php echo isset($finalData['id']) ? $finalData['id'] : '';  ?>"></td>
                                                         </tr>
                                                         <?php $idCount++; } ?>
                                                         <tr id="">
@@ -209,25 +209,58 @@
   </div>
 </div>
 <script>
+    function getCheckedIds(){
+        var data = localStorage.getItem('chk_clear_selected');
+        return data ? JSON.parse(data) : {};
+    }
+    function saveCheckedIds(obj){
+        localStorage.setItem('chk_clear_selected', JSON.stringify(obj));
+    }
+    function saveCheckboxState(cb){
+        var ids = getCheckedIds();
+        var id = cb.getAttribute('data-id');
+        if(cb.checked){
+            ids[id] = true;
+        } else {
+            delete ids[id];
+        }
+        saveCheckedIds(ids);
+    }
+    function restoreCheckboxStates(){
+        var ids = getCheckedIds();
+        var checkboxes = document.querySelectorAll('.row-checkbox');
+        for(var i = 0; i < checkboxes.length; i++){
+            var id = checkboxes[i].getAttribute('data-id');
+            if(ids[id]){
+                checkboxes[i].checked = true;
+            }
+            checkboxes[i].addEventListener('change', function(){ saveCheckboxState(this); });
+        }
+    }
     window.onload = function () {
         document.getElementById("btnreconciliation").onclick = submitReconciliation;
         document.getElementById("btnreconciliationdetail").onclick = submitReconciliationDetail;
+        restoreCheckboxStates();
     };
 
-    function toggleSelectAll(source) {
+    var allSelected = false;
+    function selectAllCheckboxes() {
+        allSelected = !allSelected;
+        var ids = getCheckedIds();
         var checkboxes = document.querySelectorAll('.row-checkbox');
         for (var i = 0; i < checkboxes.length; i++) {
             var row = checkboxes[i].closest('tr');
             if (row && row.style.display !== 'none') {
-                checkboxes[i].checked = source.checked;
+                checkboxes[i].checked = allSelected;
+                var id = checkboxes[i].getAttribute('data-id');
+                if(allSelected){
+                    ids[id] = true;
+                } else {
+                    delete ids[id];
+                }
             }
         }
-    }
-
-    function toggleRowCheckbox() {
-        var total = document.querySelectorAll('.row-checkbox').length;
-        var checked = document.querySelectorAll('.row-checkbox:checked').length;
-        document.getElementById('select_all').checked = (total > 0 && total === checked);
+        saveCheckedIds(ids);
     }
 
     function applyAllClearDate() {
