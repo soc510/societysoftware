@@ -10,7 +10,7 @@
 
             <div class="panel panel-default card-view">
 
-                <?php echo $this->Session->flash(); ?>
+                <?php if ($this->Session->check('Message.flash')) { echo $this->Session->flash(); } ?>
 
                 <div class="panel-heading">
 
