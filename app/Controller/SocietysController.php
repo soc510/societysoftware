@@ -454,7 +454,146 @@ class SocietysController extends AppController {
         $this->set(compact('wingMemberData'));
 
     }
-  
+
+    public function download_member_op_template() {
+        $this->autoRender = false;
+        $this->Member->Behaviors->attach('Containable');
+
+        $members = $this->Member->find('all', array(
+            'contain' => array('Building', 'Wing'),
+            'conditions' => array(
+                'Member.status' => Configure::read('Active'),
+                'Member.society_id' => $this->Session->read('Auth.User.id')
+            ),
+            'fields' => array(
+                'Member.id', 'Member.member_prefix', 'Member.member_name',
+                'Member.flat_no', 'Member.member_phone', 'Member.member_email',
+                'Member.area', 'Member.op_principal', 'Member.op_interest', 'Member.op_tax',
+                'Building.building_name', 'Wing.wing_name'
+            ),
+            'order' => array('Member.flat_no' => 'asc')
+        ));
+
+        $filename = 'Member_Opening_Balance_Template_' . date('Y-m-d') . '.csv';
+        header('Content-Type: text/csv; charset=utf-8');
+        header('Content-Disposition: attachment; filename="' . $filename . '"');
+
+        $output = fopen('php://output', 'w');
+        fputcsv($output, array(
+            'Member ID', 'Member Name', 'Flat/Shop No', 'Building Name', 'Wing Name',
+            'Mobile No', 'Email Address', 'Area',
+            'Opening Principal', 'Opening Interest', 'Opening Tax'
+        ));
+
+        foreach ($members as $m) {
+            fputcsv($output, array(
+                $m['Member']['id'],
+                $m['Member']['member_prefix'] . ' ' . $m['Member']['member_name'],
+                isset($m['Member']['flat_no']) ? $m['Member']['flat_no'] : '',
+                isset($m['Building']['building_name']) ? $m['Building']['building_name'] : '',
+                isset($m['Wing']['wing_name']) ? $m['Wing']['wing_name'] : '',
+                isset($m['Member']['member_phone']) ? $m['Member']['member_phone'] : '',
+                isset($m['Member']['member_email']) ? $m['Member']['member_email'] : '',
+                isset($m['Member']['area']) ? $m['Member']['area'] : '',
+                isset($m['Member']['op_principal']) ? $m['Member']['op_principal'] : '0.00',
+                isset($m['Member']['op_interest']) ? $m['Member']['op_interest'] : '0.00',
+                isset($m['Member']['op_tax']) ? $m['Member']['op_tax'] : '0.00'
+            ));
+        }
+
+        fclose($output);
+        exit();
+    }
+
+    public function upload_member_op_balance() {
+        $societyLoginID = $this->Session->read('Auth.User.id');
+
+        if ($this->request->is('post') && isset($this->request->data['Member']['member_csv']) && !empty($this->request->data['Member']['member_csv']['name'])) {
+
+            $fileData = $this->request->data['Member']['member_csv'];
+            $extensionArr = explode('.', $fileData['name']);
+            $extension = strtolower(array_pop($extensionArr));
+
+            if ($extension !== 'csv') {
+                $this->Session->setFlash(__('Please upload a CSV file only.'), 'error');
+                $this->redirect(array('action' => 'upload_member_op_balance'));
+                return;
+            }
+
+            $fileMemberData = fopen($fileData['tmp_name'], 'r');
+            $rowCount = 0;
+            $updatedCount = 0;
+            $errorCount = 0;
+
+            while ($row = fgetcsv($fileMemberData)) {
+                if ($rowCount == 0) {
+                    $rowCount++;
+                    continue;
+                }
+
+                $memberId = isset($row[0]) ? trim($row[0]) : '';
+                if (empty($memberId)) {
+                    $rowCount++;
+                    continue;
+                }
+
+                $existingMember = $this->Member->find('first', array(
+                    'conditions' => array(
+                        'Member.id' => $memberId,
+                        'Member.society_id' => $societyLoginID
+                    ),
+                    'fields' => array('Member.id'),
+                    'recursive' => -1
+                ));
+
+                if (!empty($existingMember)) {
+                    $updateData = array();
+                    if (isset($row[5]) && trim($row[5]) !== '') {
+                        $updateData['Member.member_phone'] = "'" . trim($row[5]) . "'";
+                    }
+                    if (isset($row[6]) && trim($row[6]) !== '') {
+                        $updateData['Member.member_email'] = "'" . trim($row[6]) . "'";
+                    }
+                    if (isset($row[7]) && trim($row[7]) !== '') {
+                        $updateData['Member.area'] = "'" . trim($row[7]) . "'";
+                    }
+                    if (isset($row[8])) {
+                        $updateData['Member.op_principal'] = floatval($row[8]);
+                    }
+                    if (isset($row[9])) {
+                        $updateData['Member.op_interest'] = floatval($row[9]);
+                    }
+                    if (isset($row[10])) {
+                        $updateData['Member.op_tax'] = floatval($row[10]);
+                    }
+
+                    if (!empty($updateData)) {
+                        $result = $this->Member->updateAll($updateData, array('Member.id' => $memberId));
+                        if ($result) {
+                            $updatedCount++;
+                        } else {
+                            $errorCount++;
+                        }
+                    }
+                } else {
+                    $errorCount++;
+                }
+
+                $rowCount++;
+            }
+
+            fclose($fileMemberData);
+
+            if ($updatedCount > 0) {
+                $this->Session->setFlash(__($updatedCount . ' members updated successfully.' . ($errorCount > 0 ? ' ' . $errorCount . ' rows failed.' : '')), 'success');
+            } else {
+                $this->Session->setFlash(__('No members were updated. Please check the CSV file.'), 'error');
+            }
+            $this->redirect(array('action' => 'member_identitys'));
+            return;
+        }
+    }
+
   // create by sonu :: 10-04-2026
     // SELECT 
     // m.id AS m_id,
@@ -3690,6 +3829,18 @@ class SocietysController extends AppController {
         $this->loadModel('Member');
         $societyMemberFlatLists = $this->SocietyBill->getSocietyMemberFlatList();
         $societyLoginID = $this->societyloginID;
+        $memberOpBalances = array();
+        $allMembers = $this->Member->find('all', array(
+            'conditions' => array('Member.society_id' => $societyLoginID, 'Member.status' => Configure::read('Active')),
+            'fields' => array('Member.id', 'Member.op_principal', 'Member.op_interest', 'Member.op_tax')
+        ));
+        foreach ($allMembers as $m) {
+            $memberOpBalances[$m['Member']['id']] = array(
+                'op_principal' => $m['Member']['op_principal'],
+                'op_interest' => $m['Member']['op_interest'],
+                'op_tax' => $m['Member']['op_tax']
+            );
+        }
         $postData = array();
         $memberIdentificationDetails = array();
         if ($this->request->is(array('post'))) {
@@ -3787,8 +3938,8 @@ class SocietysController extends AppController {
         } else {
             $postData = $this->MemberIdentification->find('first', array('conditions' => array('MemberIdentification.id' => $societyIdentityId, 'MemberIdentification.society_id' => $societyLoginID)));
         }
-        $this->set(compact('postData', 'memberIdentificationDetails', 'societyMemberFlatLists'));
-    }    
+        $this->set(compact('postData', 'memberIdentificationDetails', 'societyMemberFlatLists', 'memberOpBalances'));
+    }
 
 
 
