@@ -11476,17 +11476,23 @@ $expIndex = 0;$incomeIdex = 0;
 		$financialYearId = $this->Util->getFinancialYear();
 
 		$this->loadModel('MemberIdentification');
+		$this->loadModel('MemberBillSettlement');
+		$this->loadModel('MemberPayment');
 
 		$societyDetails = $this->SocietyBill->getSocietyDetails();
 		$societyBuildingLists = $this->SocietyBill->getSocietyBuildingListsById();
 		$societyWingLists = $this->SocietyBill->getSocietyWingListsById();
 
 		$totalRecordsTOFetch = 100;
-		
-		$page = isset($postData[MemberBillSummary][member_record_range]) ? $postData[MemberBillSummary][member_record_range]:1;
-		$offset = $totalRecordsTOFetch*($page-1);
-		$societyMemberList = $this->SocietyBill->getSocietyMemberListAndMemberTranfer($totalRecordsTOFetch,$offset);
-		  
+
+		$page = isset($postData['MemberBillSummary']['member_record_range']) ? $postData['MemberBillSummary']['member_record_range'] : 1;
+		if($page <= 0){
+			$societyMemberList = $this->SocietyBill->getSocietyMemberListAndMemberTranfer();
+		} else {
+			$offset = $totalRecordsTOFetch*($page-1);
+			$societyMemberList = $this->SocietyBill->getSocietyMemberListAndMemberTranfer($totalRecordsTOFetch,$offset);
+		}
+
 		if($postData['MemberBillSummary']['member_record']=='Old'){
 			foreach ($societyMemberList as $key=>$value) {
 				$val =  $value-1;
@@ -11495,16 +11501,17 @@ $expIndex = 0;$incomeIdex = 0;
 				}
 			}
 		}
-		
+
 		$memberOpPrincipalKey = 'op_principal';
 		$memberOpTaxKey = 'op_tax';
 		$memberOpInterestKey = 'op_interest';
-		if($this->request->data['MemberBillSummary']['report_type'] == 'reg'){
+		$reportType = isset($this->request->data['MemberBillSummary']['report_type']) ? $this->request->data['MemberBillSummary']['report_type'] : 'Default';
+
+		if($reportType == 'reg' || $reportType == 'Summary' || $reportType == 'Default'){
 			$memberClosingBal = $this->SocietyBill->getMemberslastClosingBalance();
-			
 		}
 
-		if($this->request->data['MemberBillSummary']['report_type'] == 'sup'){
+		if($reportType == 'sup'){
 			$memberClosingBal = $this->SocietyBill->getMemberslastClosingBalance('sup');
 			$memberOpPrincipalKey = 'supplementary_principal';
 			$memberOpTaxKey = 'supplementary_tax';
@@ -11563,135 +11570,213 @@ $expIndex = 0;$incomeIdex = 0;
 
 		if ($this->request->is(array('post'))) {
 			if (isset($societyMemberList) && count($societyMemberList) > 0) {
-				foreach ($societyMemberList as $memberId => $member_transfer) {
-					if($postData['MemberBillSummary']['member_record']=='Old'){
-						$member_transfer = $member_transfer-1;
-					}
-				
-					if($member_transfer <=-1){
-						$member_transfer=0;
-					}
 
+				$allMemberIds = array_keys($societyMemberList);
+
+				$expectedTransfers = array();
+				foreach ($societyMemberList as $mid => $mt) {
 					if ($postData['MemberBillSummary']['member_record'] == 'Old') {
-						// Old owner's bills are in the year(s) before the transfer, not the
-						// currently selected year, so do not constrain by financial year.
-						unset($options['AND']['MemberBillSummary.financial_year_id']);
-					} else {
-						$options['AND']['MemberBillSummary.financial_year_id'] = $financialYearId;
+						$mt = $mt - 1;
+						if ($mt <= -1) $mt = 0;
 					}
-					$options['AND']['MemberBillSummary.member_id'] = $memberId; //print_r($options);exit;
-					$options['AND']['MemberBillSummary.member_transfer'] = $member_transfer; //print_r($options);exit;
+					$expectedTransfers[$mid] = $mt;
+				}
 
-					$accountMemberBillSummary = $this->MemberBillSummary->find('all', array('conditions' => $options, 'order' => array('bill_no' => 'asc')));
+				$allMemberIdentifications = array();
+				if($postData['MemberBillSummary']['member_record']=='Old'){
+					$miData = $this->MemberIdentification->find('all', array(
+						'conditions' => array(
+							'MemberIdentification.status' => Configure::read('Active'),
+							'MemberIdentification.society_id' => $this->Session->read('Auth.User.id'),
+							'MemberIdentification.member_id' => $allMemberIds
+						),
+						'order' => array('MemberIdentification.flat_no' => 'asc')
+					));
+					foreach($miData as $mi){
+						$miMemberId = $mi['MemberIdentification']['member_id'];
+						$miTransfer = $mi['MemberIdentification']['member_transfer'];
+						if (isset($expectedTransfers[$miMemberId]) && $miTransfer == $expectedTransfers[$miMemberId]) {
+							$allMemberIdentifications[$miMemberId] = $mi['MemberIdentification'];
+						}
+					}
+					foreach($allMemberIdentifications as $miMemberId => $miDetails){
+						if(isset($memberArr[$miMemberId])){
+							$memberArr[$miMemberId]['member_name'] = $miDetails['third_member'];
+							$memberArr[$miMemberId]['op_principal'] = $miDetails['op_principal'];
+							$memberArr[$miMemberId]['op_interest'] = $miDetails['op_interest'];
+							$memberArr[$miMemberId]['op_tax'] = $miDetails['op_tax'];
+						}
+					}
+				}
+
+				$allJournalVouchers = $this->SocietyBill->getJournalVoucherCreaditDebitDataByMemberId(null, null);
+
+				$batchBillOptions = $options;
+				$batchBillOptions['AND']['MemberBillSummary.member_id'] = $allMemberIds;
+				if ($postData['MemberBillSummary']['member_record'] != 'Old') {
+					$batchBillOptions['AND']['MemberBillSummary.financial_year_id'] = $financialYearId;
+				}
+				$allBillSummaries = $this->MemberBillSummary->find('all', array(
+					'conditions' => $batchBillOptions,
+					'order' => array('MemberBillSummary.member_id' => 'asc', 'bill_no' => 'asc')
+				));
+
+				$billsByMember = array();
+				$allBillSummaryIds = array();
+				foreach ($allBillSummaries as $billData) {
+					$mid = $billData['MemberBillSummary']['member_id'];
+					$mt = $billData['MemberBillSummary']['member_transfer'];
+					if (isset($expectedTransfers[$mid]) && $mt == $expectedTransfers[$mid]) {
+						$billsByMember[$mid][] = $billData;
+						$allBillSummaryIds[] = $billData['MemberBillSummary']['id'];
+					}
+				}
+
+				$allSettlementsGrouped = array();
+				if (!empty($allBillSummaryIds)) {
+					$stlCond = array('MemberBillSettlement.bill_summary_id' => $allBillSummaryIds);
+					if ($postData['MemberBillSummary']['member_record'] != 'Old') {
+						$stlCond['MemberBillSettlement.financial_year_id'] = $financialYearId;
+					}
+					$settlementResults = $this->MemberBillSettlement->find('all', array(
+						'conditions' => $stlCond,
+						'recursive' => -1
+					));
+					foreach ($settlementResults as $sData) {
+						$bsId = $sData['MemberBillSettlement']['bill_summary_id'];
+						$allSettlementsGrouped[$bsId][] = $sData['MemberBillSettlement'];
+					}
+				}
+
+				$paymentBaseCond = array(
+					'MemberPayment.society_id' => $this->Session->read('Auth.User.id'),
+					'MemberPayment.member_id' => $allMemberIds
+				);
+				if ($postData['MemberBillSummary']['member_record'] != 'Old') {
+					$paymentBaseCond['MemberPayment.financial_year_id'] = $financialYearId;
+				}
+				if (isset($this->request->data['MemberBillSummary']['report_type']) && $this->request->data['MemberBillSummary']['report_type'] != 'Default') {
+					$pBillType = $this->request->data['MemberBillSummary']['report_type'];
+					if ($pBillType == 'Summary') $pBillType = 'reg';
+					$paymentBaseCond['MemberPayment.bill_type'] = $pBillType;
+				}
+				$allPayments = $this->MemberPayment->find('all', array('conditions' => $paymentBaseCond));
+
+				$paymentsByMember = array();
+				$allPaymentIds = array();
+				foreach ($allPayments as $pd) {
+					$mid = $pd['MemberPayment']['member_id'];
+					$mt = $pd['MemberPayment']['member_transfer'];
+					if (isset($expectedTransfers[$mid]) && $mt == $expectedTransfers[$mid]) {
+						$paymentsByMember[$mid][] = $pd;
+						$allPaymentIds[] = $pd['MemberPayment']['id'];
+					}
+				}
+
+				$settlementByPaymentAll = array();
+				if (!empty($allPaymentIds)) {
+					$stlResults = $this->MemberBillSettlement->find('all', array(
+						'conditions' => array('MemberBillSettlement.payment_id' => $allPaymentIds),
+						'recursive' => -1
+					));
+					foreach ($stlResults as $stl) {
+						$pid = $stl['MemberBillSettlement']['payment_id'];
+						if (!isset($settlementByPaymentAll[$pid])) {
+							$settlementByPaymentAll[$pid] = array('principal_paid' => 0, 'interest_paid' => 0, 'tax_paid' => 0);
+						}
+						$settlementByPaymentAll[$pid]['principal_paid'] += $stl['MemberBillSettlement']['principal_paid'];
+						$settlementByPaymentAll[$pid]['interest_paid'] += $stl['MemberBillSettlement']['interest_paid'];
+						$settlementByPaymentAll[$pid]['tax_paid'] += $stl['MemberBillSettlement']['tax_paid'];
+					}
+				}
+
+				$utcZone = new DateTimeZone('UTC');
+
+				foreach ($societyMemberList as $memberId => $member_transfer_raw) {
+					$member_transfer = $expectedTransfers[$memberId];
+
+					$accountMemberBillSummary = isset($billsByMember[$memberId]) ? $billsByMember[$memberId] : array();
 					$MemberBillDateCounterArray = array();
+					$summaryCounter = 0;
 
-					if (isset($accountMemberBillSummary) && !empty($accountMemberBillSummary)) {
-						$summaryCounter = 0;
+					if (!empty($accountMemberBillSummary)) {
 						$paymentIdsArr = array();
 						$noPaymentIdsArr = array();
+
+						$MemberIdentificationDetails = isset($allMemberIdentifications[$memberId]) ? $allMemberIdentifications[$memberId] : null;
+
 						foreach ($accountMemberBillSummary as $billData) {
 							if (isset($billData['MemberBillSummary'])) {
-								$this->loadModel('MemberBillSettlement');
-								$condition = array('MemberBillSettlement.bill_summary_id' => $billData['MemberBillSummary']['id'],
-								'MemberBillSettlement.member_id' => $memberId , 'MemberBillSettlement.financial_year_id'=> (($postData['MemberBillSummary']['member_record'] == 'Old') ? $billData['MemberBillSummary']['financial_year_id'] : $financialYearId));
-								$memberBillSettlement = $this->MemberBillSettlement->find('all', array('conditions' => $condition));
-
-								foreach ($memberBillSettlement as $settlementData) {
-									$settlementArray[] = $settlementData['MemberBillSettlement'];
-									$paymentIdsArr[] = $settlementData['MemberBillSettlement']['payment_id'];
+								$bsId = $billData['MemberBillSummary']['id'];
+								if (isset($allSettlementsGrouped[$bsId])) {
+									foreach ($allSettlementsGrouped[$bsId] as $settlementData) {
+										$settlementArray[] = $settlementData;
+										$paymentIdsArr[] = $settlementData['payment_id'];
+									}
 								}
 
 								$accountMemberLedgerDetails[$memberId]['MemberBillSummary'][$summaryCounter] = $billData['MemberBillSummary'];
 								$accountMemberLedgerDetails[$memberId]['Member'] = $billData['Member'];
-								$MemberIdentificationDetails = $this->MemberIdentification->find('first', array('conditions' => array('MemberIdentification.status' => Configure::read('Active'), 'MemberIdentification.society_id' => $this->Session->read('Auth.User.id'), 'MemberIdentification.member_id' => $memberId), 'order' => array('MemberIdentification.flat_no' => 'asc')));
-								$memberTransfered = (new SocietyBillsController)->checkMemberTransferred($memberId);    
-								
-								if(!empty($MemberIdentificationDetails) && $postData['MemberBillSummary']['member_record']=='Old'){
-								
-								$accountMemberLedgerDetails[$memberId]['Member']['member_name']=$MemberIdentificationDetails['MemberIdentification']['third_member'];
-								$accountMemberLedgerDetails[$memberId]['Member']['op_principal'] = $MemberIdentificationDetails['MemberIdentification']['op_principal'];
-								$accountMemberLedgerDetails[$memberId]['Member']['op_interest'] = $MemberIdentificationDetails['MemberIdentification']['op_interest'];
-								$accountMemberLedgerDetails[$memberId]['Member']['op_tax'] = $MemberIdentificationDetails['MemberIdentification']['op_tax'];
-								
+
+								if (!empty($MemberIdentificationDetails) && $postData['MemberBillSummary']['member_record'] == 'Old') {
+									$accountMemberLedgerDetails[$memberId]['Member']['member_name'] = $MemberIdentificationDetails['third_member'];
+									$accountMemberLedgerDetails[$memberId]['Member']['op_principal'] = $MemberIdentificationDetails['op_principal'];
+									$accountMemberLedgerDetails[$memberId]['Member']['op_interest'] = $MemberIdentificationDetails['op_interest'];
+									$accountMemberLedgerDetails[$memberId]['Member']['op_tax'] = $MemberIdentificationDetails['op_tax'];
 								}
 
-
-
-
-
-
-								//Change date format
-								$accountMemberLedgerDetails[$memberId]['MemberBillSummary'][$summaryCounter]['payment_date'] = date('d/m/Y', strtotime($accountMemberLedgerDetails[$memberId]['MemberBillSummary'][$summaryCounter]['bill_generated_date']));
-								if (isset($accountMemberLedgerDetails[$memberId]['MemberBillSummary'][$summaryCounter]['balance_amount']) && $accountMemberLedgerDetails[$memberId]['MemberBillSummary'][$summaryCounter]['balance_amount'] > 0) {
+								$accountMemberLedgerDetails[$memberId]['MemberBillSummary'][$summaryCounter]['payment_date'] = date('d/m/Y', strtotime($billData['MemberBillSummary']['bill_generated_date']));
+								if (isset($billData['MemberBillSummary']['balance_amount']) && $billData['MemberBillSummary']['balance_amount'] > 0) {
 									$accountMemberLedgerDetails[$memberId]['MemberBillSummary'][$summaryCounter]['debit_credit_value'] = "DR";
 								} else {
 									$accountMemberLedgerDetails[$memberId]['MemberBillSummary'][$summaryCounter]['debit_credit_value'] = "CR";
 								}
 
-								$monthName = date("F", mktime(0, 0, 0, $accountMemberLedgerDetails[$memberId]['MemberBillSummary'][$summaryCounter]['month'], 10));
-								$accountMemberLedgerDetails[$memberId]['MemberBillSummary'][$summaryCounter]['type']='member_bill_summary';
-								$accountMemberLedgerDetails[$memberId]['MemberBillSummary'][$summaryCounter]['monthName'] = $this->SocietyBill->monthWordFormatByBillingFrequency($accountMemberLedgerDetails[$memberId]['MemberBillSummary'][$summaryCounter]['month']); //$monthName;
+								$accountMemberLedgerDetails[$memberId]['MemberBillSummary'][$summaryCounter]['type'] = 'member_bill_summary';
+								$accountMemberLedgerDetails[$memberId]['MemberBillSummary'][$summaryCounter]['monthName'] = $this->SocietyBill->monthWordFormatByBillingFrequency($billData['MemberBillSummary']['month']);
 
-								//Added Code
-								$MemberBillDateCounterArray[$summaryCounter] = $accountMemberLedgerDetails[$memberId]['MemberBillSummary'][$summaryCounter]['bill_generated_date'];
+								$MemberBillDateCounterArray[$summaryCounter] = $billData['MemberBillSummary']['bill_generated_date'];
 								$paymentMadeBillNo = isset($billData['MemberBillSummary']['bill_no']) ? $billData['MemberBillSummary']['bill_no'] : '';
 								$months = isset($billData['MemberBillSummary']['month']) ? $billData['MemberBillSummary']['month'] : '';
 							}
-
 							$summaryCounter++;
 						}
 					}
 
+					$memberPaymentDetails = isset($paymentsByMember[$memberId]) ? $paymentsByMember[$memberId] : array();
+					if (!empty($memberPaymentDetails)) {
+						foreach ($memberPaymentDetails as $paymentData) {
+							$noPaymentIdsArr[] = $paymentData['MemberPayment']['id'];
+							$paymentCounters = $paymentData['MemberPayment']['bill_generated_id'] . $paymentData['MemberPayment']['member_id'] . $paymentData['MemberPayment']['receipt_id'];
+							$accountMemberLedgerDetails[$memberId]['MemberBillSummary'][$paymentCounters] = $paymentData['MemberPayment'];
+							$formattedDate = date('d/m/Y', strtotime($paymentData['MemberPayment']['payment_date']));
+							$accountMemberLedgerDetails[$memberId]['MemberBillSummary'][$paymentCounters]['payment_date'] = isset($formattedDate) ? $formattedDate : "";
+							$accountMemberLedgerDetails[$memberId]['MemberBillSummary'][$paymentCounters]['type'] = 'member_payments';
+							$pId = $paymentData['MemberPayment']['id'];
+							if (isset($settlementByPaymentAll[$pId])) {
+								$accountMemberLedgerDetails[$memberId]['MemberBillSummary'][$paymentCounters]['paid_principal'] = $settlementByPaymentAll[$pId]['principal_paid'];
+								$accountMemberLedgerDetails[$memberId]['MemberBillSummary'][$paymentCounters]['paid_interest'] = $settlementByPaymentAll[$pId]['interest_paid'];
+								$accountMemberLedgerDetails[$memberId]['MemberBillSummary'][$paymentCounters]['paid_tax'] = $settlementByPaymentAll[$pId]['tax_paid'];
+							} else {
+								$accountMemberLedgerDetails[$memberId]['MemberBillSummary'][$paymentCounters]['paid_principal'] = $paymentData['MemberPayment']['amount_paid'];
+								$accountMemberLedgerDetails[$memberId]['MemberBillSummary'][$paymentCounters]['paid_interest'] = 0;
+								$accountMemberLedgerDetails[$memberId]['MemberBillSummary'][$paymentCounters]['paid_tax'] = 0;
+							}
+						}
+					}
 
-
-		$this->loadModel('Member');
-		$this->loadModel('MemberPayment');
-		$membertransfer = $this->Member->find('first', array('conditions' => array('Member.id' => $memberId), 'fields' => array('Member.member_transfer')));
-		$member_transfer =  $member_transfer['Member']['member_transfer'];
-
-		if($postData['MemberBillSummary']['member_record']=='Old'){
-			$member_transfer = $member_transfer-1;
-		}
-
-		if($member_transfer <=-1){
-			$member_transfer=0;
-		}
-
-				$conditionPayment = array('MemberPayment.society_id' => $this->Session->read('Auth.User.id'), 
-				'MemberPayment.member_id' => $memberId, 'MemberPayment.member_transfer' => $member_transfer);
-				// Old owner's payments are in the year(s) before the transfer; only the
-				// current/new owner's ledger is constrained to the selected year.
-				if ($postData['MemberBillSummary']['member_record'] != 'Old') {
-					$conditionPayment['MemberPayment.financial_year_id'] = $financialYearId;
-				}
-				if (isset($this->request->data['MemberBillSummary']['report_type']) && $this->request->data['MemberBillSummary']['report_type'] != 'Default') {
-					$conditionPayment['MemberPayment.bill_type'] = $this->request->data['MemberBillSummary']['report_type'];
-				}              
-
-								if ($this->Member->MemberPayment->hasAny($conditionPayment)) {
-									$memberPaymentDetails = $this->Member->MemberPayment->find('all', 
-									array('conditions' => $conditionPayment));
-									if (isset($memberPaymentDetails) && count($memberPaymentDetails) > 0) {
-										foreach ($memberPaymentDetails as $paymentData) {
-										$noPaymentIdsArr[] = $paymentData['MemberPayment']['id'];
-										$paymentCounters=  $paymentData['MemberPayment']['bill_generated_id'].$paymentData['MemberPayment']['member_id'].$paymentData['MemberPayment']['receipt_id'];
-										$accountMemberLedgerDetails[$memberId]['MemberBillSummary'][$paymentCounters] = $paymentData['MemberPayment'];
-										$formattedDate = date('d/m/Y', strtotime($paymentData['MemberPayment']['payment_date']));
-										$accountMemberLedgerDetails[$memberId]['MemberBillSummary'][$paymentCounters]['payment_date'] = isset($formattedDate) ? $formattedDate : "";
-										$accountMemberLedgerDetails[$memberId]['MemberBillSummary'][$paymentCounters]['type'] ='member_payments';               
-
-									}
-
+					$journalVoucherMemberPaymentData = array();
+					if (!empty($allJournalVouchers)) {
+						foreach ($allJournalVouchers as $jvItem) {
+							if (($jvItem['JournalVoucher']['jv_credit_member_head_id'] == $memberId || $jvItem['JournalVoucher']['jv_debit_member_head_id'] == $memberId)) {
+								if ($member_transfer == 0 || (isset($jvItem['JournalVoucher']['member_transfer']) && $jvItem['JournalVoucher']['member_transfer'] == $member_transfer)) {
+									$journalVoucherMemberPaymentData[] = $jvItem;
 								}
-
-
-
-								}
-
-					/* Journal voucher data */
-					$journalVoucherMemberPaymentData = $this->SocietyBill->getJournalVoucherCreaditDebitDataByMemberId($memberId,$member_transfer);
+							}
+						}
+					}
 					if (!empty($journalVoucherMemberPaymentData)) {
-						 $paymentCounterr = $summaryCounter+1;
+						$paymentCounterr = $summaryCounter + 1;
 						foreach ($journalVoucherMemberPaymentData as $jvData) {
 							if ($jvData['JournalVoucher']['jv_credit_member_head_id'] != '' && $jvData['JournalVoucher']['jv_credit_member_head_id'] == $memberId) {
 								$accountMemberLedgerDetails[$memberId]['MemberBillSummary'][$paymentCounterr]['amount_paid'] = isset($jvData['JournalVoucher']['jv_amount_credited']) ? $jvData['JournalVoucher']['jv_amount_credited'] : 0.00;
@@ -11701,63 +11786,40 @@ $expIndex = 0;$incomeIdex = 0;
 								$accountMemberLedgerDetails[$memberId]['MemberBillSummary'][$paymentCounterr]['month'] = isset($jv_month) ? $jv_month : "";
 								$accountMemberLedgerDetails[$memberId]['MemberBillSummary'][$paymentCounterr]['member_id'] = isset($memberId) ? $memberId : "";
 								$accountMemberLedgerDetails[$memberId]['MemberBillSummary'][$paymentCounterr]['cheque_reference_number'] = '-';
-								$accountMemberLedgerDetails[$memberId]['MemberBillSummary'][$paymentCounterr]['particulars'] = "JV Credited  ".$jvData['JournalVoucher']['note'];
+								$accountMemberLedgerDetails[$memberId]['MemberBillSummary'][$paymentCounterr]['particulars'] = "JV Credited  " . $jvData['JournalVoucher']['note'];
 								$accountMemberLedgerDetails[$memberId]['MemberBillSummary'][$paymentCounterr]['voucher_no'] = $jvData['JournalVoucher']['voucher_no'];
 								$accountMemberLedgerDetails[$memberId]['MemberBillSummary'][$paymentCounterr]['type'] = 'Credit';
 								$accountMemberLedgerDetails[$memberId]['MemberBillSummary'][$paymentCounterr]['types'] = 'JV';
 							}
 
-
 							if ($jvData['JournalVoucher']['jv_debit_member_head_id'] != '' && $jvData['JournalVoucher']['jv_debit_member_head_id'] == $memberId) {
-								 $accountMemberLedgerDetails[$memberId]['MemberBillSummary'][$paymentCounterr]['amount_paid'] = isset($jvData['JournalVoucher']['jv_amount_debited']) ? $jvData['JournalVoucher']['jv_amount_debited'] : 0.00;
-								 $formattedDate = date('d/m/Y', strtotime($jvData['JournalVoucher']['voucher_date']));
-								 $accountMemberLedgerDetails[$memberId]['MemberBillSummary'][$paymentCounterr]['payment_date'] = isset($formattedDate) ? $formattedDate : "";
-								 $jv_month = date('n', strtotime($jvData['JournalVoucher']['voucher_date']));
+								$accountMemberLedgerDetails[$memberId]['MemberBillSummary'][$paymentCounterr]['amount_paid'] = isset($jvData['JournalVoucher']['jv_amount_debited']) ? $jvData['JournalVoucher']['jv_amount_debited'] : 0.00;
+								$formattedDate = date('d/m/Y', strtotime($jvData['JournalVoucher']['voucher_date']));
+								$accountMemberLedgerDetails[$memberId]['MemberBillSummary'][$paymentCounterr]['payment_date'] = isset($formattedDate) ? $formattedDate : "";
+								$jv_month = date('n', strtotime($jvData['JournalVoucher']['voucher_date']));
 								$accountMemberLedgerDetails[$memberId]['MemberBillSummary'][$paymentCounterr]['month'] = isset($jv_month) ? $jv_month : "";
 								$accountMemberLedgerDetails[$memberId]['MemberBillSummary'][$paymentCounterr]['member_id'] = isset($memberId) ? $memberId : "";
 								$accountMemberLedgerDetails[$memberId]['MemberBillSummary'][$paymentCounterr]['cheque_reference_number'] = '-';
-								$accountMemberLedgerDetails[$memberId]['MemberBillSummary'][$paymentCounterr]['particulars'] = "JV Debited  ".$jvData['JournalVoucher']['note'];
+								$accountMemberLedgerDetails[$memberId]['MemberBillSummary'][$paymentCounterr]['particulars'] = "JV Debited  " . $jvData['JournalVoucher']['note'];
 								$accountMemberLedgerDetails[$memberId]['MemberBillSummary'][$paymentCounterr]['voucher_no'] = $jvData['JournalVoucher']['voucher_no'];
 								$accountMemberLedgerDetails[$memberId]['MemberBillSummary'][$paymentCounterr]['type'] = 'Debit';
 								$accountMemberLedgerDetails[$memberId]['MemberBillSummary'][$paymentCounterr]['types'] = 'JV';
 							}
-
-							   $paymentCounterr++;
+							$paymentCounterr++;
 						}
 					}
 
+					if (isset($accountMemberLedgerDetails[$memberId]['MemberBillSummary'])) {
+						uasort($accountMemberLedgerDetails[$memberId]['MemberBillSummary'], function($a, $b) use ($utcZone) {
+							$d2 = DateTime::createFromFormat('d/m/Y', $a['payment_date'], $utcZone)->getTimestamp();
+							$d1 = DateTime::createFromFormat('d/m/Y', $b['payment_date'], $utcZone)->getTimestamp();
+							return $d2 - $d1;
+						});
+					}
+				}
+			}
+		}
 
-
-
-
-
-
-	  
-
-				uasort($accountMemberLedgerDetails[$memberId]['MemberBillSummary'], function($a, $b){
-
-				$format = 'd/m/Y'; 
-
-				$ascending = false;
-
-				$zone = new DateTimeZone('UTC');
-
-				$d2 = DateTime::createFromFormat($format, $a['payment_date'], $zone)->getTimestamp();
-
-				$d1 = DateTime::createFromFormat($format, $b['payment_date'], $zone)->getTimestamp();
-
-				return $ascending ? ($d1 - $d2) : ($d2 - $d1);
-
-				});
-
-	}
-
-	}
-
-	}
-
-/*echo "<pre>";
-print_r($accountMemberLedgerDetails);exit;*/
 		$this->set(compact('postData', 'accountMemberLedgerDetails', 'societyDetails', 'memberArr'));
 
 

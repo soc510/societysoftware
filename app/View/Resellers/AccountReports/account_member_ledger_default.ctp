@@ -462,9 +462,9 @@ if($dueAmuntt[$MemberLedgerData['Member']['id']][$countt] ==0){
 //  3.2] Member Payment
     if(isset($MemberLedgerDetails['payment_date']) && $MemberLedgerDetails['payment_date'] != '' && $MemberLedgerDetails['type']=='member_payments') { 
     
-    $settlePrincipal = $settlePrincipal + $MemberLedgerDetails['paid_principal'];
-    $settleInterest = $settleInterest + $MemberLedgerDetails['paid_interest'];
-    $settleTax = $settleTax + $MemberLedgerDetails['paid_tax'];
+    $settlePrincipal = $settlePrincipal + (isset($MemberLedgerDetails['paid_principal']) ? $MemberLedgerDetails['paid_principal'] : 0);
+    $settleInterest = $settleInterest + (isset($MemberLedgerDetails['paid_interest']) ? $MemberLedgerDetails['paid_interest'] : 0);
+    $settleTax = $settleTax + (isset($MemberLedgerDetails['paid_tax']) ? $MemberLedgerDetails['paid_tax'] : 0);
 
     $creaditAmt = isset($MemberLedgerDetails['amount_paid']) ? $MemberLedgerDetails['amount_paid'] : '0.00';
     $paymentTotalAmount = $paymentTotalAmount + $creaditAmt;
@@ -492,8 +492,8 @@ if($dueAmuntt[$MemberLedgerData['Member']['id']][$countt] ==0){
         <td width="8%" class="text-right">0.00</td>
         <td width="8%" class="text-right">0.00</td>
         <td width="8%" class="text-right"><?php echo isset($MemberLedgerDetails['paid_principal']) ? $MemberLedgerDetails['paid_principal'] : 0; ?></td>
-        <td width="8%" class="text-right"><?php echo $MemberLedgerDetails['paid_interest']; ?></td>
-        <td width="8%" class="text-right"><?php echo $MemberLedgerDetails['paid_tax']; ?></td>
+        <td width="8%" class="text-right"><?php echo isset($MemberLedgerDetails['paid_interest']) ? $MemberLedgerDetails['paid_interest'] : 0; ?></td>
+        <td width="8%" class="text-right"><?php echo isset($MemberLedgerDetails['paid_tax']) ? $MemberLedgerDetails['paid_tax'] : 0; ?></td>
         <?php } else {?>
         <td width="8%" class="text-right">0.00</td>
         <?php } ?>

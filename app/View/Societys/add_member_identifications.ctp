@@ -397,4 +397,25 @@
             </div>
         </div>
     </div>
+<script>
+var memberOpBalances = <?php echo json_encode(isset($memberOpBalances) ? $memberOpBalances : array()); ?>;
+var origSetMember = window.setCurentMemberInMemberTranfer;
+window.setCurentMemberInMemberTranfer = function(){
+    var selectedValue = $('#member_identification_flat_no option:selected').val();
+    var splittedVaueArr = selectedValue.split("__");
+    var memberId = splittedVaueArr[1];
+    var memberName = splittedVaueArr[2];
+    $('#third_member').val(memberName);
+    $('#member_id').val(memberId);
+    if(memberOpBalances[memberId]){
+        $('#op_principal').val(memberOpBalances[memberId]['op_principal'] || '0.00');
+        $('#op_interest').val(memberOpBalances[memberId]['op_interest'] || '0.00');
+        $('#op_tax').val(memberOpBalances[memberId]['op_tax'] || '0.00');
+    } else {
+        $('#op_principal').val('0.00');
+        $('#op_interest').val('0.00');
+        $('#op_tax').val('0.00');
+    }
+};
+</script>
 

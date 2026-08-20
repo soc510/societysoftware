@@ -18,6 +18,12 @@
                              <?php // echo $this->Html->link('<i class="fa fa-upload" style="color:#fff;font-size:10px;"></i> Upload Member Identities CSV','javascript:void(0);',array('onclick'=>"loadSocietyBillsModel('#upload_Member_Identitys_CSV');",'class' => 'btn btn-warning','data-toggle' => 'tooltip', 'data-original-title' => 'Upload member list using CSV','style'=>array('margin-right:10px;'),'escape' => false)); ?>
                     </div>&nbsp;&nbsp;
                     <div class="pull-right">
+                             <?php echo $this->Html->link('<i class="fa fa-upload" style="color:#fff;font-size:10px;"></i> Upload Member Opening Balance', array('controller' => 'societys','action' => 'upload_member_op_balance'), array('class' => 'btn btn-danger','data-toggle' => 'tooltip', 'data-original-title' => 'Upload CSV to update member opening balance','style'=>array('margin-right:10px;'),'escape' => false)); ?>
+                    </div>
+                    <div class="pull-right">
+                             <?php echo $this->Html->link('<i class="fa fa-download" style="color:#fff;font-size:10px;"></i> Download Member Opening Balance', array('controller' => 'societys','action' => 'download_member_op_template'), array('class' => 'btn btn-info','data-toggle' => 'tooltip', 'data-original-title' => 'Download member data with opening balance as CSV','style'=>array('margin-right:10px;'),'escape' => false)); ?>
+                    </div>
+                    <div class="pull-right">
                              <?php echo $this->Html->link('<i class="fa fa-download" style="color:#fff;font-size:10px;"></i> Download Sample Template file','/files/SampleMembersIdentities.csv', array('class' => 'btn  btn-success','data-toggle' => 'tooltip', 'data-original-title' => 'Download member identities sample CSV file','style'=>array('margin-right:10px;'),'escape' => false)); ?>
                      </div>
                     <div class="clearfix"></div>
