@@ -212,15 +212,25 @@ class MenuComponent extends Component {
                            // Router::url(array('controller' => 'societys_members', 'action' => 'SEND SMS'), true) => 'Reprt send SMS'
                         )
                     ),
+                    'Registers' => array('icon' => '<i class="zmdi zmdi-library mr-20"></i>', 'sublink' => Router::url(array('controller' => 'registers', 'action' => 'index'), true),
+                        'submenu' => array(
+                            Router::url(array('controller' => 'registers', 'action' => 'fd_register'), true) => 'FD Register',
+                            Router::url(array('controller' => 'registers', 'action' => 'shares_register'), true) => 'Shares Register',
+                            Router::url(array('controller' => 'registers', 'action' => 'lien_register'), true) => 'Lien Register',
+                            Router::url(array('controller' => 'registers', 'action' => 'nominee_register'), true) => 'Nominee Register',
+                            Router::url(array('controller' => 'registers', 'action' => 'form_i'), true) => 'Form I',
+                            Router::url(array('controller' => 'registers', 'action' => 'form_j'), true) => 'Form J',
+                        )
+                    ),
                     'Employee' => array('icon' => '<i class="zmdi zmdi-accounts-alt mr-20"></i></i>', 'sublink' => Router::url(array('controller' => 'society', 'action' => 'dashboard'), true),
                         'submenu' => array(
                             Router::url(array('controller' => 'societys_employees', 'action' => 'employee_categories'), true) => 'Employee Category',
                             Router::url(array('controller' => 'societys_employees', 'action' => 'employee_sub_categories'), true) => 'Employee Sub Category',
                             Router::url(array('controller' => 'societys_employees', 'action' => 'employee_details'), true) => 'Employee Details',
-                            
+
                         )
                     ),
-                    
+
                     'Send Sms' => array('icon' => '<i class="zmdi zmdi-envelope mr-20" ></i></i>',  'sublink' => Router::url(array('controller' => 'society', 'action' => 'dashboard'), true),
                         'submenu' => array(
                             Router::url(array('controller' => 'society_sms', 'action' => 'account_dues_member'),  true) => 'account dues from member',
@@ -299,15 +309,25 @@ class MenuComponent extends Component {
                            // Router::url(array('controller' => 'societys_members', 'action' => 'SEND SMS'), true) => 'Reprt send SMS'
                         )
                     ),
+                    'Registers' => array('icon' => '<i class="zmdi zmdi-library mr-20"></i>', 'sublink' => Router::url(array('controller' => 'registers', 'action' => 'index'), true),
+                        'submenu' => array(
+                            Router::url(array('controller' => 'registers', 'action' => 'fd_register'), true) => 'FD Register',
+                            Router::url(array('controller' => 'registers', 'action' => 'shares_register'), true) => 'Shares Register',
+                            Router::url(array('controller' => 'registers', 'action' => 'lien_register'), true) => 'Lien Register',
+                            Router::url(array('controller' => 'registers', 'action' => 'nominee_register'), true) => 'Nominee Register',
+                            Router::url(array('controller' => 'registers', 'action' => 'form_i'), true) => 'Form I',
+                            Router::url(array('controller' => 'registers', 'action' => 'form_j'), true) => 'Form J',
+                        )
+                    ),
                     'Employee' => array('icon' => '<i class="zmdi zmdi-accounts-alt mr-20"></i></i>', 'sublink' => Router::url(array('controller' => 'society', 'action' => 'dashboard'), true),
                         'submenu' => array(
                             Router::url(array('controller' => 'societys_employees', 'action' => 'employee_categories'), true) => 'Employee Category',
                             Router::url(array('controller' => 'societys_employees', 'action' => 'employee_sub_categories'), true) => 'Employee Sub Category',
                             Router::url(array('controller' => 'societys_employees', 'action' => 'employee_details'), true) => 'Employee Details',
-                            
+
                         )
                     ),
-                    
+
                     'Reports' => array('icon' => '<i class="zmdi zmdi-account mr-20"></i></i>', 'sublink' => Router::url(array('controller' => 'societys', 'action' => 'dashboard'), true),
                         'submenu' => array(
                             Router::url(array('controller' => 'account_reports', 'action' => 'account'), true) => 'Accounts',
