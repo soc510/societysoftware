@@ -295,7 +295,7 @@
                             }
                             ?>
                             <?php if ($show){ ?>
-                            <a type="button" data-toggle="tooltip" data-original-title="Member Ledger" class="btn btn-default" target="_blank" href="<?php echo Router::url(array('controller' =>'account_reports','action' =>'comparison_2018closing_2019opening')); ?>"><span class="btn-text">Closing2018 vs Opening2019</span></a>
+                            <a type="button" data-toggle="tooltip" data-original-title="Closing vs Opening Balance Comparison" class="btn btn-default" target="_blank" href="<?php echo Router::url(array('controller' =>'account_reports','action' =>'comparison_2018closing_2019opening')); ?>"><span class="btn-text">Closing Vs Opening</span></a>
                             <?php } ?>
                             <?php if ($show){ ?>
                             <a type="button" data-toggle="tooltip" data-original-title="Member Ledger" class="btn btn-default" target="_blank" href="<?php echo Router::url(array('controller' =>'account_reports','action' =>'bill_summary_with_prev_data')); ?>"><span class="btn-text">Bill Summary With PrevData</span></a>
