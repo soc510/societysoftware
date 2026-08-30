@@ -131,11 +131,13 @@ class MenuComponent extends Component {
                     //)
 
                     ),
-                    'Add User' => array(
-
-                        'link' => Router::url(array('controller' => 'resellers', 'action' => 'manage_users'), true),
-
-                        'icon' => '<i class="zmdi zmdi-account-add mr-20"></i>',
+                    'Manage Users' => array(
+                        'icon' => '<i class="zmdi zmdi-accounts mr-20"></i>',
+                        'submenu' => array(
+                            Router::url(array('controller' => 'resellers', 'action' => 'manage_users'), true) => 'User List',
+                            Router::url(array('controller' => 'resellers', 'action' => 'add_user'), true) => 'Create User',
+                            Router::url(array('controller' => 'resellers', 'action' => 'permissions'), true) => 'Permissions',
+                        )
                     ),
 
                     'Audit reports' => array(
