@@ -22557,237 +22557,71 @@ foreach ($totalDues as $value) {
 
 
 
+
     public function comparison_2018closing_2019opening(){
-		
+
 		ini_set('max_execution_time', 2700);
-		
-		/***** closing balance for members code from trial Balance **/
+
 		$societyId = $this->societyloginID;
-		$postData = $this->request->data;
-		
-		$openingBalance = $this->SocietyBill->getSocietyLedgerOpClosingBalSocietyWise($societyId);
-        
+		$yearStartDate = $this->Session->read('Auth.year_start_date');
+		$yearEndDate = $this->Session->read('Auth.year_end_date');
+		$closingYear = date('Y', strtotime($yearStartDate));
+		$openingYear = $closingYear + 1;
 
-		$postData = $this->request->data;
-		
-		if (empty($this->request->data['TrialBalance']['payment_date']) && empty($this->request->data['TrialBalance']['payment_date_to']))
-		{
-		    
-			$this->request->data['TrialBalance']['payment_date'] = $this->Session->read('Auth.year_start_date');
-			$this->request->data['TrialBalance']['payment_date_to'] =$this->Session->read('Auth.year_end_date');
-		
-		    $postData['TrialBalance']['payment_date'] = $this->Session->read('Auth.year_start_date');
-			$postData['TrialBalance']['payment_date_to'] =$this->Session->read('Auth.year_end_date');
-		}
-		
-		$trialBalanceHeads = array();
-		$options['AND'] = array('MemberPayment.society_id' => $societyId);
-		$optionsSociety['AND'] = array('SocietyPayment.society_id' => $societyId);
-		$optionsCashWithdraw['AND'] = array('CashWithdraw.society_id' => $societyId);
-		$optionsSocietyOtherIncome['AND'] = array('SocietyOtherIncome.society_id' => $societyId);
-		$optionsJournalVoucher['AND'] = array('JournalVoucher.society_id' => $societyId);
-		$optionsMemberBillSummary['AND'] = array('MemberBillSummary.society_id' => $societyId);
-		$optionsMemberBillGenerate['AND'] = array('MemberBillGenerate.society_id' => $societyId);
+		$closingTotalAmount = 0;
+		$openingTotalAmount = 0;
+		$differenceTotalAmount = 0;
+		$societyMemberDetails = array();
 
-		$paymentDtFilterString = "";
-		if (isset($this->request->data['TrialBalance']['payment_date']) && !empty($this->request->data['TrialBalance']['payment_date']) && !empty($this->request->data['TrialBalance']['payment_date_to'])) {
-			$options['OR']['MemberPayment.payment_date BETWEEN ? and ?'] = array($this->request->data['TrialBalance']['payment_date'], $this->request->data['TrialBalance']['payment_date_to']);
-			$paymentDtFilterString = " and payment_date between '".$this->request->data['TrialBalance']['payment_date']."' and '".$this->request->data['TrialBalance']['payment_date_to']."'";
-			$optionsCashWithdraw['OR']['CashWithdraw.payment_date BETWEEN ? and ?'] = array($this->request->data['TrialBalance']['payment_date'], $this->request->data['TrialBalance']['payment_date_to']);
-			$optionsSociety['OR']['SocietyPayment.payment_date BETWEEN ? and ?'] = array($this->request->data['TrialBalance']['payment_date'], $this->request->data['TrialBalance']['payment_date_to']);
-			$optionsSocietyOtherIncome['OR']['SocietyOtherIncome.payment_date BETWEEN ? and ?'] = array($this->request->data['TrialBalance']['payment_date'], $this->request->data['TrialBalance']['payment_date_to']);
-			$optionsJournalVoucher['OR']['JournalVoucher.voucher_date BETWEEN ? and ?'] = array($this->request->data['TrialBalance']['payment_date'], $this->request->data['TrialBalance']['payment_date_to']);
-			$optionsMemberBillSummary['OR']['MemberBillSummary.bill_generated_date BETWEEN ? and ?'] = array($this->request->data['TrialBalance']['payment_date'], $this->request->data['TrialBalance']['payment_date_to']);
-			$optionsMemberBillGenerate['OR']['MemberBillGenerate.bill_generated_date BETWEEN ? and ?'] = array($this->request->data['TrialBalance']['payment_date'], $this->request->data['TrialBalance']['payment_date_to']);
-		
-			
-		} else if (isset($this->request->data['TrialBalance']['payment_date']) && !empty($this->request->data['TrialBalance']['payment_date'])) {
-			$options['AND']['MemberPayment.payment_date'] = $this->request->data['TrialBalance']['payment_date'];
-			$paymentDtFilterString = " and payment_date = '".$this->request->data['TrialBalance']['payment_date']."'";
-			$optionsCashWithdraw['AND']['CashWithdraw.payment_date'] = $this->request->data['TrialBalance']['payment_date'];
-			$optionsSociety['AND']['SocietyPayment.payment_date'] = $this->request->data['TrialBalance']['payment_date'];
-			$optionsSocietyOtherIncome['AND']['SocietyOtherIncome.payment_date'] = $this->request->data['TrialBalance']['payment_date'];
-			$optionsJournalVoucher['AND']['JournalVoucher.voucher_date'] = $this->request->data['TrialBalance']['payment_date'];
-			$optionsMemberBillSummary['AND']['MemberBillSummary.bill_generated_date'] = $this->request->data['TrialBalance']['payment_date'];
-			$optionsMemberBillGenerate['AND']['MemberBillGenerate.bill_generated_date'] = $this->request->data['TrialBalance']['payment_date'];
-		} else if (isset($this->request->data['TrialBalance']['payment_date_to']) && !empty($this->request->data['TrialBalance']['payment_date_to'])) {
-			$options['AND']['MemberPayment.payment_date'] = $this->request->data['TrialBalance']['payment_date_to'];
-			$paymentDtFilterString = " and payment_date = '".$this->request->data['TrialBalance']['payment_date_to']."'";
-			$optionsCashWithdraw['AND']['CashWithdraw.payment_date'] = $this->request->data['TrialBalance']['payment_date_to'];
-			$optionsSociety['AND']['SocietyPayment.payment_date'] = $this->request->data['TrialBalance']['payment_date_to'];
-			$optionsSocietyOtherIncome['AND']['SocietyOtherIncome.payment_date'] = $this->request->data['TrialBalance']['payment_date_to'];
-			$optionsJournalVoucher['AND']['JournalVoucher.voucher_date'] = $this->request->data['TrialBalance']['payment_date_to'];
-			$optionsMemberBillSummary['AND']['MemberBillSummary.bill_generated_date'] = $this->request->data['TrialBalance']['payment_date_to'];
-			$optionsMemberBillGenerate['AND']['MemberBillGenerate.bill_generated_date'] = $this->request->data['TrialBalance']['payment_date_to'];
-		}
+		$societyDetails = $this->SocietyBill->getSocietyDetails();
+		$prevYearClosingBalance = $this->SocietyBill->getMemberslastClosingBalance('reg');
+		$currentYearOpeningBalance = $this->SocietyBill->getMemberOpBalanceSocietyWise($societyId, 'reg');
 
-		$openingMemberBalance = $this->SocietyBill->getMemberOpBalanceSocietyWise($societyId,'reg');
-		$memberDetailslist = $this->Member->find('all', array('conditions' => array('Member.society_id' => $societyId,'Member.status' => 1), 'order' => array('Member.id' => 'asc'),'recursive'=>-1));
-       
-			$i = 0;
-		foreach($memberDetailslist as $value){
-			$memberDetails[$i]['Member'] = $value['Member'];
-			$i++;
-		 }
-
-		//remove dues and add it to advance as advance & dues
-  
-		unset($societyHeadSubCategoryArray[22]);
-		$societyHeadSubCategoryArray[7]['title'] = 'Advances & Dues From Members';
-	 
-		if (!empty($memberDetails)) {
-
-			foreach ($memberDetails as $member) {
-			   // if($member['Member']['id'] != 431) continue;
-				$debit = 0;
-				$credit = 0;
-
-				 $name = $member['Member']['member_prefix'] . ' ' . $member['Member']['member_name'] . ' (' . $member['Member']['flat_no'] . ')';
-		   
-				$details = array('id' => $member['Member']['id'], 'title' => $name);
-
-				//$openingTemp = $member['Member']['op_principal'] + $member['Member']['op_interest'] + $member['Member']['op_tax'];
-                $openingTemp = $openingMemberBalance[$member['Member']['id']]['principal_balance']+$openingMemberBalance[$member['Member']['id']]['interest_balance']+$openingMemberBalance[$member['Member']['id']]['tax_balance'];
-				if ($openingTemp < 0) {
-					$credit = abs($openingTemp);
-				} else if ($openingTemp > 0) {
-					$debit = abs($openingTemp);
-				}
-
-				$opening = array('debit' => $debit, 'credit' => $credit);
-				$postData['TrialBalance'] = isset($postData['TrialBalance']) ? $postData['TrialBalance'] : array();
-				$transactions = $this->getMemberBalance($member['Member']['id'], $societyId, $postData['TrialBalance']);
-			
-				
-				// echo $member['Member']['id'].'--'.$transactions['debit'].'--'.$transactions['credit'].'<br>';
-				
-				$closingAmt = ($opening['debit'] + $transactions['debit']) - ($opening['credit'] + $transactions['credit']);
-				//Advance & Dues From Members
-				$societyMemberDetails[$member['Member']['id']]['closing2018'] = $closingAmt;
-				$societyMemberDetails[$member['Member']['id']]['flat_no'] = $member['Member']['flat_no'];
-				if ($closingAmt <= 0) {
-					$societyMemberDetails[$member['Member']['id']]['closingCrDr'] = ' Cr';
-				} else {
-					$societyMemberDetails[$member['Member']['id']]['closingCrDr'] = ' Dr';
-				}
-
-				
-				
-				if ($closingAmt >= 0) {
-
-					$closing = array('credit' => '', 'debit' => abs($closingAmt));
-
-					//Dues from members
-					//$trialBalanceHeads[22]['ledgers'][] = array(
-					$trialBalanceHeads[7]['ledgers'][] = array(
-						'details' => $details,
-						'opening' => $opening,
-						'transactions' => $transactions,
-						'closing' => $closing,
-					);
-	   
-				} else if ($closingAmt < 0) {
-					$closing = array('credit' => abs($closingAmt), 'debit' => '');
-
-					//Advanced from members
-					$trialBalanceHeads[7]['ledgers'][] = array(
-						'details' => $details,
-						'opening' => $opening,
-						'transactions' => $transactions,
-						'closing' => $closing,
-					);
-				}
-				
-				
-			}
-		}
-		//echo "<pre>";
-		//echo "From Trial Balance";
-		//print_r($trialBalanceHeads);exit;
-		
-		//***************** Trial Balance Ends *************************/
-
-		# opening balance from the member bill summary logic
-		
-		
-		$societyId = $this->societyloginID;
-		$financialYearId = $this->Util->getFinancialYear();
-		
-		$memberPaymentBalance = $this->SocietyBill->getMemberWiseClosingBalance('reg');
-        $memberPaymentSupBalance = $this->SocietyBill->getMemberWiseClosingBalance('sup');
-
-        $this->loadModel('Member');
-
-		$memberDetails = $this->Member->find('all', array('fields' => array('Member.id','Member.member_name'),'conditions' => array('Member.society_id' => $societyId,'Member.status' => Configure::read('Active')), 'order' => array('Member.id' => 'asc'),'recursive'=>-1));
-	//	$memberClosingBalances = array();
-		
-		//echo "<pre>";
-		//print_r( $memberPaymentSupBalance);die;
-		$i = 0;
-		$j = 0;
-		$regularBalance = 0;
-		$supBalance = 0;
-
-		if (!empty($memberPaymentBalance)){
-			$regularBalance = 1;
-		}
-		if (!empty($memberPaymentSupBalance)){
-			$supBalance = 1;
-		}
+		$this->loadModel('Member');
+		$memberDetails = $this->Member->find('all', array(
+			'fields' => array('Member.id', 'Member.member_name', 'Member.member_prefix', 'Member.flat_no'),
+			'conditions' => array('Member.society_id' => $societyId, 'Member.status' => 1),
+			'order' => array('Member.id' => 'asc'),
+			'recursive' => -1
+		));
 
 		if (!empty($memberDetails)) {
 			foreach ($memberDetails as $member) {
-				$societyMemberDetails[$member['Member']['id']]['member_name'] = $member['Member']['member_name'];
-				//echo "<br>flat".$societyMemberDetails[$member['Member']['id']]['flat_no'] = $member['Member']['flat_no'];
-							if (!empty($regularBalance)){
-							$memberClosingBalances[0][$i] = array(
-								'member_name' => $member['Member']['member_name'],
-								'member_id' => $member['Member']['id'],
-								'bill_type' => $memberPaymentBalance[$member['Member']['id']]['bill_type'],
-								'principal' => round($memberPaymentBalance[$member['Member']['id']]['principal_balance']),
-								'interest' => round($memberPaymentBalance[$member['Member']['id']]['interest_balance']),
-								'tax' => round($memberPaymentBalance[$member['Member']['id']]['tax_balance']),
-								'balance_amount' => round($memberPaymentBalance[$member['Member']['id']]['balance_amount'])
-								);
-							$i++;
-							}
+				$memberId = $member['Member']['id'];
 
-							if ($supBalance == 1){
-								$memberClosingBalances[1][$j] = array(
-									'member_name' => $member['Member']['member_name'],
-									'member_id' => $member['Member']['id'],
-									'bill_type' => $memberPaymentSupBalance[$member['Member']['id']]['bill_type'],
-									'principal' => round($memberPaymentSupBalance[$member['Member']['id']]['principal_balance']),
-									'interest' => round($memberPaymentSupBalance[$member['Member']['id']]['interest_balance']),
-									'tax' => round($memberPaymentSupBalance[$member['Member']['id']]['tax_balance']),
-									'balance_amount' => round($memberPaymentSupBalance[$member['Member']['id']]['balance_amount'])
-									);
-								$j++;
-							}
-				$societyMemberDetails[$member['Member']['id']]['opening2019'] = number_format(abs($memberPaymentBalance[$member['Member']['id']]['balance_amount']), 2, '.', ',');
-				if ($societyMemberDetails2019[$member['Member']['id']]['opening2019'] <= 0) {
-					$societyMemberDetails[$member['Member']['id']]['openingCrDr'] = ' Cr';
-				} else {
-					$societyMemberDetails[$member['Member']['id']]['openingCrDr'] = ' Dr';
-				}
-				$difference = abs($societyMemberDetails[$member['Member']['id']]['closing2018']) - abs($memberPaymentBalance[$member['Member']['id']]['balance_amount']);
+				$closingPrincipal = isset($prevYearClosingBalance[$memberId]['principal_balance']) ? $prevYearClosingBalance[$memberId]['principal_balance'] : 0;
+				$closingInterest = isset($prevYearClosingBalance[$memberId]['interest_balance']) ? $prevYearClosingBalance[$memberId]['interest_balance'] : 0;
+				$closingTax = isset($prevYearClosingBalance[$memberId]['tax_balance']) ? $prevYearClosingBalance[$memberId]['tax_balance'] : 0;
+				$closingRaw = $closingPrincipal + $closingInterest + $closingTax;
 
+				$openingPrincipal = isset($currentYearOpeningBalance[$memberId]['principal_balance']) ? $currentYearOpeningBalance[$memberId]['principal_balance'] : 0;
+				$openingInterest = isset($currentYearOpeningBalance[$memberId]['interest_balance']) ? $currentYearOpeningBalance[$memberId]['interest_balance'] : 0;
+				$openingTax = isset($currentYearOpeningBalance[$memberId]['tax_balance']) ? $currentYearOpeningBalance[$memberId]['tax_balance'] : 0;
+				$openingRaw = $openingPrincipal + $openingInterest + $openingTax;
 
+				$difference = abs($closingRaw) - abs($openingRaw);
 
+				$societyMemberDetails[$memberId] = array(
+					'member_name' => $member['Member']['member_name'],
+					'member_prefix' => $member['Member']['member_prefix'],
+					'flat_no' => $member['Member']['flat_no'],
+					'closing2018' => number_format(abs($closingRaw), 2, '.', ','),
+					'closingCrDr' => ($closingRaw <= 0) ? ' Cr' : ' Dr',
+					'opening2019' => number_format(abs($openingRaw), 2, '.', ','),
+					'openingCrDr' => ($openingRaw <= 0) ? ' Cr' : ' Dr',
+					'difference' => number_format(abs($difference), 2, '.', ','),
+					'differenceCrDr' => ($difference == 0) ? '' : (($difference > 0) ? ' Dr' : ' Cr'),
+				);
+
+				$closingTotalAmount += $closingRaw;
+				$openingTotalAmount += $openingRaw;
 				$differenceTotalAmount += $difference;
-
-
-
-				$societyMemberDetails[$member['Member']['id']]['difference'] = $difference;
 			}
 		}
-		//echo "<pre>";
-	//	print_r($memberClosingBalances);
-	
-		/******************* Code ends here ***************/
-		
-		$this->set(compact('societyMemberDetails', 'societyDetails', 'differenceTotalAmount', 'closingTotalAmount', 'openingTotalAmount'));
+
+		$this->set(compact('societyMemberDetails', 'societyDetails', 'differenceTotalAmount', 'closingTotalAmount', 'openingTotalAmount', 'closingYear', 'openingYear'));
 	}
+
 
 	public function comparison_2018closing_2019opening_orig() {
 

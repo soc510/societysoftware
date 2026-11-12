@@ -19,7 +19,7 @@
                                         <div class="report-address-heading"><?php echo isset($societyDetails['Society']['address']) ? $societyDetails['Society']['address'] : ''; ?></div>
                                     </div>
                                     <br>
-                                    <div class="report-bill">Closing Balance ( this year) vs Opening Balance ( next year )</div>
+                                    <div class="report-bill">Closing Balance <?php echo isset($closingYear) ? $closingYear : ''; ?> vs Opening Balance <?php echo isset($openingYear) ? $openingYear : ''; ?></div>
                                     <div class="report-bill"></div>  
                                     <div class="report-bill-outer-section no-border-thead">
                                         <div class="table-wrap1">
@@ -30,9 +30,9 @@
                                                         <th style="width:5%;" class="text-center">Unit No.</th>
                                                         <th class="text-center">Member Name</th>
                                                         
-                                                        <th style="width:20%;" class="text-right">Closing Balance 2021</th>
-                                                        <th style="width:20%;" class="text-right">Opening Balance 2021</th>
-                                                        <th style="width:20%;" class="text-right">Differnce</th>
+                                                        <th style="width:20%;" class="text-right">Closing Balance <?php echo isset($closingYear) ? $closingYear : ''; ?></th>
+                                                        <th style="width:20%;" class="text-right">Opening Balance <?php echo isset($openingYear) ? $openingYear : ''; ?></th>
+                                                        <th style="width:20%;" class="text-right">Difference</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody>
@@ -52,7 +52,7 @@
                                                     <tr id="<?php echo $idCount;  ?>">
                                                         <td><?php echo $idCount;  ?></td>
                                                         <td><?php echo isset($memberDetails['flat_no']) ? $memberDetails['flat_no'] : '';  ?></td>
-                                                        <td><?php echo isset($memberDetails['member_prefix']) ? $memberDetails['member_prefix'].$memberDetails['member_name'] : '';  ?> <?php echo isset($memberDetails['member_name']) ? $memberDetails['member_name'] : '';  ?></td>  
+                                                        <td><?php echo isset($memberDetails['member_prefix']) ? $memberDetails['member_prefix'] . ' ' . $memberDetails['member_name'] : (isset($memberDetails['member_name']) ? $memberDetails['member_name'] : '');  ?></td>  
                                                         <td class="text-right"><?php echo $memberDetails['closing2018'].$memberDetails['closingCrDr'];  ?></td>
                                                         <td class="text-right"><?php echo $memberDetails['opening2019'].$memberDetails['openingCrDr'];  ?></td>
                                                         
